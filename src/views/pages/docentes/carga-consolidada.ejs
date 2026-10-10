@@ -1,0 +1,342 @@
+<!-- Header del Módulo de Carga Consolidada -->
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <a href="/docentes" class="breadcrumb-link">Docentes</a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Planilla Consolidada</span>
+      </div>
+      <h1 class="page-title uk-margin-remove">Planilla Oficial de Carga Horaria Docente (UBV)</h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Fiscalización de jornada laboral docente, topes legales de docencia directa (Reglas H-04 y H-05) y desglose de permanencia institucional. Período: <strong><%= periodoActivo.codigo %></strong>.
+      </p>
+    </div>
+    <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
+      <a href="/docentes" class="btn-clean-secondary">
+        <span uk-icon="icon: arrow-left; ratio: 0.85"></span>
+        <span>Volver a Nómina</span>
+      </a>
+      <button class="btn-clean-primary" onclick="window.print()">
+        <span uk-icon="icon: print; ratio: 0.85"></span>
+        <span>Imprimir Planilla</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Pestañas de Navegación del Módulo -->
+  <div class="admin-subtabs uk-margin-top">
+    <a href="/docentes" class="subtab-item">
+      <span uk-icon="icon: users; ratio: 0.8"></span>
+      <span>Nómina de Docentes</span>
+    </a>
+    <a href="/docentes/carga-consolidada" class="subtab-item is-active">
+      <span uk-icon="icon: file-text; ratio: 0.8"></span>
+      <span>Carga Horaria & Normativa UBV (<%= consolidado.length %>)</span>
+    </a>
+  </div>
+</div>
+
+<!-- Bento Stat Cards de Cumplimiento Normativo -->
+<div class="uk-grid-small uk-child-width-1-2 uk-child-width-1-4@m uk-margin-medium-bottom" uk-grid>
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Docentes Evaluados</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= metricas.totalDocentes %></span>
+        <span class="stat-unit">profesores</span>
+      </div>
+      <span class="detail-label"><%= metricas.totalHorasDirectasGlobal %>h lectivas totales</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">En Norma Legal</span>
+      <div class="stat-value-row">
+        <span class="stat-number text-green"><%= metricas.totalEnNorma %></span>
+        <span class="stat-unit">docentes</span>
+      </div>
+      <span class="detail-label">Cumplimiento H-04 y H-05</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Déficit de Horas</span>
+      <div class="stat-value-row">
+        <span class="stat-number" style="color: var(--accent-amber);"><%= metricas.totalDeficit %></span>
+        <span class="stat-unit">docentes</span>
+      </div>
+      <span class="detail-label">Carga inferior a mín. legal (H-05)</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Sobrecarga Lectiva</span>
+      <div class="stat-value-row">
+        <span class="stat-number text-red"><%= metricas.totalSobrecarga %></span>
+        <span class="stat-unit">docentes</span>
+      </div>
+      <span class="detail-label">Exceso sobre tope legal (H-04)</span>
+    </div>
+  </div>
+</div>
+
+<!-- Panel de Planilla Consolidada con Clean Table -->
+<div class="clean-panel data-table-wrapper">
+  
+  <!-- Barra de Filtros -->
+  <form method="GET" action="/docentes/carga-consolidada" class="table-toolbar uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-2">
+    <div class="table-toolbar-left uk-flex uk-flex-middle uk-flex-wrap gap-2">
+      <!-- Filtro por Estado Normativo -->
+      <select name="estado" class="table-filter-select" onchange="this.form.submit()">
+        <option value="">Todos los estados</option>
+        <option value="EN_NORMA" <%= filtros.estado === 'EN_NORMA' ? 'selected' : '' %>>En Norma Legal</option>
+        <option value="DEFICIT" <%= filtros.estado === 'DEFICIT' ? 'selected' : '' %>>Déficit de Horas (H-05)</option>
+        <option value="SOBRECARGA" <%= filtros.estado === 'SOBRECARGA' ? 'selected' : '' %>>Sobrecarga (H-04)</option>
+        <option value="SIN_ASIGNAR" <%= filtros.estado === 'SIN_ASIGNAR' ? 'selected' : '' %>>Sin Carga Asignada</option>
+      </select>
+
+      <!-- Filtro por Dedicación -->
+      <select name="dedicacion" class="table-filter-select" onchange="this.form.submit()">
+        <option value="">Todas las dedicaciones</option>
+        <option value="DEDICACION_EXCLUSIVA" <%= filtros.dedicacion === 'DEDICACION_EXCLUSIVA' ? 'selected' : '' %>>Dedicación Exclusiva (DE)</option>
+        <option value="TIEMPO_COMPLETO" <%= filtros.dedicacion === 'TIEMPO_COMPLETO' ? 'selected' : '' %>>Tiempo Completo (TC)</option>
+        <option value="MEDIO_TIEMPO" <%= filtros.dedicacion === 'MEDIO_TIEMPO' ? 'selected' : '' %>>Medio Tiempo (MT)</option>
+        <option value="TIEMPO_CONVENCIONAL" <%= filtros.dedicacion === 'TIEMPO_CONVENCIONAL' ? 'selected' : '' %>>Tiempo Convencional (TV)</option>
+      </select>
+
+      <!-- Filtro por Sede -->
+      <select name="sedeId" class="table-filter-select" onchange="this.form.submit()">
+        <option value="">Todas las sedes / aldeas</option>
+        <% sedes.forEach(function(s) { %>
+          <option value="<%= s.id %>" <%= filtros.sedeId === s.id ? 'selected' : '' %>>
+            <%= s.nombre %>
+          </option>
+        <% }); %>
+      </select>
+
+      <a 
+        href="/docentes/carga-consolidada" 
+        class="btn-clean-ghost <%= (filtros.estado || filtros.dedicacion || filtros.sedeId) ? '' : 'uk-hidden' %>" 
+        title="Restablecer filtros"
+      >
+        <span uk-icon="icon: refresh; ratio: 0.75"></span>
+        <span>Limpiar</span>
+      </a>
+    </div>
+  </form>
+
+  <!-- Tabla Consolidada -->
+  <div class="uk-overflow-auto uk-margin-small-top">
+    <table class="clean-table" id="consolidado-table">
+      <thead>
+        <tr>
+          <th>Docente / Adscripción</th>
+          <th>Dedicación</th>
+          <th class="uk-text-center">Docencia Directa</th>
+          <th class="uk-text-center">Proyecto / Campo</th>
+          <th class="uk-text-center">Asesorías</th>
+          <th class="uk-text-center">Investigación / Gestión</th>
+          <th class="uk-text-center">Permanencia Total</th>
+          <th>Estado Normativo</th>
+          <th class="table-actions-cell">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (consolidado.length === 0) { %>
+          <tr>
+            <td colspan="9" class="empty-state-cell uk-text-center">
+              <div class="empty-state-inner">
+                <span uk-icon="icon: info; ratio: 1.8" class="empty-state-icon"></span>
+                <div class="empty-state-title uk-margin-small-top">No hay registros de carga docente</div>
+                <div class="uk-text-muted uk-text-small">No coinciden registros con los filtros seleccionados.</div>
+              </div>
+            </td>
+          </tr>
+        <% } %>
+
+        <% consolidado.forEach(function(item) { %>
+          <tr>
+            <td>
+              <div class="table-user-name"><%= item.profesor.apellidos %>, <%= item.profesor.nombres %></div>
+              <div class="table-sub-info">
+                <%= item.profesor.cedula %> • 
+                <%= item.dedicacion && item.dedicacion.sedePrincipal ? item.dedicacion.sedePrincipal.nombre : 'Sin sede' %>
+              </div>
+            </td>
+            <td>
+              <% if (item.dedicacion) { %>
+                <span class="badge-role badge-admin">
+                  <%= item.dedicacion.dedicacion.replace(/_/g, ' ') %>
+                </span>
+                <div class="table-sub-info uk-margin-xsmall-top">
+                  Límite: [<%= item.dedicacion.minHorasDocenciaDirecta %>h - <%= item.dedicacion.maxHorasDocenciaDirecta %>h]
+                </div>
+              <% } else { %>
+                <span class="status-pill status-inactive">Sin Dedicación</span>
+              <% } %>
+            </td>
+            <td class="uk-text-center">
+              <span class="font-bold <%= item.evaluacion.estado === 'EN_NORMA' ? 'text-green' : (item.evaluacion.estado === 'SOBRECARGA' ? 'text-red' : '') %>" style="<%= item.evaluacion.estado === 'DEFICIT' ? 'color: var(--accent-amber);' : '' %>">
+                <%= item.horasDocencia %>h
+              </span>
+            </td>
+            <td class="uk-text-center">
+              <span class="table-user-name"><%= item.horasProyectoComunidad %>h</span>
+            </td>
+            <td class="uk-text-center">
+              <span class="table-sub-info"><%= item.horasAsesoriaEstimadas %>h</span>
+            </td>
+            <td class="uk-text-center">
+              <span class="table-sub-info"><%= item.horasInvestigacionEstimadas %>h</span>
+            </td>
+            <td class="uk-text-center">
+              <span class="font-semibold table-user-name"><%= item.horasPermanencia %>h</span>
+            </td>
+            <td>
+              <% if (item.evaluacion.estado === 'EN_NORMA') { %>
+                <span class="status-pill status-active" uk-tooltip="<%= item.evaluacion.mensaje %>">
+                  ✓ EN NORMA
+                </span>
+              <% } else if (item.evaluacion.estado === 'DEFICIT') { %>
+                <span class="badge-role badge-coordinador" uk-tooltip="<%= item.evaluacion.mensaje %>">
+                  ⚠ DÉFICIT (<%= item.evaluacion.diferencia %>h)
+                </span>
+              <% } else if (item.evaluacion.estado === 'SOBRECARGA') { %>
+                <span class="badge-role badge-admin" uk-tooltip="<%= item.evaluacion.mensaje %>">
+                  ⛔ SOBRECARGA (+<%= item.evaluacion.diferencia %>h)
+                </span>
+              <% } else { %>
+                <span class="status-pill status-inactive" uk-tooltip="<%= item.evaluacion.mensaje %>">
+                  SIN ASIGNAR
+                </span>
+              <% } %>
+            </td>
+            <td class="table-actions-cell">
+              <div class="table-actions-group">
+                <a 
+                  href="/docentes/<%= item.profesor.id %>/disponibilidad" 
+                  class="btn-table-action" 
+                  title="Ver Matriz de Disponibilidad"
+                >
+                  <span uk-icon="icon: clock; ratio: 0.75"></span>
+                  <span>Disponibilidad</span>
+                </a>
+              </div>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Membrete Oficial Institucional (Solo Visible en Impresión) -->
+<div class="print-official-header uk-hidden">
+  <div class="print-header-content">
+    <div class="print-republica">REPÚBLICA BOLIVARIANA DE VENEZUELA</div>
+    <div class="print-ministerio">MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN UNIVERSITARIA</div>
+    <div class="print-institucion">UNIVERSIDAD BOLIVARIANA DE VENEZUELA (UBV)</div>
+    <div class="print-eje">EJE GEOPOLÍTICO TERRITORIAL KEREPAKUPAI VENA — ESTADO BOLÍVAR</div>
+    <div class="print-documento">PLANILLA OFICIAL DE CARGA HORARIA Y ASIGNACIÓN DOCENTE</div>
+    <div class="print-periodo">PERÍODO ACADÉMICO: <%= periodoActivo.codigo %> — <%= periodoActivo.nombre %></div>
+  </div>
+</div>
+
+<!-- Bloque de Firmas Institucionales (Solo Visible en Impresión) -->
+<div class="print-signatures uk-hidden">
+  <div class="uk-grid-medium uk-child-width-1-3 uk-text-center" uk-grid>
+    <div>
+      <div class="signature-line"></div>
+      <div class="signature-role font-semibold text-xs">DOCENTE RESPONSABLE</div>
+      <div class="signature-note text-xs">Firma y Cédula</div>
+    </div>
+    <div>
+      <div class="signature-line"></div>
+      <div class="signature-role font-semibold text-xs">COORDINACIÓN DE PFG</div>
+      <div class="signature-note text-xs">Firma y Sello</div>
+    </div>
+    <div>
+      <div class="signature-line"></div>
+      <div class="signature-role font-semibold text-xs">DIRECCIÓN ACADÉMICA</div>
+      <div class="signature-note text-xs">Visto Bueno y Sello</div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @media print {
+    body {
+      background: #ffffff !important;
+      color: #000000 !important;
+      font-size: 9.5pt !important;
+    }
+    .app-header, 
+    .app-footer, 
+    .header-controls, 
+    .header-breadcrumbs,
+    .page-header,
+    .admin-subtabs, 
+    .table-toolbar, 
+    .table-actions-cell, 
+    .table-actions-group, 
+    .clean-stat-card,
+    .uk-grid:has(.clean-stat-card),
+    #theme-toggle-btn {
+      display: none !important;
+    }
+    .print-official-header {
+      display: block !important;
+      text-align: center;
+      margin-bottom: 24px;
+      border-bottom: 2px solid #000;
+      padding-bottom: 10px;
+    }
+    .print-republica { font-size: 10.5pt; font-weight: 700; letter-spacing: 0.04em; }
+    .print-ministerio { font-size: 9pt; font-weight: 600; }
+    .print-institucion { font-size: 11pt; font-weight: 800; color: #b91c1c !important; }
+    .print-eje { font-size: 8.5pt; font-weight: 600; }
+    .print-documento { font-size: 10pt; font-weight: 700; margin-top: 6px; text-decoration: underline; }
+    .print-periodo { font-size: 8.5pt; margin-top: 3px; }
+    .clean-panel {
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      background: transparent !important;
+      margin: 0 !important;
+    }
+    .clean-table {
+      width: 100% !important;
+      border-collapse: collapse !important;
+    }
+    .clean-table th, .clean-table td {
+      border: 1px solid #333 !important;
+      color: #000 !important;
+      padding: 6px 8px !important;
+      font-size: 8.5pt !important;
+    }
+    .clean-table th {
+      background-color: #f1f5f9 !important;
+      font-weight: 700 !important;
+    }
+    .status-pill, .badge-role {
+      border: 1px solid #444 !important;
+      background: transparent !important;
+      color: #000 !important;
+      font-size: 7.5pt !important;
+    }
+    .print-signatures {
+      display: block !important;
+      margin-top: 45px;
+      page-break-inside: avoid;
+    }
+    .signature-line {
+      border-top: 1px solid #000;
+      margin-bottom: 6px;
+      height: 1px;
+    }
+  }
+</style>

@@ -1,0 +1,659 @@
+<!-- Header de Gestión de Usuarios -->
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <span>Administración</span>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Usuarios y Permisos</span>
+      </div>
+      <h1 class="page-title uk-margin-remove">Gestión de Usuarios</h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Administración de cuentas institucionales y control de acceso basado en roles (RBAC).
+      </p>
+    </div>
+    <div class="header-controls uk-margin-small-top">
+      <button class="btn-clean-primary" uk-toggle="target: #modal-nuevo-usuario">
+        <span uk-icon="icon: plus; ratio: 0.85"></span>
+        <span>Nuevo Usuario</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Pestañas de Navegación del Módulo de Administración -->
+  <div class="admin-subtabs uk-margin-top">
+    <a href="/usuarios" class="subtab-item is-active">
+      <span uk-icon="icon: users; ratio: 0.8"></span>
+      <span>Cuentas de Usuarios</span>
+    </a>
+    <a href="/roles" class="subtab-item">
+      <span uk-icon="icon: lock; ratio: 0.8"></span>
+      <span>Matriz de Roles y Permisos</span>
+    </a>
+  </div>
+</div>
+
+<!-- Alertas Informativas -->
+<% if (success) { %>
+  <div class="alert-clean-success uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: check; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= success %></span>
+  </div>
+<% } %>
+
+<% if (error) { %>
+  <div class="alert-clean-danger uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: warning; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= error %></span>
+  </div>
+<% } %>
+
+<!-- Mini Métricas de Usuarios (Totales Globales de Base de Datos) -->
+<div class="uk-grid-small uk-child-width-1-2 uk-child-width-1-4@m uk-margin-medium-bottom" uk-grid>
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Total Cuentas</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.total %></span>
+        <span class="stat-unit">registrados</span>
+      </div>
+      <span class="detail-label">En base de datos</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Administradores</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.admins %></span>
+        <span class="stat-unit">superusuarios</span>
+      </div>
+      <span class="detail-label">Control global</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Coordinadores</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.coordinadores %></span>
+        <span class="stat-unit">académicos</span>
+      </div>
+      <span class="detail-label">PFG y Direcciones</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Docentes</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.docentes %></span>
+        <span class="stat-unit">profesores</span>
+      </div>
+      <span class="detail-label">Acceso a disponibilidad</span>
+    </div>
+  </div>
+</div>
+
+<%
+  // Helpers para URLs de ordenamiento y paginación en servidor
+  function makeQueryUrl(overrides) {
+    const params = new URLSearchParams({
+      page: overrides.page !== undefined ? overrides.page : pagination.page,
+      limit: overrides.limit !== undefined ? overrides.limit : pagination.limit,
+      q: overrides.q !== undefined ? overrides.q : (filters.q || ''),
+      rol: overrides.rol !== undefined ? overrides.rol : (filters.rol || ''),
+      estado: overrides.estado !== undefined ? overrides.estado : (filters.estado || ''),
+      sortBy: overrides.sortBy !== undefined ? overrides.sortBy : (filters.sortBy || 'createdAt'),
+      sortDir: overrides.sortDir !== undefined ? overrides.sortDir : (filters.sortDir || 'desc')
+    });
+    // Limpiar claves vacías para URLs limpias
+    for (const [key, val] of [...params.entries()]) {
+      if (!val) params.delete(key);
+    }
+    return '/usuarios?' + params.toString();
+  }
+
+  function getSortUrl(col) {
+    const isCurrent = filters.sortBy === col;
+    const nextDir = isCurrent && filters.sortDir === 'asc' ? 'desc' : 'asc';
+    return makeQueryUrl({ page: 1, sortBy: col, sortDir: nextDir });
+  }
+
+  function getSortHeaderClass(col) {
+    if (filters.sortBy !== col) return 'sortable';
+    return filters.sortDir === 'asc' ? 'sortable sort-asc' : 'sortable sort-desc';
+  }
+%>
+
+<!-- Panel Principal con Componente Reutilizable DataTable (Server-Side - Spec 07) -->
+<div class="clean-panel data-table-wrapper" id="users-datatable-wrapper">
+  
+  <!-- Barra de Herramientas (Permanece estable en el DOM sin perder foco) -->
+  <form 
+    id="users-filter-form"
+    action="/usuarios"
+    method="GET"
+    hx-get="/usuarios"
+    hx-target="#users-table-container"
+    hx-select="#users-table-container"
+    hx-swap="outerHTML"
+    hx-push-url="true"
+    class="table-toolbar uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-2"
+  >
+    <input type="hidden" name="page" value="1" />
+    <input type="hidden" name="sortBy" value="<%= filters.sortBy %>" />
+    <input type="hidden" name="sortDir" value="<%= filters.sortDir %>" />
+
+    <div class="table-toolbar-left uk-flex uk-flex-middle uk-flex-wrap gap-2">
+      <!-- Input de Búsqueda Reactiva hacia Servidor con Foco Persistente -->
+      <div class="table-search-box">
+        <span uk-icon="icon: search; ratio: 0.8" class="search-icon"></span>
+        <input 
+          type="text" 
+          name="q"
+          id="user-search-input"
+          value="<%= filters.q %>"
+          class="search-input" 
+          placeholder="Buscar por nombre, email o rol..." 
+          hx-get="/usuarios"
+          hx-trigger="input changed delay:350ms, search"
+          hx-target="#users-table-container"
+          hx-select="#users-table-container"
+          hx-swap="outerHTML"
+          hx-push-url="true"
+          hx-include="#users-filter-form"
+          autocomplete="off"
+        />
+      </div>
+
+      <!-- Filtros Desplegables del Servidor -->
+      <div class="table-filters-row uk-flex uk-flex-middle gap-2">
+        <!-- Filtro por Rol -->
+        <select name="rol" class="table-filter-select" onchange="this.form.requestSubmit()">
+          <option value="">Todos los roles</option>
+          <% rolesDisponibles.forEach(function(r) { %>
+            <option value="<%= r %>" <%= filters.rol === r ? 'selected' : '' %>><%= r.replace('_', ' ') %></option>
+          <% }); %>
+        </select>
+
+        <!-- Filtro por Estado -->
+        <select name="estado" class="table-filter-select" onchange="this.form.requestSubmit()">
+          <option value="">Todos los estados</option>
+          <option value="Activo" <%= filters.estado === 'Activo' ? 'selected' : '' %>>Activos</option>
+          <option value="Inactivo" <%= filters.estado === 'Inactivo' ? 'selected' : '' %>>Inactivos</option>
+        </select>
+      </div>
+
+      <!-- Botón Limpiar Filtros Dinámico -->
+      <a 
+        href="/usuarios" 
+        id="btn-limpiar-filtros"
+        class="btn-clean-ghost <%= (filters.q || filters.rol || filters.estado || filters.sortBy !== 'createdAt') ? '' : 'uk-hidden' %>" 
+        title="Restablecer filtros"
+        onclick="limpiarFiltrosUsuario(event)"
+      >
+        <span uk-icon="icon: refresh; ratio: 0.75"></span>
+        <span>Limpiar</span>
+      </a>
+    </div>
+
+    <!-- Selector de Filas por Página del Servidor -->
+    <div class="table-toolbar-right uk-flex uk-flex-middle gap-2">
+      <span class="uk-text-muted uk-text-small">Filas:</span>
+      <select name="limit" class="table-page-size-select" onchange="this.form.requestSubmit()">
+        <option value="5" <%= pagination.limit === 5 ? 'selected' : '' %>>5</option>
+        <option value="10" <%= pagination.limit === 10 ? 'selected' : '' %>>10</option>
+        <option value="25" <%= pagination.limit === 25 ? 'selected' : '' %>>25</option>
+        <option value="50" <%= pagination.limit === 50 ? 'selected' : '' %>>50</option>
+      </select>
+    </div>
+  </form>
+
+  <!-- Contenedor Reemplazable: Excluye el formulario para NO alterar el foco del input activo -->
+  <div id="users-table-container">
+    <!-- Tabla de Usuarios con Cabeceras Ordenables en Servidor -->
+    <div class="uk-overflow-auto uk-margin-small-top">
+      <table class="clean-table" id="users-table">
+        <thead>
+          <tr>
+            <th class="<%= getSortHeaderClass('nombres') %>">
+              <a 
+                href="<%= getSortUrl('nombres') %>" 
+                hx-get="<%= getSortUrl('nombres') %>" 
+                hx-target="#users-table-container" 
+                hx-select="#users-table-container" 
+                hx-swap="outerHTML" 
+                hx-push-url="true"
+                class="uk-link-reset"
+              >Usuario</a>
+            </th>
+            <th class="<%= getSortHeaderClass('email') %>">
+              <a 
+                href="<%= getSortUrl('email') %>" 
+                hx-get="<%= getSortUrl('email') %>" 
+                hx-target="#users-table-container" 
+                hx-select="#users-table-container" 
+                hx-swap="outerHTML" 
+                hx-push-url="true"
+                class="uk-link-reset"
+              >Correo Electrónico</a>
+            </th>
+            <th class="<%= getSortHeaderClass('rol') %>">
+              <a 
+                href="<%= getSortUrl('rol') %>" 
+                hx-get="<%= getSortUrl('rol') %>" 
+                hx-target="#users-table-container" 
+                hx-select="#users-table-container" 
+                hx-swap="outerHTML" 
+                hx-push-url="true"
+                class="uk-link-reset"
+              >Rol Asignado</a>
+            </th>
+            <th class="<%= getSortHeaderClass('activo') %>">
+              <a 
+                href="<%= getSortUrl('activo') %>" 
+                hx-get="<%= getSortUrl('activo') %>" 
+                hx-target="#users-table-container" 
+                hx-select="#users-table-container" 
+                hx-swap="outerHTML" 
+                hx-push-url="true"
+                class="uk-link-reset"
+              >Estado</a>
+            </th>
+            <th class="<%= getSortHeaderClass('createdAt') %>">
+              <a 
+                href="<%= getSortUrl('createdAt') %>" 
+                hx-get="<%= getSortUrl('createdAt') %>" 
+                hx-target="#users-table-container" 
+                hx-select="#users-table-container" 
+                hx-swap="outerHTML" 
+                hx-push-url="true"
+                class="uk-link-reset"
+              >Fecha Creación</a>
+            </th>
+            <th class="uk-text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (usuarios.length === 0) { %>
+            <tr>
+              <td colspan="6" class="empty-state-cell uk-text-center uk-padding">
+                <div class="empty-state-inner">
+                  <span uk-icon="icon: search; ratio: 1.5" class="empty-state-icon uk-margin-small-bottom"></span>
+                  <div class="empty-state-title">No se encontraron cuentas</div>
+                  <div class="empty-state-subtitle uk-text-muted uk-text-small uk-margin-xsmall-top">
+                    No hay registros en la base de datos que coincidan con los filtros aplicados.
+                  </div>
+                  <a 
+                    href="/usuarios" 
+                    class="btn-clean-secondary btn-sm uk-margin-small-top"
+                    onclick="limpiarFiltrosUsuario(event)"
+                  >
+                    Restablecer filtros
+                  </a>
+                </div>
+              </td>
+            </tr>
+          <% } else { %>
+            <% usuarios.forEach(function(u) { %>
+              <tr class="user-row">
+                <td>
+                  <div class="uk-flex uk-flex-middle">
+                    <div class="user-table-avatar uk-margin-small-right">
+                      <%= u.nombres.charAt(0) %><%= u.apellidos.charAt(0) %>
+                    </div>
+                    <div>
+                      <div class="table-user-name"><%= u.nombres %> <%= u.apellidos %></div>
+                      <% if (u.profesor) { %>
+                        <span class="table-sub-info">Docente Cédula <%= u.profesor.cedula %></span>
+                      <% } else { %>
+                        <span class="table-sub-info">Cuenta de Plataforma</span>
+                      <% } %>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="email-code"><%= u.email %></span>
+                </td>
+                <td>
+                  <span class="user-role-tag role-<%= u.rol.toLowerCase() %>"><%= u.rol %></span>
+                </td>
+                <td>
+                  <% if (u.activo) { %>
+                    <span class="status-pill status-active">Activo</span>
+                  <% } else { %>
+                    <span class="status-pill status-inactive">Inactivo</span>
+                  <% } %>
+                </td>
+                <td>
+                  <span class="date-text"><%= new Date(u.createdAt).toLocaleDateString('es-VE') %></span>
+                </td>
+                <td class="table-actions-cell uk-text-right">
+                  <div class="table-actions-group">
+                    <!-- Botón Editar Perfil -->
+                    <button 
+                      type="button" 
+                      class="btn-table-action" 
+                      onclick="abrirModalEditar('<%= u.id %>', '<%= u.nombres %>', '<%= u.apellidos %>', '<%= u.email %>', '<%= u.rol %>')"
+                      uk-tooltip="Editar datos y rol"
+                    >
+                      <span uk-icon="icon: pencil; ratio: 0.75"></span>
+                      <span>Editar</span>
+                    </button>
+
+                    <!-- Botón Reset Clave -->
+                    <button 
+                      type="button" 
+                      class="btn-table-action" 
+                      onclick="abrirModalReset('<%= u.id %>', '<%= u.email %>')"
+                      uk-tooltip="Reestablecer contraseña"
+                    >
+                      <span uk-icon="icon: lock; ratio: 0.75"></span>
+                      <span>Clave</span>
+                    </button>
+
+                    <!-- Botón Activar / Desactivar -->
+                    <% if (usuario && usuario.id !== u.id) { %>
+                      <form action="/usuarios/<%= u.id %>/toggle" method="POST">
+                        <button type="submit" class="btn-table-action" uk-tooltip="<%= u.activo ? 'Desactivar acceso' : 'Habilitar acceso' %>">
+                          <span uk-icon="icon: <%= u.activo ? 'ban' : 'check' %>; ratio: 0.75"></span>
+                          <span><%= u.activo ? 'Desactivar' : 'Activar' %></span>
+                        </button>
+                      </form>
+                    <% } else { %>
+                      <span class="badge-self">Tu Sesión</span>
+                    <% } %>
+                  </div>
+                </td>
+              </tr>
+            <% }); %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pie de Tabla con Información de Paginación del Servidor -->
+    <div class="table-footer">
+      <div class="data-table-info uk-text-muted uk-text-small">
+        <% if (pagination.total === 0) { %>
+          Mostrando <strong class="text-white">0</strong> cuentas
+        <% } else { %>
+          Mostrando <strong class="text-white"><%= pagination.start %></strong> a <strong class="text-white"><%= pagination.end %></strong> de <strong class="text-white"><%= pagination.total %></strong>
+          <% if (pagination.total < stats.total) { %>
+            <span class="uk-text-muted">(filtradas de <%= stats.total %> en base de datos)</span>
+          <% } else { %>
+            <span class="uk-text-muted">cuentas</span>
+          <% } %>
+        <% } %>
+      </div>
+
+      <!-- Paginador con Enlaces a Páginas en el Servidor -->
+      <% if (pagination.totalPages > 1) { %>
+        <div class="clean-pagination">
+          <ul class="clean-pagination-list">
+            <!-- Botón Anterior -->
+            <li>
+              <% if (pagination.hasPrev) { %>
+                <a 
+                  href="<%= makeQueryUrl({ page: pagination.page - 1 }) %>"
+                  class="page-nav-btn"
+                  hx-get="<%= makeQueryUrl({ page: pagination.page - 1 }) %>"
+                  hx-target="#users-table-container"
+                  hx-select="#users-table-container"
+                  hx-swap="outerHTML"
+                  hx-push-url="true"
+                >
+                  <span uk-icon="icon: chevron-left; ratio: 0.8"></span>
+                  <span>Anterior</span>
+                </a>
+              <% } else { %>
+                <button type="button" class="page-nav-btn" disabled>
+                  <span uk-icon="icon: chevron-left; ratio: 0.8"></span>
+                  <span>Anterior</span>
+                </button>
+              <% } %>
+            </li>
+
+            <!-- Páginas Numéricas -->
+            <% for (let p = 1; p <= pagination.totalPages; p++) { %>
+              <li>
+                <a 
+                  href="<%= makeQueryUrl({ page: p }) %>"
+                  class="page-number-btn <%= p === pagination.page ? 'is-active' : '' %>"
+                  hx-get="<%= makeQueryUrl({ page: p }) %>"
+                  hx-target="#users-table-container"
+                  hx-select="#users-table-container"
+                  hx-swap="outerHTML"
+                  hx-push-url="true"
+                >
+                  <%= p %>
+                </a>
+              </li>
+            <% } %>
+
+            <!-- Botón Siguiente -->
+            <li>
+              <% if (pagination.hasNext) { %>
+                <a 
+                  href="<%= makeQueryUrl({ page: pagination.page + 1 }) %>"
+                  class="page-nav-btn"
+                  hx-get="<%= makeQueryUrl({ page: pagination.page + 1 }) %>"
+                  hx-target="#users-table-container"
+                  hx-select="#users-table-container"
+                  hx-swap="outerHTML"
+                  hx-push-url="true"
+                >
+                  <span>Siguiente</span>
+                  <span uk-icon="icon: chevron-right; ratio: 0.8"></span>
+                </a>
+              <% } else { %>
+                <button type="button" class="page-nav-btn" disabled>
+                  <span>Siguiente</span>
+                  <span uk-icon="icon: chevron-right; ratio: 0.8"></span>
+                </button>
+              <% } %>
+            </li>
+          </ul>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================================================
+     Modal 1: Crear Nuevo Usuario
+     ========================================================================== -->
+<div id="modal-nuevo-usuario" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body modal-clean-box">
+    <div class="uk-flex uk-flex-between uk-flex-middle uk-margin-bottom">
+      <h2 class="modal-clean-title uk-margin-remove">Registrar Nuevo Usuario</h2>
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+    </div>
+    
+    <p class="uk-text-muted uk-text-small uk-margin-remove-top uk-margin-bottom">
+      La cuenta creada podrá acceder inmediatamente con sus credenciales y el rol asignado.
+    </p>
+
+    <form action="/usuarios" method="POST" class="login-form-clean">
+      <div class="uk-grid-small uk-child-width-1-2@s" uk-grid>
+        <div class="form-group-clean">
+          <label class="label-clean" for="nombres">Nombres</label>
+          <input class="input-control-clean" type="text" id="nombres" name="nombres" placeholder="Ej: Pedro" required />
+        </div>
+        <div class="form-group-clean">
+          <label class="label-clean" for="apellidos">Apellidos</label>
+          <input class="input-control-clean" type="text" id="apellidos" name="apellidos" placeholder="Ej: Pérez" required />
+        </div>
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean" for="email">Correo Institucional</label>
+        <input class="input-control-clean" type="email" id="email" name="email" placeholder="usuario@ubv.edu.ve" required />
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean" for="password">Contraseña Inicial</label>
+        <input class="input-control-clean" type="password" id="password" name="password" placeholder="Mínimo 6 caracteres" required />
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean" for="rol">Rol de Acceso (RBAC)</label>
+        <select class="input-control-clean" id="rol" name="rol" required>
+          <% rolesDisponibles.forEach(function(r) { %>
+            <option value="<%= r %>"><%= r %></option>
+          <% }); %>
+        </select>
+      </div>
+
+      <% if (profesoresSinUsuario && profesoresSinUsuario.length > 0) { %>
+        <div class="form-group-clean uk-margin-small-top">
+          <label class="label-clean" for="profesorId">Vincular con Docente (Opcional)</label>
+          <select class="input-control-clean" id="profesorId" name="profesorId">
+            <option value="">-- Ninguno (Cuenta administrativa/directiva) --</option>
+            <% profesoresSinUsuario.forEach(function(p) { %>
+              <option value="<%= p.id %>"><%= p.apellidos %>, <%= p.nombres %> (C.I. <%= p.cedula %>)</option>
+            <% }); %>
+          </select>
+        </div>
+      <% } %>
+
+      <div class="uk-margin-medium-top uk-text-right">
+        <button class="btn-clean-secondary uk-modal-close uk-margin-small-right" type="button">Cancelar</button>
+        <button class="btn-clean-primary" type="submit">Guardar Usuario</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ==========================================================================
+     Modal 2: Editar Usuario y Rol
+     ========================================================================== -->
+<div id="modal-editar-usuario" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body modal-clean-box">
+    <div class="uk-flex uk-flex-between uk-flex-middle uk-margin-bottom">
+      <h2 class="modal-clean-title uk-margin-remove">Editar Datos de Usuario</h2>
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+    </div>
+
+    <form id="form-editar-usuario" method="POST" class="login-form-clean">
+      <div class="form-group-clean">
+        <label class="label-clean">Correo Institucional (Identificador)</label>
+        <input class="input-control-clean" type="text" id="edit-email" disabled style="opacity: 0.65;" />
+      </div>
+
+      <div class="uk-grid-small uk-child-width-1-2@s uk-margin-small-top" uk-grid>
+        <div class="form-group-clean">
+          <label class="label-clean" for="edit-nombres">Nombres</label>
+          <input class="input-control-clean" type="text" id="edit-nombres" name="nombres" required />
+        </div>
+        <div class="form-group-clean">
+          <label class="label-clean" for="edit-apellidos">Apellidos</label>
+          <input class="input-control-clean" type="text" id="edit-apellidos" name="apellidos" required />
+        </div>
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean" for="edit-rol">Rol de Acceso Asignado</label>
+        <select class="input-control-clean" id="edit-rol" name="rol" required>
+          <% rolesDisponibles.forEach(function(r) { %>
+            <option value="<%= r %>"><%= r %></option>
+          <% }); %>
+        </select>
+      </div>
+
+      <div class="uk-margin-medium-top uk-text-right">
+        <button class="btn-clean-secondary uk-modal-close uk-margin-small-right" type="button">Cancelar</button>
+        <button class="btn-clean-primary" type="submit">Actualizar Datos</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ==========================================================================
+     Modal 3: Reestablecer Contraseña
+     ========================================================================== -->
+<div id="modal-reset-password" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body modal-clean-box">
+    <div class="uk-flex uk-flex-between uk-flex-middle uk-margin-bottom">
+      <h2 class="modal-clean-title uk-margin-remove">Reestablecer Contraseña</h2>
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+    </div>
+
+    <p class="uk-text-muted uk-text-small uk-margin-remove-top uk-margin-bottom">
+      Asignar nueva contraseña para: <strong class="text-white" id="reset-email-label"></strong>
+    </p>
+
+    <form id="form-reset-password" method="POST" class="login-form-clean">
+      <div class="form-group-clean">
+        <label class="label-clean" for="nuevaPassword">Nueva Contraseña</label>
+        <input 
+          class="input-control-clean" 
+          type="password" 
+          id="nuevaPassword" 
+          name="nuevaPassword" 
+          placeholder="Mínimo 6 caracteres" 
+          required 
+          minlength="6"
+        />
+      </div>
+
+      <div class="uk-margin-medium-top uk-text-right">
+        <button class="btn-clean-secondary uk-modal-close uk-margin-small-right" type="button">Cancelar</button>
+        <button class="btn-clean-primary" type="submit">Guardar Nueva Clave</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Scripts de Interacción de la Vista -->
+<script>
+  function abrirModalEditar(id, nombres, apellidos, email, rol) {
+    const form = document.getElementById('form-editar-usuario');
+    form.action = '/usuarios/' + id + '/editar';
+
+    document.getElementById('edit-email').value = email;
+    document.getElementById('edit-nombres').value = nombres;
+    document.getElementById('edit-apellidos').value = apellidos;
+    document.getElementById('edit-rol').value = rol;
+
+    UIkit.modal('#modal-editar-usuario').show();
+  }
+
+  function abrirModalReset(id, email) {
+    const form = document.getElementById('form-reset-password');
+    form.action = '/usuarios/' + id + '/reset-password';
+
+    document.getElementById('reset-email-label').innerText = email;
+    document.getElementById('nuevaPassword').value = '';
+
+    UIkit.modal('#modal-reset-password').show();
+  }
+
+  function limpiarFiltrosUsuario(e) {
+    if (e) e.preventDefault();
+    const form = document.getElementById('users-filter-form');
+    if (!form) return;
+    const inputQ = form.querySelector('input[name="q"]');
+    const selectRol = form.querySelector('select[name="rol"]');
+    const selectEstado = form.querySelector('select[name="estado"]');
+    if (inputQ) inputQ.value = '';
+    if (selectRol) selectRol.value = '';
+    if (selectEstado) selectEstado.value = '';
+    const resetBtn = document.getElementById('btn-limpiar-filtros');
+    if (resetBtn) resetBtn.classList.add('uk-hidden');
+    htmx.trigger(form, 'submit');
+  }
+
+  // Alternar visibilidad de botón Limpiar dinámicamente al tipear
+  document.addEventListener('input', function(e) {
+    if (e.target && e.target.name === 'q') {
+      const resetBtn = document.getElementById('btn-limpiar-filtros');
+      if (resetBtn) {
+        resetBtn.classList.toggle('uk-hidden', !e.target.value.trim());
+      }
+    }
+  });
+</script>

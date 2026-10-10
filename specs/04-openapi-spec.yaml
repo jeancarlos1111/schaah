@@ -1,0 +1,383 @@
+openapi: 3.1.0
+info:
+  title: API de Carga Horaria y Asignación de Horarios (SCHAAH - UBV)
+  version: 1.0.0
+  description: Contratos de API para la gestión, optimización algorítmica y ajuste manual de horarios universitarios UBV.
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Servidor de Desarrollo Local
+
+paths:
+  /periodos/{periodo_id}/asignacion/ejecutar:
+    post:
+      summary: Disparar ejecución del motor de optimización CP-SAT
+      parameters:
+        - name: periodo_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EjecutarAsignacionRequest'
+      responses:
+        '202':
+          description: Job de optimización encolado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobEncoladoResponse'
+        '400':
+          description: Datos incompletos (disponibilidades o aulas faltantes)
+
+  /periodos/{periodo_id}/asignacion/status/{job_id}:
+    get:
+      summary: Consultar estado y métricas de convergencia del solver
+      parameters:
+        - name: periodo_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Estado actual del proceso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatusResponse'
+
+  /periodos/{periodo_id}/horarios:
+    get:
+      summary: Consultar matriz de horarios con filtros multidimensionales
+      parameters:
+        - name: periodo_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: profesor_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: espacio_fisico_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: pfg_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: sede_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lista de asignaciones horarias
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HorarioItem'
+
+  /periodos/{periodo_id}/horarios/validar-movimiento:
+    post:
+      summary: Validación en tiempo real para Drag & Drop en Frontend
+      description: Evalúa si mover una sección a un día/hora/aula viola restricciones duras antes de persistir.
+      parameters:
+        - name: periodo_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidarMovimientoRequest'
+      responses:
+        '200':
+          description: Resultado de la evaluación de viabilidad
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidacionMovimientoResponse'
+
+  /periodos/{periodo_id}/horarios/ajuste-manual:
+    post:
+      summary: Aplicar cambio manual de horario con auditoría
+      parameters:
+        - name: periodo_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AjusteManualRequest'
+      responses:
+        '200':
+          description: Horario actualizado con registro de auditoría
+        '409':
+          description: Conflicto duro insalvable detectado
+
+  /periodos/{periodo_id}/carga-docente:
+    get:
+      summary: Reporte consolidado de carga horaria por profesor y estado normativo
+      parameters:
+        - name: periodo_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Vista consolidada de cumplimiento de carga
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConsolidadoCargaDocente'
+
+  /periodos/{periodo_id}/export/sur-ubv:
+    get:
+      summary: Exportar matriz en formato compatible con SUR@UBV
+      parameters:
+        - name: periodo_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: formato
+          in: query
+          schema:
+            type: string
+            enum: [json, csv, xml]
+            default: json
+      responses:
+        '200':
+          description: Archivo generado para ingesta en SUR@UBV
+
+components:
+  schemas:
+    EjecutarAsignacionRequest:
+      type: object
+      properties:
+        pfg_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Lista de PFG a optimizar (vacío = toda la sede)
+        sede_id:
+          type: string
+          format: uuid
+        tiempo_max_segundos:
+          type: integer
+          default: 300
+        pesos_blandos:
+          type: object
+          properties:
+            peso_huecos:
+              type: integer
+              default: 80
+            peso_preferencia:
+              type: integer
+              default: 60
+            peso_dias_compactos:
+              type: integer
+              default: 70
+
+    JobEncoladoResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        estado:
+          type: string
+          example: EN_COLA
+        fecha_inicio:
+          type: string
+          format: date-time
+
+    JobStatusResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        estado:
+          type: string
+          enum: [EN_COLA, RESOLVIENDO, OPTIMO, FACTIBLE, INVIABLE, ERROR]
+        progreso_porcentaje:
+          type: number
+          example: 74.5
+        tiempo_transcurrido_segundos:
+          type: number
+          example: 120.4
+        conflictos_irresolubles:
+          type: array
+          items:
+            type: string
+          example: ["Aula 204 insuficiente para Seccion INF-T3 (Capacidad 25 < Matrícula 35)"]
+
+    HorarioItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        seccion_id:
+          type: string
+          format: uuid
+        codigo_seccion:
+          type: string
+        unidad_curricular_nombre:
+          type: string
+        profesor_nombre:
+          type: string
+        espacio_fisico_nombre:
+          type: string
+        dia:
+          type: string
+          enum: [LUNES, MARTES, MIERCOLES, JUEVES, VIERNES, SABADO]
+        hora_inicio:
+          type: string
+          example: "08:15:00"
+        hora_fin:
+          type: string
+          example: "09:45:00"
+        tipo_bloque:
+          type: string
+          example: "DOCENCIA_AULA"
+
+    ValidarMovimientoRequest:
+      type: object
+      required: [seccion_id, nuevo_dia, nueva_hora_inicio, nueva_hora_fin]
+      properties:
+        seccion_id:
+          type: string
+          format: uuid
+        horario_id:
+          type: string
+          format: uuid
+        nuevo_espacio_fisico_id:
+          type: string
+          format: uuid
+        nuevo_dia:
+          type: string
+          enum: [LUNES, MARTES, MIERCOLES, JUEVES, VIERNES, SABADO]
+        nueva_hora_inicio:
+          type: string
+          example: "10:00:00"
+        nueva_hora_fin:
+          type: string
+          example: "11:30:00"
+
+    ValidacionMovimientoResponse:
+      type: object
+      properties:
+        es_valido:
+          type: boolean
+        conflictos_duros:
+          type: array
+          items:
+            type: object
+            properties:
+              codigo:
+                type: string
+                example: "H-01"
+              mensaje:
+                type: string
+                example: "Profesor Juan Pérez ya tiene clase asignada en este horario."
+        impacto_blando:
+          type: object
+          properties:
+            delta_huecos_minutos:
+              type: integer
+              example: 45
+            viola_preferencia_docente:
+              type: boolean
+              example: true
+
+    AjusteManualRequest:
+      type: object
+      required: [seccion_id, nuevo_dia, nueva_hora_inicio, nueva_hora_fin, justificacion]
+      properties:
+        seccion_id:
+          type: string
+          format: uuid
+        horario_id:
+          type: string
+          format: uuid
+        nuevo_espacio_fisico_id:
+          type: string
+          format: uuid
+        nuevo_dia:
+          type: string
+        nueva_hora_inicio:
+          type: string
+        nueva_hora_fin:
+          type: string
+        justificacion:
+          type: string
+          example: "Aprobado por Coordinación de PFG Informática Acta 2026-04"
+
+    ConsolidadoCargaDocente:
+      type: object
+      properties:
+        profesor_id:
+          type: string
+          format: uuid
+        cedula:
+          type: string
+        nombre_completo:
+          type: string
+        dedicacion:
+          type: string
+        horas_permanencia_semanales:
+          type: integer
+        min_horas_docencia_directa:
+          type: integer
+        max_horas_docencia_directa:
+          type: integer
+        horas_docencia_asignadas:
+          type: number
+        total_secciones:
+          type: integer
+        estado_normativo:
+          type: string
+          enum: [EN_NORMA, DEFICIT_CARGA, SOBRECARGA_LEGAL]

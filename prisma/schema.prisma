@@ -1,0 +1,269 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ============================================================================
+// MODELOS DE SEGURIDAD Y RBAC DINÁMICO
+// ============================================================================
+
+model Rol {
+  id          String        @id @default(uuid())
+  codigo      String        @unique // ADMINISTRADOR, DIRECTOR_ACADEMICO, etc.
+  nombre      String
+  descripcion String?
+  esSistema   Boolean       @default(false) @map("es_sistema") // Roles base protegidos
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  permisos    RolPermiso[]
+  usuarios    Usuario[]
+
+  @@map("roles")
+}
+
+model Permiso {
+  id          String        @id @default(uuid())
+  codigo      String        @unique // ej: usuarios.gestionar, horarios.editar
+  nombre      String
+  modulo      String        // USUARIOS, ESPACIOS, HORARIOS, DOCENTES, REPORTES
+  descripcion String?
+
+  roles       RolPermiso[]
+
+  @@map("permisos")
+}
+
+model RolPermiso {
+  id        String   @id @default(uuid())
+  rolId     String   @map("rol_id")
+  rol       Rol      @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  permisoId String   @map("permiso_id")
+  permiso   Permiso  @relation(fields: [permisoId], references: [id], onDelete: Cascade)
+
+  @@unique([rolId, permisoId])
+  @@map("rol_permisos")
+}
+
+model Usuario {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  nombres      String
+  apellidos    String
+  rol          String    @default("DOCENTE") // Código de rol para compatibilidad
+  rolRelacionId String?  @map("rol_relacion_id")
+  rolRelacion  Rol?      @relation(fields: [rolRelacionId], references: [id])
+  profesorId   String?   @unique @map("profesor_id")
+  profesor     Profesor? @relation(fields: [profesorId], references: [id])
+  activo       Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("usuarios")
+}
+
+model Sede {
+  id                    String               @id @default(uuid())
+  codigo                String               @unique
+  nombre                String
+  ejeTerritorial        String               @map("eje_territorial")
+  direccion             String?
+  esAldeaMunicipalizada Boolean              @default(false) @map("es_aldea_municipalizada")
+  activa                Boolean              @default(true)
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+
+  espacios              EspacioFisico[]
+  secciones             Seccion[]
+  dedicaciones          ProfesorDedicacion[]
+
+  @@map("sedes")
+}
+
+model EspacioFisico {
+  id        String           @id @default(uuid())
+  sedeId    String           @map("sede_id")
+  sede      Sede             @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  codigo    String
+  nombre    String
+  tipo      String           @default("AULA_TEORICA")
+  capacidad Int
+  piso      String?
+  activo    Boolean          @default(true)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  horarios  HorarioSeccion[]
+
+  @@unique([sedeId, codigo])
+  @@map("espacios_fisicos")
+}
+
+model ProgramaFormacion {
+  id               String               @id @default(uuid())
+  codigo           String               @unique
+  nombre           String
+  areaConocimiento String               @map("area_conocimiento")
+  activo           Boolean              @default(true)
+  createdAt        DateTime             @default(now()) @map("created_at")
+
+  unidadesCurriculares UnidadCurricular[]
+
+  @@map("programas_formacion")
+}
+
+model PeriodoAcademico {
+  id          String                   @id @default(uuid())
+  codigo      String                   @unique
+  nombre      String
+  fechaInicio DateTime                 @map("fecha_inicio")
+  fechaFin    DateTime                 @map("fecha_fin")
+  estado      String                   @default("BORRADOR")
+  createdAt   DateTime                 @default(now()) @map("created_at")
+
+  dedicaciones     ProfesorDedicacion[]
+  disponibilidades ProfesorDisponibilidad[]
+  secciones        Seccion[]
+  auditorias       AuditoriaAjusteHorario[]
+
+  @@map("periodos_academicos")
+}
+
+model UnidadCurricular {
+  id                             String            @id @default(uuid())
+  pfgId                          String            @map("pfg_id")
+  pfg                            ProgramaFormacion @relation(fields: [pfgId], references: [id], onDelete: Restrict)
+  codigo                         String
+  nombre                         String
+  trayecto                       Int
+  tramo                          Int
+  creditos                       Int
+  horasTeoricasSemanales         Int               @default(0) @map("horas_teoricas_semanales")
+  horasPracticasSemanales        Int               @default(0) @map("horas_practicas_semanales")
+  horasCampoComunitarioSemanales Int               @default(0) @map("horas_campo_comunitario_semanales")
+  tipoEspacioRequerido           String            @default("AULA_TEORICA") @map("tipo_espacio_requerido")
+  esProyectoComunitario          Boolean           @default(false) @map("es_proyecto_comunitario")
+  activa                         Boolean           @default(true)
+  createdAt                      DateTime          @default(now()) @map("created_at")
+
+  secciones                      Seccion[]
+
+  @@unique([pfgId, codigo])
+  @@map("unidades_curriculares")
+}
+
+model Profesor {
+  id          String                   @id @default(uuid())
+  cedula      String                   @unique
+  nombres     String
+  apellidos   String
+  email       String                   @unique
+  telefono    String?
+  condicion   String                   @default("ORDINARIO")
+  escalafon   String                   @default("INSTRUCTOR")
+  activo      Boolean                  @default(true)
+  createdAt   DateTime                 @default(now()) @map("created_at")
+  updatedAt   DateTime                 @updatedAt @map("updated_at")
+
+  usuario          Usuario?
+  dedicaciones     ProfesorDedicacion[]
+  disponibilidades ProfesorDisponibilidad[]
+  secciones        Seccion[]
+
+  @@map("profesores")
+}
+
+model ProfesorDedicacion {
+  id                         String           @id @default(uuid())
+  profesorId                 String           @map("profesor_id")
+  profesor                   Profesor         @relation(fields: [profesorId], references: [id], onDelete: Restrict)
+  periodoId                  String           @map("periodo_id")
+  periodo                    PeriodoAcademico @relation(fields: [periodoId], references: [id], onDelete: Restrict)
+  dedicacion                 String
+  horasPermanenciaSemanales  Int              @map("horas_permanencia_semanales")
+  minHorasDocenciaDirecta    Int              @map("min_horas_docencia_directa")
+  maxHorasDocenciaDirecta    Int              @map("max_horas_docencia_directa")
+  sedeAdscripcionPrincipalId String           @map("sede_adscripcion_principal_id")
+  sedePrincipal              Sede             @relation(fields: [sedeAdscripcionPrincipalId], references: [id])
+  observacionExcepcion       String?          @map("observacion_excepcion")
+  createdAt                  DateTime         @default(now()) @map("created_at")
+
+  @@unique([profesorId, periodoId])
+  @@map("profesor_dedicaciones")
+}
+
+model ProfesorDisponibilidad {
+  id                   String           @id @default(uuid())
+  profesorId           String           @map("profesor_id")
+  profesor             Profesor         @relation(fields: [profesorId], references: [id], onDelete: Cascade)
+  periodoId            String           @map("periodo_id")
+  periodo              PeriodoAcademico @relation(fields: [periodoId], references: [id], onDelete: Cascade)
+  dia                  String
+  horaInicio           String           @map("hora_inicio")
+  horaFin              String           @map("hora_fin")
+  prioridadPreferencia Int              @default(1) @map("prioridad_preferencia")
+  disponible           Boolean          @default(true)
+
+  @@map("profesor_disponibilidades")
+}
+
+model Seccion {
+  id                 String           @id @default(uuid())
+  periodoId          String           @map("periodo_id")
+  periodo            PeriodoAcademico @relation(fields: [periodoId], references: [id], onDelete: Restrict)
+  unidadCurricularId String           @map("unidad_curricular_id")
+  unidadCurricular   UnidadCurricular @relation(fields: [unidadCurricularId], references: [id], onDelete: Restrict)
+  sedeId             String           @map("sede_id")
+  sede               Sede             @relation(fields: [sedeId], references: [id], onDelete: Restrict)
+  profesorId         String?          @map("profesor_id")
+  profesor           Profesor?        @relation(fields: [profesorId], references: [id], onDelete: SetNull)
+  codigoSeccion      String           @map("codigo_seccion")
+  turno              String           @default("MATUTINO")
+  cuposEstimados     Int              @map("cupos_estimados")
+  createdAt          DateTime         @default(now()) @map("created_at")
+
+  horarios           HorarioSeccion[]
+  auditorias         AuditoriaAjusteHorario[]
+
+  @@unique([periodoId, codigoSeccion])
+  @@map("secciones")
+}
+
+model HorarioSeccion {
+  id              String         @id @default(uuid())
+  seccionId       String         @map("seccion_id")
+  seccion         Seccion        @relation(fields: [seccionId], references: [id], onDelete: Cascade)
+  espacioFisicoId String?        @map("espacio_fisico_id")
+  espacioFisico   EspacioFisico? @relation(fields: [espacioFisicoId], references: [id], onDelete: Restrict)
+  dia             String
+  horaInicio      String         @map("hora_inicio")
+  horaFin         String         @map("hora_fin")
+  tipoBloque      String         @default("DOCENCIA_AULA") @map("tipo_bloque")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  @@index([seccionId])
+  @@index([espacioFisicoId])
+  @@map("horarios_seccion")
+}
+
+model AuditoriaAjusteHorario {
+  id                      String           @id @default(uuid())
+  periodoId               String           @map("periodo_id")
+  periodo                 PeriodoAcademico @relation(fields: [periodoId], references: [id])
+  seccionId               String           @map("seccion_id")
+  seccion                 Seccion          @relation(fields: [seccionId], references: [id])
+  horarioSeccionId        String?          @map("horario_seccion_id")
+  usuarioResponsable      String           @map("usuario_responsable")
+  tipoOperacion           String           @map("tipo_operacion")
+  datosAnteriores         String?          @map("datos_anteriores")
+  datosNuevos             String?          @map("datos_nuevos")
+  justificacionResolucion String?          @map("justificacion_resolucion")
+  fechaAjuste             DateTime         @default(now()) @map("fecha_ajuste")
+
+  @@map("auditoria_ajustes_horarios")
+}

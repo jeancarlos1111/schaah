@@ -1,0 +1,278 @@
+<!-- Header del Módulo de Disponibilidad Docente -->
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <a href="/docentes" class="breadcrumb-link">Docentes</a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Disponibilidad Semanal</span>
+      </div>
+      <h1 class="page-title uk-margin-remove">
+        Matriz de Disponibilidad: <%= profesor.nombres %> <%= profesor.apellidos %>
+      </h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Definición de franjas horarias y preferencias para el motor de optimización (Regla H-06 y S-02). Período: <strong><%= periodoActivo.codigo %></strong>.
+      </p>
+    </div>
+    <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
+      <a href="/docentes" class="btn-clean-secondary">
+        <span uk-icon="icon: arrow-left; ratio: 0.85"></span>
+        <span>Volver a Nómina</span>
+      </a>
+      <button class="btn-clean-primary" onclick="guardarMatriz()">
+        <span uk-icon="icon: check; ratio: 0.85"></span>
+        <span>Guardar Cambios</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Ficha Rápida del Docente -->
+  <!-- Ficha Rápida del Docente -->
+  <div class="clean-panel uk-margin-small-top uk-padding-small">
+    <div class="uk-grid-small uk-child-width-auto uk-flex-middle uk-flex-between" uk-grid>
+      <div class="uk-flex uk-flex-middle gap-3">
+        <span class="email-code"><%= profesor.cedula %></span>
+        <span class="table-user-name font-semibold"><%= profesor.apellidos %>, <%= profesor.nombres %></span>
+        <span class="table-sub-info"><%= profesor.email %></span>
+      </div>
+      <div class="uk-flex uk-flex-middle gap-2">
+        <% if (dedicacion) { %>
+          <span class="badge-role badge-admin"><%= dedicacion.dedicacion.replace(/_/g, ' ') %></span>
+          <span class="table-sub-info">
+            Sede: <strong><%= dedicacion.sedePrincipal ? dedicacion.sedePrincipal.nombre : 'No asignada' %></strong>
+          </span>
+          <span class="table-sub-info">
+            Docencia Directa: [<%= dedicacion.minHorasDocenciaDirecta %>h - <%= dedicacion.maxHorasDocenciaDirecta %>h]
+          </span>
+        <% } else { %>
+          <span class="status-pill status-inactive">Sin dedicación asignada</span>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Alertas Informativas de Feedback -->
+<% if (typeof success !== 'undefined' && success) { %>
+  <div class="alert-clean-success uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: check; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= success %></span>
+  </div>
+<% } %>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="alert-clean-danger uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: warning; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= error %></span>
+  </div>
+<% } %>
+
+<!-- Barra de Herramientas Rápidas -->
+<div class="clean-panel uk-margin-small-bottom uk-padding-small">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-2">
+    <div class="uk-flex uk-flex-middle gap-2">
+      <span class="table-sub-info font-semibold">Acciones Rápidas:</span>
+      <button type="button" class="btn-clean-ghost" onclick="marcarTodos(true, 1)">
+        Marcar Todo Disponible (Alta)
+      </button>
+      <button type="button" class="btn-clean-ghost" onclick="marcarPorTurno('MATUTINO')">
+        Solo Turno Mañana
+      </button>
+      <button type="button" class="btn-clean-ghost" onclick="marcarPorTurno('VESPERTINO')">
+        Solo Turno Tarde
+      </button>
+      <button type="button" class="btn-clean-ghost" onclick="marcarTodos(false, 0)">
+        Limpiar Todo (No Disponible)
+      </button>
+    </div>
+    <div class="uk-flex uk-flex-middle gap-3 table-sub-info">
+      <div class="uk-flex uk-flex-middle gap-1">
+        <span class="disp-legend-box is-prioridad-1"></span>
+        <span>Prioridad 1 (Alta)</span>
+      </div>
+      <div class="uk-flex uk-flex-middle gap-1">
+        <span class="disp-legend-box is-prioridad-2"></span>
+        <span>Prioridad 2 (Media)</span>
+      </div>
+      <div class="uk-flex uk-flex-middle gap-1">
+        <span class="disp-legend-box is-prioridad-3"></span>
+        <span>Prioridad 3 (Baja)</span>
+      </div>
+      <div class="uk-flex uk-flex-middle gap-1">
+        <span class="disp-legend-box is-indisponible"></span>
+        <span>No Disponible</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Matriz Semanal de Disponibilidad -->
+<div class="clean-panel data-table-wrapper uk-padding-remove overflow-hidden">
+  <div class="uk-overflow-auto">
+    <table class="clean-table matrix-table uk-margin-remove">
+      <thead>
+        <tr>
+          <th style="width: 140px;" class="uk-text-center">Bloque / Turno</th>
+          <% dias.forEach(function(d) { %>
+            <th class="uk-text-center">
+              <%= d %>
+            </th>
+          <% }); %>
+        </tr>
+      </thead>
+      <tbody>
+        <% franjas.forEach(function(f) { %>
+          <tr>
+            <td class="uk-text-center table-sub-info font-semibold" style="background-color: var(--surface-muted);">
+              <div class="table-user-name"><%= f.horaInicio %> - <%= f.horaFin %></div>
+              <span class="badge-role <%= f.turno === 'MATUTINO' ? 'badge-docente' : (f.turno === 'VESPERTINO' ? 'badge-director' : 'badge-admin') %> text-xxs">
+                <%= f.turno %>
+              </span>
+            </td>
+            <% dias.forEach(function(d) { 
+              const cellData = (disponibilidadMap[d] && disponibilidadMap[d][f.horaInicio]) ? disponibilidadMap[d][f.horaInicio] : null;
+              const isDisp = cellData ? cellData.disponible : false;
+              const prio = cellData ? cellData.prioridad : 1;
+            %>
+              <td 
+                class="disp-cell <%= isDisp ? 'is-disp prio-' + prio : 'is-nodisp' %>"
+                data-dia="<%= d %>"
+                data-inicio="<%= f.horaInicio %>"
+                data-fin="<%= f.horaFin %>"
+                data-turno="<%= f.turno %>"
+                data-disp="<%= isDisp %>"
+                data-prio="<%= prio %>"
+                onclick="toggleCell(this)"
+              >
+                <div class="cell-content uk-text-center">
+                  <span class="cell-status-text">
+                    <%= isDisp ? ('P' + prio) : 'NO' %>
+                  </span>
+                </div>
+              </td>
+            <% }); %>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Formulario Oculto de Envío -->
+<form id="form-disponibilidad" method="POST" action="/docentes/<%= profesor.id %>/disponibilidad">
+  <input type="hidden" name="slots" id="slots-input">
+</form>
+
+<style>
+  .disp-cell {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s ease-in-out;
+    padding: 12px 6px !important;
+  }
+  .disp-cell:hover {
+    filter: brightness(0.95);
+    transform: scale(0.98);
+  }
+  .disp-cell.is-nodisp {
+    background-color: var(--surface-muted);
+    color: var(--text-faint);
+  }
+  .disp-cell.is-disp.prio-1 {
+    background-color: var(--accent-green-bg);
+    border: 1px solid rgba(63, 185, 80, 0.4);
+    color: var(--accent-green);
+    font-weight: 700;
+  }
+  .disp-cell.is-disp.prio-2 {
+    background-color: var(--accent-blue-bg);
+    border: 1px solid rgba(88, 166, 255, 0.4);
+    color: var(--brand-accent);
+    font-weight: 700;
+  }
+  .disp-cell.is-disp.prio-3 {
+    background-color: var(--accent-amber-bg);
+    border: 1px solid rgba(210, 153, 34, 0.4);
+    color: var(--accent-amber);
+    font-weight: 700;
+  }
+  .disp-legend-box {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+  .disp-legend-box.is-prioridad-1 { background-color: var(--accent-green); }
+  .disp-legend-box.is-prioridad-2 { background-color: var(--brand-accent); }
+  .disp-legend-box.is-prioridad-3 { background-color: var(--accent-amber); }
+  .disp-legend-box.is-indisponible { background-color: var(--surface-muted); border: 1px solid var(--border-subtle); }
+</style>
+
+<script>
+  function toggleCell(cell) {
+    const isDisp = cell.getAttribute('data-disp') === 'true';
+    const prio = parseInt(cell.getAttribute('data-prio'), 10) || 1;
+
+    // Ciclo de estados: No Disp -> P1 -> P2 -> P3 -> No Disp
+    if (!isDisp) {
+      setCellState(cell, true, 1);
+    } else if (prio === 1) {
+      setCellState(cell, true, 2);
+    } else if (prio === 2) {
+      setCellState(cell, true, 3);
+    } else {
+      setCellState(cell, false, 0);
+    }
+  }
+
+  function setCellState(cell, disponible, prioridad) {
+    cell.setAttribute('data-disp', disponible ? 'true' : 'false');
+    cell.setAttribute('data-prio', prioridad.toString());
+
+    cell.className = 'disp-cell ' + (disponible ? 'is-disp prio-' + prioridad : 'is-nodisp');
+    const textSpan = cell.querySelector('.cell-status-text');
+    if (textSpan) {
+      textSpan.textContent = disponible ? 'P' + prioridad : 'NO';
+    }
+  }
+
+  function marcarTodos(disponible, prioridad) {
+    const cells = document.querySelectorAll('.disp-cell');
+    cells.forEach(c => setCellState(c, disponible, prioridad));
+  }
+
+  function marcarPorTurno(turno) {
+    const cells = document.querySelectorAll('.disp-cell');
+    cells.forEach(c => {
+      const cellTurno = c.getAttribute('data-turno');
+      if (cellTurno === turno) {
+        setCellState(c, true, 1);
+      } else {
+        setCellState(c, false, 0);
+      }
+    });
+  }
+
+  function guardarMatriz() {
+    const cells = document.querySelectorAll('.disp-cell');
+    const slots = [];
+
+    cells.forEach(c => {
+      const isDisp = c.getAttribute('data-disp') === 'true';
+      if (isDisp) {
+        slots.push({
+          dia: c.getAttribute('data-dia'),
+          horaInicio: c.getAttribute('data-inicio'),
+          horaFin: c.getAttribute('data-fin'),
+          prioridad: parseInt(c.getAttribute('data-prio'), 10) || 1,
+          disponible: true
+        });
+      }
+    });
+
+    document.getElementById('slots-input').value = JSON.stringify(slots);
+    document.getElementById('form-disponibilidad').submit();
+  }
+</script>

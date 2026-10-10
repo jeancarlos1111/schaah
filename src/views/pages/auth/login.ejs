@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | SCHAAH - UBV</title>
+  
+  <!-- Detección Inmediata de Tema para Evitar FOUC -->
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('schaah-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- UIkit 3 CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/css/uikit.min.css" />
+  <!-- Clean Enterprise CSS -->
+  <link rel="stylesheet" href="/css/style.css">
+  
+  <!-- UIkit JS -->
+  <script src="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/js/uikit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/js/uikit-icons.min.js"></script>
+</head>
+<body class="login-clean-body">
+
+  <div class="login-clean-wrapper">
+    <!-- Barra superior con selector de tema -->
+    <div class="login-top-bar">
+      <button id="theme-toggle-btn" class="theme-toggle-btn" onclick="toggleTheme()" uk-tooltip="Cambiar a tema claro/oscuro">
+        <span id="theme-icon" uk-icon="icon: paint-bucket; ratio: 0.85"></span>
+      </button>
+    </div>
+
+    <!-- Caja de Login Limpia y Sólida -->
+    <div class="login-clean-box">
+      
+      <!-- Brand & Header -->
+      <div class="login-header-section">
+        <div class="brand-badge-clean">
+          <span uk-icon="icon: grid; ratio: 0.95" class="brand-badge-icon"></span>
+          <span>SCHAAH</span>
+        </div>
+        <h1 class="login-title">Iniciar Sesión</h1>
+        <p class="login-description">
+          Sistema de Carga Horaria &bull; Universidad Bolivariana de Venezuela
+        </p>
+      </div>
+
+      <!-- Error Alert -->
+      <% if (error) { %>
+        <div class="alert-clean-danger" uk-alert>
+          <a class="uk-alert-close" uk-close></a>
+          <span uk-icon="icon: warning; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+          <span><%= error %></span>
+        </div>
+      <% } %>
+
+      <!-- Formulario con Espaciado Robusto -->
+      <form action="/login" method="POST" class="login-form-clean">
+        <div class="form-group-clean">
+          <label class="label-clean" for="email">Correo Institucional</label>
+          <div class="input-wrap-clean">
+            <span class="input-icon-clean" uk-icon="icon: mail; ratio: 0.9"></span>
+            <input 
+              class="input-control-clean" 
+              type="email" 
+              id="email" 
+              name="email" 
+              value="<%= email %>" 
+              placeholder="docente@ubv.edu.ve" 
+              required 
+              autocomplete="email"
+            />
+          </div>
+        </div>
+
+        <div class="form-group-clean">
+          <div class="label-row-clean">
+            <label class="label-clean" for="password">Contraseña</label>
+            <span class="label-hint">Acceso Único UBV</span>
+          </div>
+          <div class="input-wrap-clean">
+            <span class="input-icon-clean" uk-icon="icon: lock; ratio: 0.9"></span>
+            <input 
+              class="input-control-clean" 
+              type="password" 
+              id="password" 
+              name="password" 
+              placeholder="••••••••••••" 
+              required 
+              autocomplete="current-password"
+            />
+          </div>
+        </div>
+
+        <div class="uk-margin-small-top">
+          <button type="submit" class="btn-clean-primary btn-block">
+            <span uk-icon="icon: sign-in; ratio: 0.85" class="uk-margin-small-right"></span> Ingresar a la Plataforma
+          </button>
+        </div>
+      </form>
+
+      <div class="login-footer-clean">
+        <span uk-icon="icon: lock; ratio: 0.75" class="uk-margin-xsmall-right"></span>
+        <span>Conexión segura y autenticación cifrada por roles (RBAC)</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Script de Gestión de Tema en Login -->
+  <script>
+    function updateThemeIcon(theme) {
+      const icon = document.getElementById('theme-icon');
+      if (!icon) return;
+      if (theme === 'light') {
+        icon.setAttribute('uk-icon', 'icon: moon; ratio: 0.85');
+      } else {
+        icon.setAttribute('uk-icon', 'icon: sun; ratio: 0.85');
+      }
+    }
+
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('schaah-theme', newTheme);
+      updateThemeIcon(newTheme);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const activeTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      updateThemeIcon(activeTheme);
+    });
+  </script>
+
+</body>
+</html>

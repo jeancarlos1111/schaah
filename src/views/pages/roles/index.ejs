@@ -1,0 +1,239 @@
+<!-- Header de Roles y Permisos con Sub-navegación -->
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <span>Administración</span>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Roles y Permisos</span>
+      </div>
+      <h1 class="page-title uk-margin-remove">Roles y Matriz de Permisos (RBAC)</h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Configuración de privilegios de acceso granular por módulo institucional.
+      </p>
+    </div>
+    <div class="header-controls uk-margin-small-top">
+      <button class="btn-clean-primary" uk-toggle="target: #modal-nuevo-rol">
+        <span uk-icon="icon: plus; ratio: 0.85"></span>
+        <span>Nuevo Rol</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Pestañas de Navegación del Módulo de Administración -->
+  <div class="admin-subtabs uk-margin-top">
+    <a href="/usuarios" class="subtab-item">
+      <span uk-icon="icon: users; ratio: 0.8"></span>
+      <span>Cuentas de Usuarios</span>
+    </a>
+    <a href="/roles" class="subtab-item is-active">
+      <span uk-icon="icon: lock; ratio: 0.8"></span>
+      <span>Matriz de Roles y Permisos</span>
+    </a>
+  </div>
+</div>
+
+<!-- Alertas Informativas -->
+<% if (success) { %>
+  <div class="alert-clean-success uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: check; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= success %></span>
+  </div>
+<% } %>
+
+<% if (error) { %>
+  <div class="alert-clean-danger uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: warning; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= error %></span>
+  </div>
+<% } %>
+
+<!-- Tarjetas de Roles Existentes -->
+<div class="uk-grid-small uk-child-width-1-2 uk-child-width-1-4@m uk-margin-medium-bottom" uk-grid>
+  <% roles.forEach(function(r) { %>
+    <div>
+      <div class="clean-stat-card">
+        <div class="stat-top-row">
+          <span class="user-role-tag role-<%= r.codigo.toLowerCase() %>"><%= r.codigo %></span>
+          <% if (r.esSistema) { %>
+            <span class="stat-indicator indicator-gray">Sistema</span>
+          <% } else { %>
+            <span class="stat-indicator indicator-teal">Personalizado</span>
+          <% } %>
+        </div>
+        <div class="stat-value-row">
+          <span class="stat-number" style="font-size: 1.35rem;"><%= r.nombre %></span>
+        </div>
+        <div class="stat-detail-row">
+          <span class="detail-highlight"><%= r._count.usuarios %></span>
+          <span class="detail-label">usuarios asignados</span>
+        </div>
+      </div>
+    </div>
+  <% }); %>
+</div>
+
+<!-- Matriz Interactiva de Permisos -->
+<div class="clean-panel">
+  <form action="/roles/matriz" method="POST" id="form-matriz-permisos">
+    
+    <div class="clean-panel-header uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-2">
+      <div>
+        <h2 class="panel-title uk-margin-remove">Matriz de Acceso por Módulo</h2>
+        <p class="panel-subtitle uk-margin-remove">
+          Marca las casillas para otorgar privilegios específicos a cada rol.
+        </p>
+      </div>
+      <div>
+        <button type="submit" class="btn-clean-primary">
+          <span uk-icon="icon: check; ratio: 0.85"></span>
+          <span>Guardar Cambios en Matriz</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Buscador de Permisos -->
+    <div class="table-toolbar uk-margin-small-top uk-flex uk-flex-between uk-flex-middle">
+      <div class="table-search-box">
+        <span uk-icon="icon: search; ratio: 0.8" class="search-icon"></span>
+        <input 
+          type="text" 
+          id="permiso-search-input" 
+          class="search-input" 
+          placeholder="Filtrar permisos..." 
+          onkeyup="filtrarPermisos()" 
+        />
+      </div>
+      <div class="uk-text-muted uk-text-small">
+        <span><%= permisos.length %> permisos configurables</span>
+      </div>
+    </div>
+
+    <!-- Tabla Matriz -->
+    <div class="uk-overflow-auto uk-margin-small-top">
+      <table class="clean-table matrix-table" id="matrix-table">
+        <thead>
+          <tr>
+            <th style="min-width: 260px;">Módulo / Privilegio</th>
+            <% roles.forEach(function(r) { %>
+              <th class="uk-text-center" style="min-width: 140px;">
+                <span class="user-role-tag role-<%= r.codigo.toLowerCase() %>"><%= r.codigo %></span>
+              </th>
+            <% }); %>
+          </tr>
+        </thead>
+        <tbody>
+          <% modulos.forEach(function(mod) { %>
+            <!-- Encabezado de Módulo -->
+            <tr class="module-header-row">
+              <td colspan="<%= roles.length + 1 %>">
+                <span class="module-title">Módulo: <%= mod.nombre %></span>
+              </td>
+            </tr>
+
+            <% mod.lista.forEach(function(p) { %>
+              <tr class="permiso-row">
+                <td>
+                  <div class="permiso-info">
+                    <span class="permiso-name"><%= p.nombre %></span>
+                    <code class="permiso-code"><%= p.codigo %></code>
+                  </div>
+                  <% if (p.descripcion) { %>
+                    <span class="permiso-desc"><%= p.descripcion %></span>
+                  <% } %>
+                </td>
+
+                <% roles.forEach(function(r) { %>
+                  <td class="uk-text-center">
+                    <% if (r.codigo === 'ADMINISTRADOR') { %>
+                      <span class="badge-all-access" uk-tooltip="Acceso Total Irrevocable">
+                        <span uk-icon="icon: check; ratio: 0.75"></span> Total
+                      </span>
+                    <% } else { %>
+                      <% const activo = permisosActivosSet.has(r.id + '_' + p.id); %>
+                      <label class="matrix-checkbox-label">
+                        <input 
+                          type="checkbox" 
+                          class="matrix-checkbox" 
+                          name="permiso_<%= r.id %>_<%= p.id %>" 
+                          <%= activo ? 'checked' : '' %>
+                        />
+                      </label>
+                    <% } %>
+                  </td>
+                <% }); %>
+              </tr>
+            <% }); %>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Barra de Guardado Inferior -->
+    <div class="uk-margin-medium-top uk-flex uk-flex-between uk-flex-middle border-t pt-3">
+      <span class="uk-text-muted uk-text-small">
+        <span uk-icon="icon: info; ratio: 0.8" class="uk-margin-xsmall-right"></span>
+        Los cambios aplicados toman vigencia en el siguiente inicio de sesión o recarga de permisos.
+      </span>
+      <button type="submit" class="btn-clean-primary">
+        <span uk-icon="icon: check; ratio: 0.85"></span>
+        <span>Guardar Cambios en Matriz</span>
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<!-- Modal para Crear Nuevo Rol -->
+<div id="modal-nuevo-rol" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body modal-clean-box">
+    <div class="uk-flex uk-flex-between uk-flex-middle uk-margin-bottom">
+      <h2 class="modal-clean-title uk-margin-remove">Crear Nuevo Rol</h2>
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+    </div>
+
+    <p class="uk-text-muted uk-text-small uk-margin-remove-top uk-margin-bottom">
+      Define un nuevo rol institucional. Posteriormente podrás asignarle permisos en la matriz.
+    </p>
+
+    <form action="/roles/nuevo" method="POST" class="login-form-clean">
+      <div class="form-group-clean">
+        <label class="label-clean" for="codigo">Código del Rol (Mayúsculas, sin espacios)</label>
+        <input class="input-control-clean" type="text" id="codigo" name="codigo" placeholder="Ej: JEFE_DEPARTAMENTO" required />
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean" for="nombre">Nombre Descriptivo</label>
+        <input class="input-control-clean" type="text" id="nombre" name="nombre" placeholder="Ej: Jefe de Departamento Académico" required />
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean" for="descripcion">Descripción de Responsabilidades</label>
+        <input class="input-control-clean" type="text" id="descripcion" name="descripcion" placeholder="Ej: Encargado de la validación de carga y turnos" />
+      </div>
+
+      <div class="uk-margin-medium-top uk-text-right">
+        <button class="btn-clean-secondary uk-modal-close uk-margin-small-right" type="button">Cancelar</button>
+        <button class="btn-clean-primary" type="submit">Crear Rol</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function filtrarPermisos() {
+    const filter = document.getElementById('permiso-search-input').value.toLowerCase().trim();
+    const rows = document.querySelectorAll('#matrix-table tbody tr.permiso-row');
+
+    rows.forEach(row => {
+      const text = row.innerText.toLowerCase();
+      if (text.includes(filter)) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+</script>

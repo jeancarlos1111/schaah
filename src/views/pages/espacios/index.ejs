@@ -1,0 +1,810 @@
+<!-- Header del Módulo de Espacios con Sub-navegación -->
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <span>Infraestructura</span>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Sedes y Espacios Físicos</span>
+      </div>
+      <h1 class="page-title uk-margin-remove">Sedes y Espacios Físicos</h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Administración de campus, aldeas universitarias municipalizadas, aulas, laboratorios y áreas de campo.
+      </p>
+    </div>
+    <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
+      <button class="btn-clean-secondary" uk-toggle="target: #modal-nueva-sede">
+        <span uk-icon="icon: location; ratio: 0.85"></span>
+        <span>+ Nueva Sede</span>
+      </button>
+      <button class="btn-clean-primary" uk-toggle="target: #modal-nueva-aula">
+        <span uk-icon="icon: plus; ratio: 0.85"></span>
+        <span>+ Nuevo Espacio</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Pestañas de Navegación del Módulo -->
+  <div class="admin-subtabs uk-margin-top">
+    <a href="/espacios?tab=espacios" class="subtab-item <%= activeTab === 'espacios' ? 'is-active' : '' %>">
+      <span uk-icon="icon: grid; ratio: 0.8"></span>
+      <span>Aulas y Espacios Físicos</span>
+    </a>
+    <a href="/espacios?tab=sedes" class="subtab-item <%= activeTab === 'sedes' ? 'is-active' : '' %>">
+      <span uk-icon="icon: location; ratio: 0.8"></span>
+      <span>Sedes y Aldeas Municipalizadas (<%= stats.totalSedes %>)</span>
+    </a>
+  </div>
+</div>
+
+<!-- Alertas Informativas -->
+<% if (success) { %>
+  <div class="alert-clean-success uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: check; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= success %></span>
+  </div>
+<% } %>
+
+<% if (error) { %>
+  <div class="alert-clean-danger uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: warning; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= error %></span>
+  </div>
+<% } %>
+
+<!-- Bento Stat Cards de Infraestructura Institucional -->
+<div class="uk-grid-small uk-child-width-1-2 uk-child-width-1-4@m uk-margin-medium-bottom" uk-grid>
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Total Recintos</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.totalEspacios %></span>
+        <span class="stat-unit">espacios</span>
+      </div>
+      <span class="detail-label">Aulas y laboratorios</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Aforo Global</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.totalCapacidad %></span>
+        <span class="stat-unit">asientos</span>
+      </div>
+      <span class="detail-label">Capacidad total activa</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Laboratorios</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.totalLaboratorios %></span>
+        <span class="stat-unit">especializados</span>
+      </div>
+      <span class="detail-label">Informática y ciencias</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Sedes & Aldeas</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.totalSedes %></span>
+        <span class="stat-unit">territorios</span>
+      </div>
+      <span class="detail-label"><%= stats.totalAldeas %> aldeas municipalizadas</span>
+    </div>
+  </div>
+</div>
+
+<% if (activeTab === 'espacios') { %>
+  <%
+    // Helpers para URLs de ordenamiento y paginación en servidor
+    function makeQueryUrl(overrides) {
+      const params = new URLSearchParams({
+        tab: 'espacios',
+        page: overrides.page !== undefined ? overrides.page : pagination.page,
+        limit: overrides.limit !== undefined ? overrides.limit : pagination.limit,
+        q: overrides.q !== undefined ? overrides.q : (filters.q || ''),
+        sedeId: overrides.sedeId !== undefined ? overrides.sedeId : (filters.sedeId || ''),
+        tipo: overrides.tipo !== undefined ? overrides.tipo : (filters.tipo || ''),
+        estado: overrides.estado !== undefined ? overrides.estado : (filters.estado || ''),
+        sortBy: overrides.sortBy !== undefined ? overrides.sortBy : (filters.sortBy || 'codigo'),
+        sortDir: overrides.sortDir !== undefined ? overrides.sortDir : (filters.sortDir || 'asc')
+      });
+      for (const [key, val] of [...params.entries()]) {
+        if (!val) params.delete(key);
+      }
+      return '/espacios?' + params.toString();
+    }
+
+    function getSortUrl(col) {
+      const isCurrent = filters.sortBy === col;
+      const nextDir = isCurrent && filters.sortDir === 'asc' ? 'desc' : 'asc';
+      return makeQueryUrl({ page: 1, sortBy: col, sortDir: nextDir });
+    }
+
+    function getSortHeaderClass(col) {
+      if (filters.sortBy !== col) return 'sortable';
+      return filters.sortDir === 'asc' ? 'sortable sort-asc' : 'sortable sort-desc';
+    }
+  %>
+
+  <!-- TAB 1: Panel Principal de Aulas y Espacios Físicos (DataTable Server-Side) -->
+  <div class="clean-panel data-table-wrapper" id="espacios-datatable-wrapper">
+    
+    <!-- Barra de Herramientas Server-Side Estable (Sin pérdida de foco) -->
+    <form 
+      id="espacios-filter-form"
+      action="/espacios"
+      method="GET"
+      hx-get="/espacios"
+      hx-target="#espacios-table-container"
+      hx-select="#espacios-table-container"
+      hx-swap="outerHTML"
+      hx-push-url="true"
+      class="table-toolbar uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-2"
+    >
+      <input type="hidden" name="tab" value="espacios" />
+      <input type="hidden" name="page" value="1" />
+      <input type="hidden" name="sortBy" value="<%= filters.sortBy %>" />
+      <input type="hidden" name="sortDir" value="<%= filters.sortDir %>" />
+
+      <div class="table-toolbar-left uk-flex uk-flex-middle uk-flex-wrap gap-2">
+        <!-- Input de Búsqueda Reactiva -->
+        <div class="table-search-box">
+          <span uk-icon="icon: search; ratio: 0.8" class="search-icon"></span>
+          <input 
+            type="text" 
+            name="q"
+            id="espacio-search-input"
+            value="<%= filters.q %>"
+            class="search-input" 
+            placeholder="Buscar por código, nombre o piso..." 
+            hx-get="/espacios"
+            hx-trigger="input changed delay:350ms, search"
+            hx-target="#espacios-table-container"
+            hx-select="#espacios-table-container"
+            hx-swap="outerHTML"
+            hx-push-url="true"
+            hx-include="#espacios-filter-form"
+            autocomplete="off"
+          />
+        </div>
+
+        <!-- Filtros Desplegables del Servidor -->
+        <div class="table-filters-row uk-flex uk-flex-middle gap-2">
+          <!-- Filtro por Sede -->
+          <select name="sedeId" class="table-filter-select" onchange="this.form.requestSubmit()">
+            <option value="">Todas las sedes</option>
+            <% sedes.forEach(function(s) { %>
+              <option value="<%= s.id %>" <%= filters.sedeId === s.id ? 'selected' : '' %>>
+                <%= s.nombre %> <%= s.esAldeaMunicipalizada ? '(Aldea)' : '' %>
+              </option>
+            <% }); %>
+          </select>
+
+          <!-- Filtro por Tipo de Espacio -->
+          <select name="tipo" class="table-filter-select" onchange="this.form.requestSubmit()">
+            <option value="">Todos los tipos</option>
+            <% tiposEspacio.forEach(function(t) { %>
+              <option value="<%= t %>" <%= filters.tipo === t ? 'selected' : '' %>>
+                <%= t.replace(/_/g, ' ') %>
+              </option>
+            <% }); %>
+          </select>
+
+          <!-- Filtro por Estado -->
+          <select name="estado" class="table-filter-select" onchange="this.form.requestSubmit()">
+            <option value="">Todos los estados</option>
+            <option value="Activo" <%= filters.estado === 'Activo' ? 'selected' : '' %>>Activos</option>
+            <option value="Inactivo" <%= filters.estado === 'Inactivo' ? 'selected' : '' %>>Inactivos</option>
+          </select>
+        </div>
+
+        <!-- Botón Limpiar Filtros -->
+        <a 
+          href="/espacios?tab=espacios" 
+          id="btn-limpiar-espacios"
+          class="btn-clean-ghost <%= (filters.q || filters.sedeId || filters.tipo || filters.estado || filters.sortBy !== 'codigo') ? '' : 'uk-hidden' %>" 
+          title="Restablecer filtros"
+          onclick="limpiarFiltrosEspacio(event)"
+        >
+          <span uk-icon="icon: refresh; ratio: 0.75"></span>
+          <span>Limpiar</span>
+        </a>
+      </div>
+
+      <!-- Selector de Filas por Página -->
+      <div class="table-toolbar-right uk-flex uk-flex-middle gap-2">
+        <span class="uk-text-muted uk-text-small">Filas:</span>
+        <select name="limit" class="table-page-size-select" onchange="this.form.requestSubmit()">
+          <option value="5" <%= pagination.limit === 5 ? 'selected' : '' %>>5</option>
+          <option value="10" <%= pagination.limit === 10 ? 'selected' : '' %>>10</option>
+          <option value="25" <%= pagination.limit === 25 ? 'selected' : '' %>>25</option>
+          <option value="50" <%= pagination.limit === 50 ? 'selected' : '' %>>50</option>
+        </select>
+      </div>
+    </form>
+
+    <!-- Contenedor Reemplazable de Tabla y Paginador -->
+    <div id="espacios-table-container">
+      <div class="uk-overflow-auto uk-margin-small-top">
+        <table class="clean-table" id="espacios-table">
+          <thead>
+            <tr>
+              <th class="<%= getSortHeaderClass('codigo') %>">
+                <a 
+                  href="<%= getSortUrl('codigo') %>" 
+                  hx-get="<%= getSortUrl('codigo') %>" 
+                  hx-target="#espacios-table-container" 
+                  hx-select="#espacios-table-container" 
+                  hx-swap="outerHTML" 
+                  hx-push-url="true"
+                  class="uk-link-reset"
+                >Código</a>
+              </th>
+              <th class="<%= getSortHeaderClass('nombre') %>">
+                <a 
+                  href="<%= getSortUrl('nombre') %>" 
+                  hx-get="<%= getSortUrl('nombre') %>" 
+                  hx-target="#espacios-table-container" 
+                  hx-select="#espacios-table-container" 
+                  hx-swap="outerHTML" 
+                  hx-push-url="true"
+                  class="uk-link-reset"
+                >Nombre del Espacio</a>
+              </th>
+              <th>Sede / Territorio</th>
+              <th class="<%= getSortHeaderClass('tipo') %>">
+                <a 
+                  href="<%= getSortUrl('tipo') %>" 
+                  hx-get="<%= getSortUrl('tipo') %>" 
+                  hx-target="#espacios-table-container" 
+                  hx-select="#espacios-table-container" 
+                  hx-swap="outerHTML" 
+                  hx-push-url="true"
+                  class="uk-link-reset"
+                >Tipo de Recinto</a>
+              </th>
+              <th class="<%= getSortHeaderClass('capacidad') %>">
+                <a 
+                  href="<%= getSortUrl('capacidad') %>" 
+                  hx-get="<%= getSortUrl('capacidad') %>" 
+                  hx-target="#espacios-table-container" 
+                  hx-select="#espacios-table-container" 
+                  hx-swap="outerHTML" 
+                  hx-push-url="true"
+                  class="uk-link-reset"
+                >Aforo / Capacidad</a>
+              </th>
+              <th>Piso / Nivel</th>
+              <th>Estado</th>
+              <th class="uk-text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (espacios.length === 0) { %>
+              <tr>
+                <td colspan="8" class="empty-state-cell uk-text-center uk-padding">
+                  <div class="empty-state-inner">
+                    <span uk-icon="icon: search; ratio: 1.5" class="empty-state-icon uk-margin-small-bottom"></span>
+                    <div class="empty-state-title">No se encontraron espacios físicos</div>
+                    <div class="empty-state-subtitle uk-text-muted uk-text-small uk-margin-xsmall-top">
+                      No hay recintos que coincidan con los filtros seleccionados en la base de datos.
+                    </div>
+                    <a 
+                      href="/espacios?tab=espacios" 
+                      class="btn-clean-secondary btn-sm uk-margin-small-top"
+                      onclick="limpiarFiltrosEspacio(event)"
+                    >
+                      Restablecer filtros
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            <% } else { %>
+              <% espacios.forEach(function(e) { %>
+                <tr class="espacio-row">
+                  <td>
+                    <span class="email-code font-bold"><%= e.codigo %></span>
+                  </td>
+                  <td>
+                    <div class="table-user-name"><%= e.nombre %></div>
+                  </td>
+                  <td>
+                    <span class="text-white"><%= e.sede.nombre %></span>
+                    <% if (e.sede.esAldeaMunicipalizada) { %>
+                      <span class="status-pill indicator-amber uk-margin-xsmall-left">Aldea</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <% if (e.tipo.includes('LABORATORIO')) { %>
+                      <span class="user-role-tag role-administrador"><%= e.tipo.replace(/_/g, ' ') %></span>
+                    <% } else if (e.tipo === 'AUDITORIO') { %>
+                      <span class="user-role-tag role-coordinador_pfg">AUDITORIO</span>
+                    <% } else if (e.tipo === 'ESPACIO_COMUNITARIO_CAMPO') { %>
+                      <span class="user-role-tag role-docente">COMUNIDAD / CAMPO</span>
+                    <% } else { %>
+                      <span class="user-role-tag role-director_academico">AULA TEÓRICA</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <span class="font-bold text-white"><%= e.capacidad %></span>
+                    <span class="uk-text-muted uk-text-small">estudiantes</span>
+                  </td>
+                  <td>
+                    <span class="date-text"><%= e.piso || 'Sin especificar' %></span>
+                  </td>
+                  <td>
+                    <% if (e.activo) { %>
+                      <span class="status-pill status-active">Activo</span>
+                    <% } else { %>
+                      <span class="status-pill status-inactive">Inactivo</span>
+                    <% } %>
+                  </td>
+                  <td class="table-actions-cell uk-text-right">
+                    <div class="table-actions-group">
+                      <!-- Editar Aula -->
+                      <button 
+                        type="button" 
+                        class="btn-table-action" 
+                        onclick="abrirModalEditarAula('<%= e.id %>', '<%= e.codigo %>', '<%= e.nombre %>', '<%= e.tipo %>', '<%= e.capacidad %>', '<%= e.piso || '' %>')"
+                        uk-tooltip="Editar recinto"
+                      >
+                        <span uk-icon="icon: pencil; ratio: 0.75"></span>
+                        <span>Editar</span>
+                      </button>
+
+                      <!-- Activar / Desactivar -->
+                      <form action="/espacios/aulas/<%= e.id %>/toggle" method="POST">
+                        <button type="submit" class="btn-table-action" uk-tooltip="<%= e.activo ? 'Deshabilitar recinto' : 'Habilitar recinto' %>">
+                          <span uk-icon="icon: <%= e.activo ? 'ban' : 'check' %>; ratio: 0.75"></span>
+                          <span><%= e.activo ? 'Desactivar' : 'Activar' %></span>
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pie de Paginación Server-Side -->
+      <div class="table-footer">
+        <div class="data-table-info uk-text-muted uk-text-small">
+          <% if (pagination.total === 0) { %>
+            Mostrando <strong class="text-white">0</strong> espacios
+          <% } else { %>
+            Mostrando <strong class="text-white"><%= pagination.start %></strong> a <strong class="text-white"><%= pagination.end %></strong> de <strong class="text-white"><%= pagination.total %></strong>
+            <% if (pagination.total < stats.totalEspacios) { %>
+              <span class="uk-text-muted">(filtrados de <%= stats.totalEspacios %> en base de datos)</span>
+            <% } else { %>
+              <span class="uk-text-muted">recintos</span>
+            <% } %>
+          <% } %>
+        </div>
+
+        <% if (pagination.totalPages > 1) { %>
+          <div class="clean-pagination">
+            <ul class="clean-pagination-list">
+              <li>
+                <% if (pagination.hasPrev) { %>
+                  <a 
+                    href="<%= makeQueryUrl({ page: pagination.page - 1 }) %>"
+                    class="page-nav-btn"
+                    hx-get="<%= makeQueryUrl({ page: pagination.page - 1 }) %>"
+                    hx-target="#espacios-table-container"
+                    hx-select="#espacios-table-container"
+                    hx-swap="outerHTML"
+                    hx-push-url="true"
+                  >
+                    <span uk-icon="icon: chevron-left; ratio: 0.8"></span>
+                    <span>Anterior</span>
+                  </a>
+                <% } else { %>
+                  <button type="button" class="page-nav-btn" disabled>
+                    <span uk-icon="icon: chevron-left; ratio: 0.8"></span>
+                    <span>Anterior</span>
+                  </button>
+                <% } %>
+              </li>
+
+              <% for (let p = 1; p <= pagination.totalPages; p++) { %>
+                <li>
+                  <a 
+                    href="<%= makeQueryUrl({ page: p }) %>"
+                    class="page-number-btn <%= p === pagination.page ? 'is-active' : '' %>"
+                    hx-get="<%= makeQueryUrl({ page: p }) %>"
+                    hx-target="#espacios-table-container"
+                    hx-select="#espacios-table-container"
+                    hx-swap="outerHTML"
+                    hx-push-url="true"
+                  >
+                    <%= p %>
+                  </a>
+                </li>
+              <% } %>
+
+              <li>
+                <% if (pagination.hasNext) { %>
+                  <a 
+                    href="<%= makeQueryUrl({ page: pagination.page + 1 }) %>"
+                    class="page-nav-btn"
+                    hx-get="<%= makeQueryUrl({ page: pagination.page + 1 }) %>"
+                    hx-target="#espacios-table-container"
+                    hx-select="#espacios-table-container"
+                    hx-swap="outerHTML"
+                    hx-push-url="true"
+                  >
+                    <span>Siguiente</span>
+                    <span uk-icon="icon: chevron-right; ratio: 0.8"></span>
+                  </a>
+                <% } else { %>
+                  <button type="button" class="page-nav-btn" disabled>
+                    <span>Siguiente</span>
+                    <span uk-icon="icon: chevron-right; ratio: 0.8"></span>
+                  </button>
+                <% } %>
+              </li>
+            </ul>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+<% } else { %>
+
+  <!-- TAB 2: Sedes y Aldeas Municipalizadas -->
+  <div class="clean-panel">
+    <div class="clean-panel-header uk-flex uk-flex-between uk-flex-middle">
+      <div>
+        <h2 class="panel-title">Catálogo Territorial de Sedes y Aldeas</h2>
+        <p class="panel-subtitle">Centros académicos donde la UBV imparte sus programas de formación.</p>
+      </div>
+    </div>
+
+    <div class="uk-overflow-auto uk-margin-small-top">
+      <table class="clean-table" id="sedes-table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Nombre de Sede / Aldea</th>
+            <th>Eje Geopolítico Territorial</th>
+            <th>Carácter</th>
+            <th>Espacios Asignados</th>
+            <th>Dirección</th>
+            <th>Estado</th>
+            <th class="uk-text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% sedes.forEach(function(s) { %>
+            <tr>
+              <td>
+                <span class="email-code"><%= s.codigo %></span>
+              </td>
+              <td>
+                <div class="table-user-name"><%= s.nombre %></div>
+              </td>
+              <td>
+                <span class="text-white"><%= s.ejeTerritorial %></span>
+              </td>
+              <td>
+                <% if (s.esAldeaMunicipalizada) { %>
+                  <span class="status-pill indicator-amber">Aldea Municipalizada</span>
+                <% } else { %>
+                  <span class="status-pill status-active">Sede Central</span>
+                <% } %>
+              </td>
+              <td>
+                <strong class="text-white"><%= s._count.espacios %></strong>
+                <span class="uk-text-muted uk-text-small">recintos</span>
+              </td>
+              <td>
+                <span class="date-text"><%= s.direccion || 'No especificada' %></span>
+              </td>
+              <td>
+                <% if (s.activa) { %>
+                  <span class="status-pill status-active">Habilitada</span>
+                <% } else { %>
+                  <span class="status-pill status-inactive">Inhabilitada</span>
+                <% } %>
+              </td>
+              <td class="table-actions-cell uk-text-right">
+                <div class="table-actions-group">
+                  <button 
+                    type="button" 
+                    class="btn-table-action"
+                    onclick="abrirModalEditarSede('<%= s.id %>', '<%= s.codigo %>', '<%= s.nombre %>', '<%= s.ejeTerritorial %>', '<%= s.direccion || '' %>', <%= s.esAldeaMunicipalizada %>)"
+                    uk-tooltip="Editar sede"
+                  >
+                    <span uk-icon="icon: pencil; ratio: 0.75"></span>
+                    <span>Editar</span>
+                  </button>
+
+                  <form action="/espacios/sedes/<%= s.id %>/toggle" method="POST">
+                    <button type="submit" class="btn-table-action" uk-tooltip="<%= s.activa ? 'Inhabilitar sede' : 'Habilitar sede' %>">
+                      <span uk-icon="icon: <%= s.activa ? 'ban' : 'check' %>; ratio: 0.75"></span>
+                      <span><%= s.activa ? 'Desactivar' : 'Activar' %></span>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+<% } %>
+
+<!-- ==========================================================================
+     Modal 1: Registrar Nuevo Espacio Físico (Aula, Lab, Campo)
+     ========================================================================== -->
+<div id="modal-nueva-aula" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body modal-clean-box">
+    <div class="uk-flex uk-flex-between uk-flex-middle uk-margin-bottom">
+      <h2 class="modal-clean-title uk-margin-remove">Registrar Nuevo Espacio Físico</h2>
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+    </div>
+    
+    <p class="uk-text-muted uk-text-small uk-margin-remove-top uk-margin-bottom">
+      El recinto estará disponible para la asignación de horarios por el motor de optimización.
+    </p>
+
+    <form action="/espacios/aulas" method="POST" class="login-form-clean">
+      <div class="form-group-clean">
+        <label class="label-clean" for="aula-sedeId">Sede o Aldea Universitaria</label>
+        <select class="input-control-clean" id="aula-sedeId" name="sedeId" required>
+          <option value="" disabled selected>Seleccione la sede</option>
+          <% sedes.forEach(function(s) { %>
+            <option value="<%= s.id %>"><%= s.nombre %> (<%= s.ejeTerritorial %>)</option>
+          <% }); %>
+        </select>
+      </div>
+
+      <div class="uk-grid-small uk-child-width-1-2@s" uk-grid>
+        <div class="form-group-clean">
+          <label class="label-clean" for="aula-codigo">Código Identificador</label>
+          <input class="input-control-clean" type="text" id="aula-codigo" name="codigo" placeholder="Ej: A-101, LAB-REDES" required />
+        </div>
+        <div class="form-group-clean">
+          <label class="label-clean" for="aula-capacidad">Capacidad / Aforo</label>
+          <input class="input-control-clean" type="number" id="aula-capacidad" name="capacidad" min="1" placeholder="Ej: 35" required />
+        </div>
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean" for="aula-nombre">Nombre Descriptivo</label>
+        <input class="input-control-clean" type="text" id="aula-nombre" name="nombre" placeholder="Ej: Aula 101 - Simón Bolívar" required />
+      </div>
+
+      <div class="uk-grid-small uk-child-width-1-2@s uk-margin-small-top" uk-grid>
+        <div class="form-group-clean">
+          <label class="label-clean" for="aula-tipo">Tipo de Espacio</label>
+          <select class="input-control-clean" id="aula-tipo" name="tipo" required>
+            <% tiposEspacio.forEach(function(t) { %>
+              <option value="<%= t %>"><%= t.replace(/_/g, ' ') %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="form-group-clean">
+          <label class="label-clean" for="aula-piso">Piso / Nivel (Opcional)</label>
+          <input class="input-control-clean" type="text" id="aula-piso" name="piso" placeholder="Ej: Piso 1, Sótano" />
+        </div>
+      </div>
+
+      <div class="uk-margin-medium-top uk-text-right">
+        <button class="btn-clean-secondary uk-modal-close uk-margin-small-right" type="button">Cancelar</button>
+        <button class="btn-clean-primary" type="submit">Guardar Espacio</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ==========================================================================
+     Modal 2: Editar Espacio Físico
+     ========================================================================== -->
+<div id="modal-editar-aula" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body modal-clean-box">
+    <div class="uk-flex uk-flex-between uk-flex-middle uk-margin-bottom">
+      <h2 class="modal-clean-title uk-margin-remove">Modificar Espacio Físico</h2>
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+    </div>
+
+    <form id="form-editar-aula" action="" method="POST" class="login-form-clean">
+      <div class="form-group-clean">
+        <label class="label-clean">Código del Recinto (No modificable)</label>
+        <input class="input-control-clean" type="text" id="edit-aula-codigo" disabled />
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean" for="edit-aula-nombre">Nombre Descriptivo</label>
+        <input class="input-control-clean" type="text" id="edit-aula-nombre" name="nombre" required />
+      </div>
+
+      <div class="uk-grid-small uk-child-width-1-2@s uk-margin-small-top" uk-grid>
+        <div class="form-group-clean">
+          <label class="label-clean" for="edit-aula-tipo">Tipo de Espacio</label>
+          <select class="input-control-clean" id="edit-aula-tipo" name="tipo" required>
+            <% tiposEspacio.forEach(function(t) { %>
+              <option value="<%= t %>"><%= t.replace(/_/g, ' ') %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="form-group-clean">
+          <label class="label-clean" for="edit-aula-capacidad">Aforo / Puestos</label>
+          <input class="input-control-clean" type="number" id="edit-aula-capacidad" name="capacidad" min="1" required />
+        </div>
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean" for="edit-aula-piso">Piso / Ubicación</label>
+        <input class="input-control-clean" type="text" id="edit-aula-piso" name="piso" />
+      </div>
+
+      <div class="uk-margin-medium-top uk-text-right">
+        <button class="btn-clean-secondary uk-modal-close uk-margin-small-right" type="button">Cancelar</button>
+        <button class="btn-clean-primary" type="submit">Actualizar Datos</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ==========================================================================
+     Modal 3: Registrar Nueva Sede o Aldea Municipalizada
+     ========================================================================== -->
+<div id="modal-nueva-sede" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body modal-clean-box">
+    <div class="uk-flex uk-flex-between uk-flex-middle uk-margin-bottom">
+      <h2 class="modal-clean-title uk-margin-remove">Registrar Sede / Aldea Universitaria</h2>
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+    </div>
+
+    <form action="/espacios/sedes/nueva" method="POST" class="login-form-clean">
+      <div class="uk-grid-small uk-child-width-1-2@s" uk-grid>
+        <div class="form-group-clean">
+          <label class="label-clean" for="sede-codigo">Código Sede</label>
+          <input class="input-control-clean" type="text" id="sede-codigo" name="codigo" placeholder="Ej: SEDE_MONAGAS" required />
+        </div>
+        <div class="form-group-clean">
+          <label class="label-clean" for="sede-eje">Eje Geopolítico Territorial</label>
+          <input class="input-control-clean" type="text" id="sede-eje" name="ejeTerritorial" placeholder="Ej: Eje Cacique Guaicaipuro" required />
+        </div>
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean" for="sede-nombre">Nombre de la Sede</label>
+        <input class="input-control-clean" type="text" id="sede-nombre" name="nombre" placeholder="Ej: Aldea Universitaria Petare" required />
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean" for="sede-direccion">Dirección / Parroquia</label>
+        <input class="input-control-clean" type="text" id="sede-direccion" name="direccion" placeholder="Ej: Municipio Sucre, Estado Miranda" />
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean">
+          <input class="uk-checkbox uk-margin-xsmall-right" type="checkbox" name="esAldeaMunicipalizada" value="true" />
+          <span>Es Aldea Municipalizada (Misión Sucre / Territorial)</span>
+        </label>
+      </div>
+
+      <div class="uk-margin-medium-top uk-text-right">
+        <button class="btn-clean-secondary uk-modal-close uk-margin-small-right" type="button">Cancelar</button>
+        <button class="btn-clean-primary" type="submit">Guardar Sede</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ==========================================================================
+     Modal 4: Editar Sede
+     ========================================================================== -->
+<div id="modal-editar-sede" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body modal-clean-box">
+    <div class="uk-flex uk-flex-between uk-flex-middle uk-margin-bottom">
+      <h2 class="modal-clean-title uk-margin-remove">Modificar Sede / Aldea</h2>
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+    </div>
+
+    <form id="form-editar-sede" action="" method="POST" class="login-form-clean">
+      <div class="form-group-clean">
+        <label class="label-clean">Código Sede</label>
+        <input class="input-control-clean" type="text" id="edit-sede-codigo" disabled />
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean" for="edit-sede-nombre">Nombre de la Sede</label>
+        <input class="input-control-clean" type="text" id="edit-sede-nombre" name="nombre" required />
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean" for="edit-sede-eje">Eje Geopolítico Territorial</label>
+        <input class="input-control-clean" type="text" id="edit-sede-eje" name="ejeTerritorial" required />
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean" for="edit-sede-direccion">Dirección</label>
+        <input class="input-control-clean" type="text" id="edit-sede-direccion" name="direccion" />
+      </div>
+
+      <div class="form-group-clean uk-margin-small-top">
+        <label class="label-clean">
+          <input class="uk-checkbox uk-margin-xsmall-right" type="checkbox" id="edit-sede-esAldea" name="esAldeaMunicipalizada" value="true" />
+          <span>Es Aldea Municipalizada</span>
+        </label>
+      </div>
+
+      <div class="uk-margin-medium-top uk-text-right">
+        <button class="btn-clean-secondary uk-modal-close uk-margin-small-right" type="button">Cancelar</button>
+        <button class="btn-clean-primary" type="submit">Actualizar Sede</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Scripts de Interacción de la Vista de Espacios -->
+<script>
+  function abrirModalEditarAula(id, codigo, nombre, tipo, capacidad, piso) {
+    const form = document.getElementById('form-editar-aula');
+    form.action = '/espacios/aulas/' + id + '/editar';
+
+    document.getElementById('edit-aula-codigo').value = codigo;
+    document.getElementById('edit-aula-nombre').value = nombre;
+    document.getElementById('edit-aula-tipo').value = tipo;
+    document.getElementById('edit-aula-capacidad').value = capacidad;
+    document.getElementById('edit-aula-piso').value = piso;
+
+    UIkit.modal('#modal-editar-aula').show();
+  }
+
+  function abrirModalEditarSede(id, codigo, nombre, eje, direccion, esAldea) {
+    const form = document.getElementById('form-editar-sede');
+    form.action = '/espacios/sedes/' + id + '/editar';
+
+    document.getElementById('edit-sede-codigo').value = codigo;
+    document.getElementById('edit-sede-nombre').value = nombre;
+    document.getElementById('edit-sede-eje').value = eje;
+    document.getElementById('edit-sede-direccion').value = direccion;
+    document.getElementById('edit-sede-esAldea').checked = Boolean(esAldea);
+
+    UIkit.modal('#modal-editar-sede').show();
+  }
+
+  function limpiarFiltrosEspacio(e) {
+    if (e) e.preventDefault();
+    const form = document.getElementById('espacios-filter-form');
+    if (!form) return;
+    const inputQ = form.querySelector('input[name="q"]');
+    const selectSede = form.querySelector('select[name="sedeId"]');
+    const selectTipo = form.querySelector('select[name="tipo"]');
+    const selectEstado = form.querySelector('select[name="estado"]');
+    if (inputQ) inputQ.value = '';
+    if (selectSede) selectSede.value = '';
+    if (selectTipo) selectTipo.value = '';
+    if (selectEstado) selectEstado.value = '';
+    const resetBtn = document.getElementById('btn-limpiar-espacios');
+    if (resetBtn) resetBtn.classList.add('uk-hidden');
+    htmx.trigger(form, 'submit');
+  }
+
+  // Alternar botón Limpiar al escribir
+  document.addEventListener('input', function(e) {
+    if (e.target && e.target.name === 'q' && e.target.id === 'espacio-search-input') {
+      const resetBtn = document.getElementById('btn-limpiar-espacios');
+      if (resetBtn) {
+        resetBtn.classList.toggle('uk-hidden', !e.target.value.trim());
+      }
+    }
+  });
+</script>

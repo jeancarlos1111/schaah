@@ -1,0 +1,625 @@
+<!-- Header del Módulo de Docentes con Sub-navegación -->
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <span>Gestión Académica</span>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Planta Docente</span>
+      </div>
+      <h1 class="page-title uk-margin-remove">Docentes y Régimen de Dedicación</h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Administración de profesores, escalafón, dedicaciones contractuales (DE, TC, MT, TV) y cumplimiento de carga horaria UBV.
+      </p>
+    </div>
+    <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
+      <a href="/docentes/carga-consolidada" class="btn-clean-secondary">
+        <span uk-icon="icon: table; ratio: 0.85"></span>
+        <span>Planilla Consolidada</span>
+      </a>
+      <button class="btn-clean-primary" uk-toggle="target: #modal-nuevo-docente">
+        <span uk-icon="icon: plus; ratio: 0.85"></span>
+        <span>+ Nuevo Docente</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Pestañas de Navegación del Módulo -->
+  <div class="admin-subtabs uk-margin-top">
+    <a href="/docentes" class="subtab-item is-active">
+      <span uk-icon="icon: users; ratio: 0.8"></span>
+      <span>Nómina de Docentes (<%= pagination.total %>)</span>
+    </a>
+    <a href="/docentes/carga-consolidada" class="subtab-item">
+      <span uk-icon="icon: file-text; ratio: 0.8"></span>
+      <span>Carga Horaria & Normativa UBV</span>
+    </a>
+  </div>
+</div>
+
+<!-- Alertas Informativas de Feedback -->
+<% if (typeof success !== 'undefined' && success) { %>
+  <div class="alert-clean-success uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: check; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= success %></span>
+  </div>
+<% } %>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="alert-clean-danger uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: warning; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= error %></span>
+  </div>
+<% } %>
+
+<!-- Bento Stat Cards de Régimen Docente -->
+<div class="uk-grid-small uk-child-width-1-2 uk-child-width-1-4@m uk-margin-medium-bottom" uk-grid>
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Total Docentes</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= metricas.totalDocentesGen %></span>
+        <span class="stat-unit">activos</span>
+      </div>
+      <span class="detail-label">Nómina del período</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Dedicación Exclusiva</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= metricas.totalExclusivos %></span>
+        <span class="stat-unit">docentes</span>
+      </div>
+      <span class="detail-label">36-40h perm (12-16h aula)</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Tiempo Completo</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= metricas.totalTiempoCompleto %></span>
+        <span class="stat-unit">docentes</span>
+      </div>
+      <span class="detail-label">30-36h perm (8-12h aula)</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Medio T. & Convencional</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= metricas.totalMedioTiempoConvencional %></span>
+        <span class="stat-unit">docentes</span>
+      </div>
+      <span class="detail-label">Carga horaria parcial</span>
+    </div>
+  </div>
+</div>
+
+<%
+  // Helpers para URLs de ordenamiento y paginación en servidor
+  function makeQueryUrl(overrides) {
+    const params = new URLSearchParams({
+      page: overrides.page !== undefined ? overrides.page : pagination.page,
+      limit: overrides.limit !== undefined ? overrides.limit : pagination.limit,
+      q: overrides.q !== undefined ? overrides.q : (filters.q || ''),
+      dedicacion: overrides.dedicacion !== undefined ? overrides.dedicacion : (filters.dedicacion || ''),
+      escalafon: overrides.escalafon !== undefined ? overrides.escalafon : (filters.escalafon || ''),
+      condicion: overrides.condicion !== undefined ? overrides.condicion : (filters.condicion || ''),
+      sedeId: overrides.sedeId !== undefined ? overrides.sedeId : (filters.sedeId || ''),
+      estado: overrides.estado !== undefined ? overrides.estado : (filters.estado || ''),
+      sortBy: overrides.sortBy !== undefined ? overrides.sortBy : (filters.sortBy || 'apellidos'),
+      sortDir: overrides.sortDir !== undefined ? overrides.sortDir : (filters.sortDir || 'asc')
+    });
+    for (const [key, val] of [...params.entries()]) {
+      if (!val) params.delete(key);
+    }
+    return '/docentes?' + params.toString();
+  }
+
+  function getSortUrl(col) {
+    const isCurrent = filters.sortBy === col;
+    const nextDir = isCurrent && filters.sortDir === 'asc' ? 'desc' : 'asc';
+    return makeQueryUrl({ page: 1, sortBy: col, sortDir: nextDir });
+  }
+
+  function getSortHeaderClass(col) {
+    if (filters.sortBy !== col) return 'sortable';
+    return filters.sortDir === 'asc' ? 'sortable sort-asc' : 'sortable sort-desc';
+  }
+%>
+
+<!-- Panel Principal con Componente Reutilizable DataTable (Server-Side - Spec 07) -->
+<div class="clean-panel data-table-wrapper" id="docentes-datatable-wrapper">
+  
+  <!-- Barra de Herramientas Server-Side Estable -->
+  <form 
+    id="docentes-filter-form"
+    action="/docentes"
+    method="GET"
+    class="table-toolbar uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-2"
+  >
+    <input type="hidden" name="page" value="1" />
+    <input type="hidden" name="sortBy" value="<%= filters.sortBy %>" />
+    <input type="hidden" name="sortDir" value="<%= filters.sortDir %>" />
+
+    <div class="table-toolbar-left uk-flex uk-flex-middle uk-flex-wrap gap-2">
+      <!-- Input de Búsqueda -->
+      <div class="table-search-box">
+        <span uk-icon="icon: search; ratio: 0.8" class="search-icon"></span>
+        <input 
+          type="text" 
+          name="q"
+          id="docente-search-input"
+          value="<%= filters.q %>"
+          class="search-input" 
+          placeholder="Buscar por cédula, nombres o correo..." 
+          autocomplete="off"
+        />
+      </div>
+
+      <!-- Filtros Desplegables del Servidor -->
+      <div class="table-filters-row uk-flex uk-flex-middle gap-2">
+        <!-- Filtro por Dedicación -->
+        <select name="dedicacion" class="table-filter-select" onchange="this.form.submit()">
+          <option value="">Todas las dedicaciones</option>
+          <option value="DEDICACION_EXCLUSIVA" <%= filters.dedicacion === 'DEDICACION_EXCLUSIVA' ? 'selected' : '' %>>Dedicación Exclusiva</option>
+          <option value="TIEMPO_COMPLETO" <%= filters.dedicacion === 'TIEMPO_COMPLETO' ? 'selected' : '' %>>Tiempo Completo</option>
+          <option value="MEDIO_TIEMPO" <%= filters.dedicacion === 'MEDIO_TIEMPO' ? 'selected' : '' %>>Medio Tiempo</option>
+          <option value="TIEMPO_CONVENCIONAL" <%= filters.dedicacion === 'TIEMPO_CONVENCIONAL' ? 'selected' : '' %>>Tiempo Convencional</option>
+        </select>
+
+        <!-- Filtro por Sede de Adscripción -->
+        <select name="sedeId" class="table-filter-select" onchange="this.form.submit()">
+          <option value="">Todas las sedes / aldeas</option>
+          <% sedes.forEach(function(s) { %>
+            <option value="<%= s.id %>" <%= filters.sedeId === s.id ? 'selected' : '' %>>
+              <%= s.nombre %> <%= s.esAldeaMunicipalizada ? '(Aldea)' : '' %>
+            </option>
+          <% }); %>
+        </select>
+
+        <!-- Filtro por Escalafón -->
+        <select name="escalafon" class="table-filter-select" onchange="this.form.submit()">
+          <option value="">Todos los escalafones</option>
+          <option value="INSTRUCTOR" <%= filters.escalafon === 'INSTRUCTOR' ? 'selected' : '' %>>Instructor</option>
+          <option value="ASISTENTE" <%= filters.escalafon === 'ASISTENTE' ? 'selected' : '' %>>Asistente</option>
+          <option value="AGREGADO" <%= filters.escalafon === 'AGREGADO' ? 'selected' : '' %>>Agregado</option>
+          <option value="ASOCIADO" <%= filters.escalafon === 'ASOCIADO' ? 'selected' : '' %>>Asociado</option>
+          <option value="TITULAR" <%= filters.escalafon === 'TITULAR' ? 'selected' : '' %>>Titular</option>
+          <option value="CONTRATADO" <%= filters.escalafon === 'CONTRATADO' ? 'selected' : '' %>>Contratado</option>
+        </select>
+
+        <!-- Filtro por Estado -->
+        <select name="estado" class="table-filter-select" onchange="this.form.submit()">
+          <option value="">Todos los estados</option>
+          <option value="Activo" <%= filters.estado === 'Activo' ? 'selected' : '' %>>Activos</option>
+          <option value="Inactivo" <%= filters.estado === 'Inactivo' ? 'selected' : '' %>>Inactivos</option>
+        </select>
+      </div>
+
+      <!-- Botón Limpiar Filtros -->
+      <a 
+        href="/docentes" 
+        class="btn-clean-ghost <%= (filters.q || filters.dedicacion || filters.sedeId || filters.escalafon || filters.estado || filters.sortBy !== 'apellidos') ? '' : 'uk-hidden' %>" 
+        title="Restablecer filtros"
+      >
+        <span uk-icon="icon: refresh; ratio: 0.75"></span>
+        <span>Limpiar</span>
+      </a>
+    </div>
+
+    <!-- Selector de Filas por Página -->
+    <div class="table-toolbar-right uk-flex uk-flex-middle gap-2">
+      <span class="uk-text-muted uk-text-small">Filas:</span>
+      <select name="limit" class="table-page-size-select" onchange="this.form.submit()">
+        <option value="5" <%= pagination.limit === 5 ? 'selected' : '' %>>5</option>
+        <option value="10" <%= pagination.limit === 10 ? 'selected' : '' %>>10</option>
+        <option value="25" <%= pagination.limit === 25 ? 'selected' : '' %>>25</option>
+        <option value="50" <%= pagination.limit === 50 ? 'selected' : '' %>>50</option>
+      </select>
+    </div>
+  </form>
+
+  <!-- Contenedor de Tabla con Estilos Limpios del Sistema -->
+  <div id="docentes-table-container">
+    <div class="uk-overflow-auto uk-margin-small-top">
+      <table class="clean-table" id="docentes-table">
+        <thead>
+          <tr>
+            <th class="<%= getSortHeaderClass('cedula') %>">
+              <a href="<%= getSortUrl('cedula') %>" class="uk-link-reset">Cédula</a>
+            </th>
+            <th class="<%= getSortHeaderClass('apellidos') %>">
+              <a href="<%= getSortUrl('apellidos') %>" class="uk-link-reset">Docente / Contacto</a>
+            </th>
+            <th>Régimen Dedicación</th>
+            <th class="<%= getSortHeaderClass('escalafon') %>">
+              <a href="<%= getSortUrl('escalafon') %>" class="uk-link-reset">Escalafón / Condición</a>
+            </th>
+            <th>Sede Adscripción</th>
+            <th>Carga & Normativa</th>
+            <th class="<%= getSortHeaderClass('activo') %>">
+              <a href="<%= getSortUrl('activo') %>" class="uk-link-reset">Estado</a>
+            </th>
+            <th class="table-actions-cell">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (profesores.length === 0) { %>
+            <tr>
+              <td colspan="8" class="empty-state-cell uk-text-center">
+                <div class="empty-state-inner">
+                  <span uk-icon="icon: users; ratio: 1.8" class="empty-state-icon"></span>
+                  <div class="empty-state-title uk-margin-small-top">No se encontraron docentes</div>
+                  <div class="uk-text-muted uk-text-small">Ajuste los criterios de búsqueda o registre un nuevo docente.</div>
+                </div>
+              </td>
+            </tr>
+          <% } %>
+
+          <% profesores.forEach(function(p) { %>
+            <tr>
+              <td>
+                <span class="email-code"><%= p.cedula %></span>
+              </td>
+              <td>
+                <div class="table-user-name"><%= p.apellidos %>, <%= p.nombres %></div>
+                <div class="table-sub-info"><%= p.email %> <%= p.telefono ? '• ' + p.telefono : '' %></div>
+              </td>
+              <td>
+                <% if (p.dedicacionActiva) { %>
+                  <div>
+                    <% if (p.dedicacionActiva.dedicacion === 'DEDICACION_EXCLUSIVA') { %>
+                      <span class="badge-role badge-admin">DEDICACIÓN EXCLUSIVA</span>
+                    <% } else if (p.dedicacionActiva.dedicacion === 'TIEMPO_COMPLETO') { %>
+                      <span class="badge-role badge-director">TIEMPO COMPLETO</span>
+                    <% } else if (p.dedicacionActiva.dedicacion === 'MEDIO_TIEMPO') { %>
+                      <span class="badge-role badge-coordinador">MEDIO TIEMPO</span>
+                    <% } else { %>
+                      <span class="badge-role badge-docente">TIEMPO CONVENCIONAL</span>
+                    <% } %>
+                  </div>
+                  <div class="table-sub-info uk-margin-xsmall-top">
+                    Perm: <%= p.dedicacionActiva.horasPermanenciaSemanales %>h • Topes: [<%= p.dedicacionActiva.minHorasDocenciaDirecta %>h - <%= p.dedicacionActiva.maxHorasDocenciaDirecta %>h]
+                  </div>
+                <% } else { %>
+                  <span class="status-pill status-inactive">Sin Dedicación</span>
+                <% } %>
+              </td>
+              <td>
+                <span class="badge-role badge-docente"><%= p.escalafon %></span>
+                <span class="table-sub-info uk-margin-xsmall-left">(<%= p.condicion %>)</span>
+              </td>
+              <td>
+                <% if (p.dedicacionActiva && p.dedicacionActiva.sedePrincipal) { %>
+                  <span class="uk-text-small font-medium"><%= p.dedicacionActiva.sedePrincipal.nombre %></span>
+                <% } else { %>
+                  <span class="table-sub-info">-</span>
+                <% } %>
+              </td>
+              <td>
+                <% if (p.evaluacion) { %>
+                  <% if (p.evaluacion.estado === 'EN_NORMA') { %>
+                    <span class="status-pill status-active" uk-tooltip="<%= p.evaluacion.mensaje %>">
+                      ✓ EN NORMA (<%= p.horasDocencia %>h)
+                    </span>
+                  <% } else if (p.evaluacion.estado === 'DEFICIT') { %>
+                    <span class="badge-role badge-coordinador" uk-tooltip="<%= p.evaluacion.mensaje %>">
+                      ⚠ DÉFICIT (<%= p.horasDocencia %>h)
+                    </span>
+                  <% } else if (p.evaluacion.estado === 'SOBRECARGA') { %>
+                    <span class="badge-role badge-admin" uk-tooltip="<%= p.evaluacion.mensaje %>">
+                      ⛔ SOBRECARGA (<%= p.horasDocencia %>h)
+                    </span>
+                  <% } else { %>
+                    <span class="status-pill status-inactive" uk-tooltip="<%= p.evaluacion.mensaje %>">
+                      0h ASIGNADAS
+                    </span>
+                  <% } %>
+                <% } else { %>
+                  <span class="table-sub-info">No evaluado</span>
+                <% } %>
+              </td>
+              <td>
+                <% if (p.activo) { %>
+                  <span class="status-pill status-active">Activo</span>
+                <% } else { %>
+                  <span class="status-pill status-inactive">Inactivo</span>
+                <% } %>
+              </td>
+              <td class="table-actions-cell">
+                <div class="table-actions-group">
+                  <a 
+                    href="/docentes/<%= p.id %>/disponibilidad" 
+                    class="btn-table-action" 
+                    title="Matriz de Disponibilidad Semanal"
+                  >
+                    <span uk-icon="icon: clock; ratio: 0.75"></span>
+                    <span>Disponibilidad</span>
+                  </a>
+                  <button 
+                    class="btn-table-action" 
+                    title="Editar Profesor"
+                    onclick="abrirModalEditarDocente(<%= JSON.stringify(p) %>)"
+                  >
+                    <span uk-icon="icon: pencil; ratio: 0.75"></span>
+                    <span>Editar</span>
+                  </button>
+                  <form action="/docentes/<%= p.id %>/toggle" method="POST" onsubmit="return confirm('¿Desea cambiar el estado de este docente?')">
+                    <button 
+                      type="submit" 
+                      class="btn-table-action" 
+                      title="<%= p.activo ? 'Inhabilitar' : 'Activar' %>"
+                    >
+                      <span uk-icon="icon: <%= p.activo ? 'ban' : 'check' %>; ratio: 0.75"></span>
+                      <span><%= p.activo ? 'Suspender' : 'Activar' %></span>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginación de Servidor Idéntica al Estilo Institucional -->
+    <div class="table-footer">
+      <div class="table-sub-info">
+        Mostrando <strong><%= profesores.length %></strong> de <strong><%= pagination.total %></strong> docentes
+      </div>
+
+      <% if (pagination.totalPages > 1) { %>
+        <ul class="clean-pagination-list">
+          <li>
+            <a 
+              href="<%= pagination.hasPrevPage ? makeQueryUrl({ page: pagination.page - 1 }) : '#' %>" 
+              class="page-nav-btn <%= !pagination.hasPrevPage ? 'is-disabled' : '' %>"
+              <%= !pagination.hasPrevPage ? 'tabindex="-1" aria-disabled="true"' : '' %>
+            >
+              <span uk-icon="icon: chevron-left; ratio: 0.75"></span>
+              <span>Anterior</span>
+            </a>
+          </li>
+
+          <% for (let i = 1; i <= pagination.totalPages; i++) { %>
+            <% if (i === 1 || i === pagination.totalPages || (i >= pagination.page - 1 && i <= pagination.page + 1)) { %>
+              <li>
+                <a 
+                  href="<%= makeQueryUrl({ page: i }) %>" 
+                  class="page-number-btn <%= i === pagination.page ? 'is-active' : '' %>"
+                >
+                  <%= i %>
+                </a>
+              </li>
+            <% } else if (i === pagination.page - 2 || i === pagination.page + 2) { %>
+              <li class="page-ellipsis">&hellip;</li>
+            <% } %>
+          <% } %>
+
+          <li>
+            <a 
+              href="<%= pagination.hasNextPage ? makeQueryUrl({ page: pagination.page + 1 }) : '#' %>" 
+              class="page-nav-btn <%= !pagination.hasNextPage ? 'is-disabled' : '' %>"
+              <%= !pagination.hasNextPage ? 'tabindex="-1" aria-disabled="true"' : '' %>
+            >
+              <span>Siguiente</span>
+              <span uk-icon="icon: chevron-right; ratio: 0.75"></span>
+            </a>
+          </li>
+        </ul>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================================= -->
+<!-- MODAL: NUEVO DOCENTE -->
+<!-- ======================================================================= -->
+<div id="modal-nuevo-docente" uk-modal>
+  <div class="uk-modal-dialog modal-clean-box uk-width-large">
+    <div class="clean-panel-header uk-flex uk-flex-between uk-flex-middle">
+      <h2 class="modal-clean-title uk-margin-remove">Registrar Nuevo Docente</h2>
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+    </div>
+    <form action="/docentes" method="POST" class="login-form-clean">
+      <div class="clean-panel-body uk-padding-small">
+        <div class="uk-grid-small" uk-grid>
+          <div class="uk-width-1-3@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Cédula *</label>
+            <input type="text" name="cedula" placeholder="V-12345678" required class="input-control-clean">
+          </div>
+          <div class="uk-width-1-3@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Nombres *</label>
+            <input type="text" name="nombres" placeholder="Nombres" required class="input-control-clean">
+          </div>
+          <div class="uk-width-1-3@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Apellidos *</label>
+            <input type="text" name="apellidos" placeholder="Apellidos" required class="input-control-clean">
+          </div>
+
+          <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Correo Institucional *</label>
+            <input type="email" name="email" placeholder="profesor@ubv.edu.ve" required class="input-control-clean">
+          </div>
+          <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Teléfono Móvil</label>
+            <input type="tel" name="telefono" placeholder="+58 414 1234567" class="input-control-clean">
+          </div>
+
+          <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Condición Laboral</label>
+            <select name="condicion" class="table-filter-select uk-width-1-1">
+              <option value="ORDINARIO">Ordinario</option>
+              <option value="CONTRATADO">Contratado</option>
+              <option value="JUBILADO_ACTIVO">Jubilado Activo</option>
+              <option value="COMISION_SERVICIO">Comisión de Servicio</option>
+            </select>
+          </div>
+          <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Escalafón Docente</label>
+            <select name="escalafon" class="table-filter-select uk-width-1-1">
+              <option value="INSTRUCTOR">Instructor</option>
+              <option value="ASISTENTE">Asistente</option>
+              <option value="AGREGADO">Agregado</option>
+              <option value="ASOCIADO">Asociado</option>
+              <option value="TITULAR">Titular</option>
+              <option value="CONTRATADO">Contratado</option>
+            </select>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div class="module-title">Régimen Contractual para Período <%= periodoActivo.codigo %></div>
+          </div>
+
+          <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Dedicación *</label>
+            <select name="dedicacion" class="table-filter-select uk-width-1-1" required>
+              <option value="DEDICACION_EXCLUSIVA">Dedicación Exclusiva (36-40h perm / 12-16h aula)</option>
+              <option value="TIEMPO_COMPLETO" selected>Tiempo Completo (30-36h perm / 8-12h aula)</option>
+              <option value="MEDIO_TIEMPO">Medio Tiempo (18-20h perm / 4-8h aula)</option>
+              <option value="TIEMPO_CONVENCIONAL">Tiempo Convencional (2-12h perm / 2-12h aula)</option>
+            </select>
+          </div>
+
+          <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Sede Adscripción Principal *</label>
+            <select name="sedeAdscripcionPrincipalId" class="table-filter-select uk-width-1-1" required>
+              <% sedes.forEach(function(s) { %>
+                <option value="<%= s.id %>"><%= s.nombre %></option>
+              <% }); %>
+            </select>
+          </div>
+
+          <div class="uk-width-1-1 form-group-clean">
+            <label class="label-clean">Observación o Excepción Normativa</label>
+            <input type="text" name="observacionExcepcion" placeholder="Descarga de carga, jefatura, etc." class="input-control-clean">
+          </div>
+        </div>
+      </div>
+      <div class="uk-modal-footer uk-text-right uk-margin-top">
+        <button class="btn-clean-secondary uk-modal-close" type="button">Cancelar</button>
+        <button class="btn-clean-primary uk-margin-small-left" type="submit">Guardar Docente</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ======================================================================= -->
+<!-- MODAL: EDITAR DOCENTE -->
+<!-- ======================================================================= -->
+<div id="modal-editar-docente" uk-modal>
+  <div class="uk-modal-dialog modal-clean-box uk-width-large">
+    <div class="clean-panel-header uk-flex uk-flex-between uk-flex-middle">
+      <h2 class="modal-clean-title uk-margin-remove">Modificar Datos del Docente</h2>
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+    </div>
+    <form id="form-editar-docente" method="POST" class="login-form-clean">
+      <div class="clean-panel-body uk-padding-small">
+        <div class="uk-grid-small" uk-grid>
+          <div class="uk-width-1-3@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Cédula</label>
+            <input type="text" id="edit-cedula" disabled class="input-control-clean" style="opacity: 0.6;">
+          </div>
+          <div class="uk-width-1-3@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Nombres *</label>
+            <input type="text" name="nombres" id="edit-nombres" required class="input-control-clean">
+          </div>
+          <div class="uk-width-1-3@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Apellidos *</label>
+            <input type="text" name="apellidos" id="edit-apellidos" required class="input-control-clean">
+          </div>
+
+          <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Correo Institucional *</label>
+            <input type="email" name="email" id="edit-email" required class="input-control-clean">
+          </div>
+          <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Teléfono Móvil</label>
+            <input type="tel" name="telefono" id="edit-telefono" class="input-control-clean">
+          </div>
+
+          <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Condición Laboral</label>
+            <select name="condicion" id="edit-condicion" class="table-filter-select uk-width-1-1">
+              <option value="ORDINARIO">Ordinario</option>
+              <option value="CONTRATADO">Contratado</option>
+              <option value="JUBILADO_ACTIVO">Jubilado Activo</option>
+              <option value="COMISION_SERVICIO">Comisión de Servicio</option>
+            </select>
+          </div>
+          <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Escalafón Docente</label>
+            <select name="escalafon" id="edit-escalafon" class="table-filter-select uk-width-1-1">
+              <option value="INSTRUCTOR">Instructor</option>
+              <option value="ASISTENTE">Asistente</option>
+              <option value="AGREGADO">Agregado</option>
+              <option value="ASOCIADO">Asociado</option>
+              <option value="TITULAR">Titular</option>
+              <option value="CONTRATADO">Contratado</option>
+            </select>
+          </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div class="module-title">Régimen Contractual para Período <%= periodoActivo.codigo %></div>
+          </div>
+
+          <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Dedicación</label>
+            <select name="dedicacion" id="edit-dedicacion" class="table-filter-select uk-width-1-1">
+              <option value="DEDICACION_EXCLUSIVA">Dedicación Exclusiva (36-40h perm / 12-16h aula)</option>
+              <option value="TIEMPO_COMPLETO">Tiempo Completo (30-36h perm / 8-12h aula)</option>
+              <option value="MEDIO_TIEMPO">Medio Tiempo (18-20h perm / 4-8h aula)</option>
+              <option value="TIEMPO_CONVENCIONAL">Tiempo Convencional (2-12h perm / 2-12h aula)</option>
+            </select>
+          </div>
+
+          <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">Sede Adscripción</label>
+            <select name="sedeAdscripcionPrincipalId" id="edit-sede" class="table-filter-select uk-width-1-1">
+              <% sedes.forEach(function(s) { %>
+                <option value="<%= s.id %>"><%= s.nombre %></option>
+              <% }); %>
+            </select>
+          </div>
+
+          <div class="uk-width-1-1 form-group-clean">
+            <label class="label-clean">Observación o Excepción Normativa</label>
+            <input type="text" name="observacionExcepcion" id="edit-observacion" class="input-control-clean">
+          </div>
+        </div>
+      </div>
+      <div class="uk-modal-footer uk-text-right uk-margin-top">
+        <button class="btn-clean-secondary uk-modal-close" type="button">Cancelar</button>
+        <button class="btn-clean-primary uk-margin-small-left" type="submit">Actualizar Docente</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function abrirModalEditarDocente(profesor) {
+    document.getElementById('form-editar-docente').action = '/docentes/' + profesor.id + '/editar';
+    document.getElementById('edit-cedula').value = profesor.cedula;
+    document.getElementById('edit-nombres').value = profesor.nombres;
+    document.getElementById('edit-apellidos').value = profesor.apellidos;
+    document.getElementById('edit-email').value = profesor.email;
+    document.getElementById('edit-telefono').value = profesor.telefono || '';
+    document.getElementById('edit-condicion').value = profesor.condicion;
+    document.getElementById('edit-escalafon').value = profesor.escalafon;
+
+    if (profesor.dedicacionActiva) {
+      document.getElementById('edit-dedicacion').value = profesor.dedicacionActiva.dedicacion;
+      document.getElementById('edit-sede').value = profesor.dedicacionActiva.sedeAdscripcionPrincipalId;
+      document.getElementById('edit-observacion').value = profesor.dedicacionActiva.observacionExcepcion || '';
+    }
+
+    UIkit.modal('#modal-editar-docente').show();
+  }
+</script>

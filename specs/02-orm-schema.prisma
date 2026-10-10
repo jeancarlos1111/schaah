@@ -1,0 +1,311 @@
+// Spec 2-ORM: Esquema Formal Prisma ORM para Express + TypeScript
+// Ubicación destino final: prisma/schema.prisma
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [uuidOssp(map: "uuid-ossp"), btreeGist(map: "btree_gist")]
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum DedicacionDocente {
+  DEDICACION_EXCLUSIVA // 36-40h perm / 12-16h doc
+  TIEMPO_COMPLETO      // 30-36h perm / 8-12h doc
+  MEDIO_TIEMPO         // 18-20h perm / 4-8h doc
+  TIEMPO_CONVENCIONAL   // 2-12h perm / 2-12h doc
+}
+
+enum EscalafonDocente {
+  INSTRUCTOR
+  ASISTENTE
+  AGREGADO
+  ASOCIADO
+  TITULAR
+  CONTRATADO
+}
+
+enum CondicionLaboral {
+  ORDINARIO
+  CONTRATADO
+  JUBILADO_ACTIVO
+  COMISION_SERVICIO
+}
+
+enum TipoEspacio {
+  AULA_TEORICA
+  LABORATORIO_INFORMATICA
+  LABORATORIO_CIENCIAS
+  TALLER
+  AUDITORIO
+  ESPACIO_COMUNITARIO_CAMPO
+}
+
+enum DiaSemana {
+  LUNES
+  MARTES
+  MIERCOLES
+  JUEVES
+  VIERNES
+  SABADO
+  DOMINGO
+}
+
+enum Turno {
+  MATUTINO
+  VESPERTINO
+  NOCTURNO
+  FIN_DE_SEMANA
+}
+
+enum EstadoAsignacion {
+  BORRADOR
+  EN_OPTIMIZACION
+  PRELIMINAR
+  APROBADO_CONSEJO
+  PUBLICADO
+}
+
+enum TipoBloqueAcademico {
+  DOCENCIA_AULA
+  PROYECTO_COMUNITARIO
+  ASESORIA_TUTORIA
+  INVESTIGACION
+  GESTION_ACADEMICA
+}
+
+enum RolUsuario {
+  ADMINISTRADOR
+  COORDINADOR_PFG
+  DIRECTOR_ACADEMICO
+  DOCENTE
+}
+
+// ============================================================================
+// MODELOS
+// ============================================================================
+
+model Usuario {
+  id           String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email        String      @unique @db.VarChar(120)
+  passwordHash String      @map("password_hash") @db.VarChar(255)
+  nombres      String      @db.VarChar(100)
+  apellidos    String      @db.VarChar(100)
+  rol          RolUsuario  @default(DOCENTE)
+  profesorId   String?     @unique @map("profesor_id") @db.Uuid
+  profesor     Profesor?   @relation(fields: [profesorId], references: [id])
+  activo       Boolean     @default(true)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  @@map("usuarios")
+}
+
+model Sede {
+  id                   String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  codigo               String            @unique @db.VarChar(20)
+  nombre               String            @db.VarChar(150)
+  ejeTerritorial       String            @map("eje_territorial") @db.VarChar(100)
+  direccion            String?           @db.Text
+  esAldeaMunicipalizada Boolean          @default(false) @map("es_aldea_municipalizada")
+  activa               Boolean           @default(true)
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+
+  espacios             EspacioFisico[]
+  secciones            Seccion[]
+  dedicaciones         ProfesorDedicacion[]
+
+  @@map("sedes")
+}
+
+model EspacioFisico {
+  id        String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  sedeId    String          @map("sede_id") @db.Uuid
+  sede      Sede            @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  codigo    String          @db.VarChar(30)
+  nombre    String          @db.VarChar(100)
+  tipo      TipoEspacio     @default(AULA_TEORICA)
+  capacidad Int
+  piso      String?         @db.VarChar(20)
+  activo    Boolean         @default(true)
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  horarios  HorarioSeccion[]
+
+  @@unique([sedeId, codigo])
+  @@map("espacios_fisicos")
+}
+
+model ProgramaFormacion {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  codigo            String              @unique @db.VarChar(20)
+  nombre            String              @db.VarChar(150)
+  areaConocimiento  String              @map("area_conocimiento") @db.VarChar(100)
+  activo            Boolean             @default(true)
+  createdAt         DateTime            @default(now()) @map("created_at")
+
+  unidadesCurriculares UnidadCurricular[]
+
+  @@map("programas_formacion")
+}
+
+model PeriodoAcademico {
+  id          String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  codigo      String           @unique @db.VarChar(30)
+  nombre      String           @db.VarChar(100)
+  fechaInicio DateTime         @map("fecha_inicio") @db.Date
+  fechaFin    DateTime         @map("fecha_fin") @db.Date
+  estado      EstadoAsignacion @default(BORRADOR)
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  dedicaciones      ProfesorDedicacion[]
+  disponibilidades  ProfesorDisponibilidad[]
+  secciones         Seccion[]
+  auditorias        AuditoriaAjusteHorario[]
+
+  @@map("periodos_academicos")
+}
+
+model UnidadCurricular {
+  id                            String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  pfgId                         String            @map("pfg_id") @db.Uuid
+  pfg                           ProgramaFormacion @relation(fields: [pfgId], references: [id], onDelete: Restrict)
+  codigo                        String            @db.VarChar(30)
+  nombre                        String            @db.VarChar(150)
+  trayecto                      Int
+  tramo                         Int
+  creditos                      Int
+  horasTeoricasSemanales        Int               @default(0) @map("horas_teoricas_semanales")
+  horasPracticasSemanales       Int               @default(0) @map("horas_practicas_semanales")
+  horasCampoComunitarioSemanales Int              @default(0) @map("horas_campo_comunitario_semanales")
+  tipoEspacioRequerido          TipoEspacio       @default(AULA_TEORICA) @map("tipo_espacio_requerido")
+  esProyectoComunitario         Boolean           @default(false) @map("es_proyecto_comunitario")
+  activa                        Boolean           @default(true)
+  createdAt                     DateTime          @default(now()) @map("created_at")
+
+  secciones                     Seccion[]
+
+  @@unique([pfgId, codigo])
+  @@map("unidades_curriculares")
+}
+
+model Profesor {
+  id          String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  cedula      String           @unique @db.VarChar(20)
+  nombres     String           @db.VarChar(100)
+  apellidos   String           @db.VarChar(100)
+  email       String           @unique @db.VarChar(120)
+  telefono    String?          @db.VarChar(30)
+  condicion   CondicionLaboral @default(ORDINARIO)
+  escalafon   EscalafonDocente @default(INSTRUCTOR)
+  activo      Boolean          @default(true)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  usuario          Usuario?
+  dedicaciones     ProfesorDedicacion[]
+  disponibilidades ProfesorDisponibilidad[]
+  secciones        Seccion[]
+
+  @@map("profesores")
+}
+
+model ProfesorDedicacion {
+  id                          String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  profesorId                  String            @map("profesor_id") @db.Uuid
+  profesor                    Profesor          @relation(fields: [profesorId], references: [id], onDelete: Restrict)
+  periodoId                   String            @map("periodo_id") @db.Uuid
+  periodo                     PeriodoAcademico  @relation(fields: [periodoId], references: [id], onDelete: Restrict)
+  dedicacion                  DedicacionDocente
+  horasPermanenciaSemanales   Int               @map("horas_permanencia_semanales")
+  minHorasDocenciaDirecta     Int               @map("min_horas_docencia_directa")
+  maxHorasDocenciaDirecta     Int               @map("max_horas_docencia_directa")
+  sedeAdscripcionPrincipalId  String            @map("sede_adscripcion_principal_id") @db.Uuid
+  sedePrincipal               Sede              @relation(fields: [sedeAdscripcionPrincipalId], references: [id])
+  observacionExcepcion        String?           @map("observacion_excepcion") @db.Text
+  createdAt                   DateTime          @default(now()) @map("created_at")
+
+  @@unique([profesorId, periodoId])
+  @@map("profesor_dedicaciones")
+}
+
+model ProfesorDisponibilidad {
+  id                   String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  profesorId           String           @map("profesor_id") @db.Uuid
+  profesor             Profesor         @relation(fields: [profesorId], references: [id], onDelete: Cascade)
+  periodoId            String           @map("periodo_id") @db.Uuid
+  periodo              PeriodoAcademico @relation(fields: [periodoId], references: [id], onDelete: Cascade)
+  dia                  DiaSemana
+  horaInicio           String           @map("hora_inicio") @db.VarChar(8) // Format "HH:mm:ss"
+  horaFin              String           @map("hora_fin") @db.VarChar(8)
+  prioridadPreferencia Int              @default(1) @map("prioridad_preferencia")
+  disponible           Boolean          @default(true)
+
+  @@map("profesor_disponibilidades")
+}
+
+model Seccion {
+  id                  String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  periodoId           String           @map("periodo_id") @db.Uuid
+  periodo             PeriodoAcademico @relation(fields: [periodoId], references: [id], onDelete: Restrict)
+  unidadCurricularId  String           @map("unidad_curricular_id") @db.Uuid
+  unidadCurricular    UnidadCurricular @relation(fields: [unidadCurricularId], references: [id], onDelete: Restrict)
+  sedeId              String           @map("sede_id") @db.Uuid
+  sede                Sede             @relation(fields: [sedeId], references: [id], onDelete: Restrict)
+  profesorId          String?          @map("profesor_id") @db.Uuid
+  profesor            Profesor?        @relation(fields: [profesorId], references: [id], onDelete: SetNull)
+  codigoSeccion       String           @map("codigo_seccion") @db.VarChar(30)
+  turno               Turno            @default(MATUTINO)
+  cuposEstimados      Int              @map("cupos_estimados")
+  createdAt           DateTime         @default(now()) @map("created_at")
+
+  horarios            HorarioSeccion[]
+  auditorias          AuditoriaAjusteHorario[]
+
+  @@unique([periodoId, codigoSeccion])
+  @@map("secciones")
+}
+
+model HorarioSeccion {
+  id              String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  seccionId       String              @map("seccion_id") @db.Uuid
+  seccion         Seccion             @relation(fields: [seccionId], references: [id], onDelete: Cascade)
+  espacioFisicoId String?             @map("espacio_fisico_id") @db.Uuid
+  espacioFisico   EspacioFisico?      @relation(fields: [espacioFisicoId], references: [id], onDelete: Restrict)
+  dia             DiaSemana
+  horaInicio      String              @map("hora_inicio") @db.VarChar(8)
+  horaFin         String              @map("hora_fin") @db.VarChar(8)
+  tipoBloque      TipoBloqueAcademico @default(DOCENCIA_AULA) @map("tipo_bloque")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  @@index([seccionId])
+  @@index([espacioFisicoId])
+  @@map("horarios_seccion")
+}
+
+model AuditoriaAjusteHorario {
+  id                     String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  periodoId              String           @map("periodo_id") @db.Uuid
+  periodo                PeriodoAcademico @relation(fields: [periodoId], references: [id])
+  seccionId              String           @map("seccion_id") @db.Uuid
+  seccion                Seccion          @relation(fields: [seccionId], references: [id])
+  horarioSeccionId       String?          @map("horario_seccion_id") @db.Uuid
+  usuarioResponsable     String           @map("usuario_responsable") @db.VarChar(100)
+  tipoOperacion          String           @map("tipo_operacion") @db.VarChar(30)
+  datosAnteriores        Json?            @map("datos_anteriores")
+  datosNuevos            Json?            @map("datos_nuevos")
+  justificacionResolucion String?         @map("justificacion_resolucion") @db.Text
+  fechaAjuste            DateTime         @default(now()) @map("fecha_ajuste")
+
+  @@map("auditoria_ajustes_horarios")
+}

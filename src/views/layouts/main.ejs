@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | SCHAAH - UBV</title>
+  
+  <!-- Detección Inmediata de Tema -->
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('schaah-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- UIkit 3 CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/css/uikit.min.css" />
+  <!-- Clean Enterprise CSS -->
+  <link rel="stylesheet" href="/css/style.css">
+  
+  <!-- HTMX & UIkit JS -->
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/js/uikit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/js/uikit-icons.min.js"></script>
+
+  <!-- Inyección de Estilos Específicos de la Vista (express-ejs-layouts) -->
+  <%- style %>
+</head>
+<body class="schaah-body">
+
+  <!-- Header Minimalista y Elegante (Tipo Linear / Vercel) -->
+  <header class="app-header">
+    <div class="header-inner">
+      
+      <!-- Marca Principal -->
+      <div class="header-left">
+        <a class="brand-link" href="/">
+          <div class="brand-mark">
+            <span uk-icon="icon: grid; ratio: 0.9"></span>
+          </div>
+          <span class="brand-text">SCHAAH<span class="brand-ubv">UBV</span></span>
+        </a>
+      </div>
+
+      <!-- Menú Horizontal en una Sola Fila (Cero Saltos de Línea) -->
+      <% if (usuario) { %>
+        <nav class="header-nav">
+          <a href="/" class="nav-link <%= title === 'Tablero de Control' ? 'is-active' : '' %>">
+            Tablero
+          </a>
+          
+          <% if (usuario.rol === 'ADMINISTRADOR') { %>
+            <a href="/usuarios" class="nav-link <%= (title.includes('Usuarios') || title.includes('Roles')) ? 'is-active' : '' %>">
+              Usuarios
+            </a>
+          <% } %>
+
+          <% if (usuario.rol === 'ADMINISTRADOR' || usuario.rol === 'DIRECTOR_ACADEMICO' || usuario.rol === 'COORDINADOR_PFG') { %>
+            <a href="/docentes" class="nav-link <%= title.includes('Docentes') ? 'is-active' : '' %>">
+              Docentes
+            </a>
+            <a href="/espacios" class="nav-link <%= title.includes('Espacios') ? 'is-active' : '' %>">
+              Espacios
+            </a>
+          <% } %>
+
+          <a href="/horarios" class="nav-link <%= title.includes('Horarios') ? 'is-active' : '' %>">
+            Horarios
+          </a>
+          <a href="/reportes" class="nav-link <%= title.includes('Reportes') || title.includes('Normativa') ? 'is-active' : '' %>">
+            Normativa
+          </a>
+        </nav>
+
+        <!-- Controles y Perfil Derecho -->
+        <div class="header-right">
+          <!-- Conmutador Tema -->
+          <button id="theme-toggle-btn" class="icon-btn" onclick="toggleTheme()" uk-tooltip="title: Cambiar tema; pos: bottom">
+            <span id="theme-icon" uk-icon="icon: paint-bucket; ratio: 0.8"></span>
+          </button>
+
+          <!-- Perfil de Usuario Compacto -->
+          <div class="user-profile">
+            <div class="user-avatar-circle">
+              <%= usuario.nombres.charAt(0) %><%= usuario.apellidos.charAt(0) %>
+            </div>
+            <div class="user-info-text uk-visible@s">
+              <span class="user-display-name"><%= usuario.nombres %> <%= usuario.apellidos %></span>
+              <span class="user-role-tag role-<%= usuario.rol.toLowerCase() %>"><%= usuario.rol %></span>
+            </div>
+          </div>
+
+          <!-- Botón Salir Discreto -->
+          <a href="/logout" class="btn-logout-ghost" uk-tooltip="title: Cerrar sesión; pos: bottom">
+            <span uk-icon="icon: sign-out; ratio: 0.8"></span>
+            <span class="uk-visible@s">Salir</span>
+          </a>
+        </div>
+      <% } else { %>
+        <div class="header-right">
+          <button id="theme-toggle-btn" class="icon-btn" onclick="toggleTheme()" uk-tooltip="title: Cambiar tema; pos: bottom">
+            <span id="theme-icon" uk-icon="icon: paint-bucket; ratio: 0.8"></span>
+          </button>
+          <a href="/login" class="btn-clean-primary">
+            <span>Iniciar Sesión</span>
+          </a>
+        </div>
+      <% } %>
+
+    </div>
+  </header>
+
+  <!-- Contenedor Principal de la Página -->
+  <main class="app-main">
+    <div class="app-container">
+      <%- body %>
+    </div>
+  </main>
+
+  <!-- Footer Sobrio -->
+  <footer class="app-footer">
+    <div class="app-container">
+      <p class="footer-copy">
+        Universidad Bolivariana de Venezuela &copy; <%= new Date().getFullYear() %> &bull; Sistema de Carga Horaria y Asignación Automática (SCHAAH)
+      </p>
+    </div>
+  </footer>
+
+  <!-- Biblioteca Reutilizable DataTable SCHAAH -->
+  <script src="/js/data-table.js"></script>
+
+  <!-- Script de Gestión de Tema en LocalStorage -->
+  <script>
+    function updateThemeIcon(theme) {
+      const icon = document.getElementById('theme-icon');
+      if (!icon) return;
+      if (theme === 'light') {
+        icon.setAttribute('uk-icon', 'icon: moon; ratio: 0.8');
+      } else {
+        icon.setAttribute('uk-icon', 'icon: sun; ratio: 0.8');
+      }
+    }
+
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('schaah-theme', newTheme);
+      updateThemeIcon(newTheme);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const activeTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      updateThemeIcon(activeTheme);
+    });
+  </script>
+
+  <!-- Inyección de Scripts Específicos de la Vista (express-ejs-layouts) -->
+  <%- script %>
+
+</body>
+</html>
