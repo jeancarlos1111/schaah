@@ -148,9 +148,10 @@
     <input type="hidden" name="sortBy" value="<%= filters.sortBy %>" />
     <input type="hidden" name="sortDir" value="<%= filters.sortDir %>" />
 
-    <div class="table-toolbar-left uk-flex uk-flex-middle uk-flex-wrap gap-2">
+    <!-- Fila Superior: Búsqueda Global y Selector de Filas por Página -->
+    <div class="uk-flex uk-flex-between uk-flex-middle uk-width-1-1 uk-margin-small-bottom">
       <!-- Input de Búsqueda -->
-      <div class="table-search-box">
+      <div class="table-search-box" style="max-width: 380px;">
         <span uk-icon="icon: search; ratio: 0.8" class="search-icon"></span>
         <input 
           type="text" 
@@ -163,45 +164,56 @@
         />
       </div>
 
-      <!-- Filtros Desplegables del Servidor -->
-      <div class="table-filters-row uk-flex uk-flex-middle gap-2">
-        <!-- Filtro por Dedicación -->
-        <select name="dedicacion" class="table-filter-select" onchange="this.form.submit()">
-          <option value="">Todas las dedicaciones</option>
-          <option value="DEDICACION_EXCLUSIVA" <%= filters.dedicacion === 'DEDICACION_EXCLUSIVA' ? 'selected' : '' %>>Dedicación Exclusiva</option>
-          <option value="TIEMPO_COMPLETO" <%= filters.dedicacion === 'TIEMPO_COMPLETO' ? 'selected' : '' %>>Tiempo Completo</option>
-          <option value="MEDIO_TIEMPO" <%= filters.dedicacion === 'MEDIO_TIEMPO' ? 'selected' : '' %>>Medio Tiempo</option>
-          <option value="TIEMPO_CONVENCIONAL" <%= filters.dedicacion === 'TIEMPO_CONVENCIONAL' ? 'selected' : '' %>>Tiempo Convencional</option>
-        </select>
-
-        <!-- Filtro por Sede de Adscripción -->
-        <select name="sedeId" class="table-filter-select" onchange="this.form.submit()">
-          <option value="">Todas las sedes / aldeas</option>
-          <% sedes.forEach(function(s) { %>
-            <option value="<%= s.id %>" <%= filters.sedeId === s.id ? 'selected' : '' %>>
-              <%= s.nombre %> <%= s.esAldeaMunicipalizada ? '(Aldea)' : '' %>
-            </option>
-          <% }); %>
-        </select>
-
-        <!-- Filtro por Escalafón -->
-        <select name="escalafon" class="table-filter-select" onchange="this.form.submit()">
-          <option value="">Todos los escalafones</option>
-          <option value="INSTRUCTOR" <%= filters.escalafon === 'INSTRUCTOR' ? 'selected' : '' %>>Instructor</option>
-          <option value="ASISTENTE" <%= filters.escalafon === 'ASISTENTE' ? 'selected' : '' %>>Asistente</option>
-          <option value="AGREGADO" <%= filters.escalafon === 'AGREGADO' ? 'selected' : '' %>>Agregado</option>
-          <option value="ASOCIADO" <%= filters.escalafon === 'ASOCIADO' ? 'selected' : '' %>>Asociado</option>
-          <option value="TITULAR" <%= filters.escalafon === 'TITULAR' ? 'selected' : '' %>>Titular</option>
-          <option value="CONTRATADO" <%= filters.escalafon === 'CONTRATADO' ? 'selected' : '' %>>Contratado</option>
-        </select>
-
-        <!-- Filtro por Estado -->
-        <select name="estado" class="table-filter-select" onchange="this.form.submit()">
-          <option value="">Todos los estados</option>
-          <option value="Activo" <%= filters.estado === 'Activo' ? 'selected' : '' %>>Activos</option>
-          <option value="Inactivo" <%= filters.estado === 'Inactivo' ? 'selected' : '' %>>Inactivos</option>
+      <!-- Selector de Filas por Página -->
+      <div class="table-toolbar-right uk-flex uk-flex-middle gap-2">
+        <span class="uk-text-muted uk-text-small">Filas:</span>
+        <select name="limit" class="table-page-size-select" onchange="this.form.submit()">
+          <option value="5" <%= pagination.limit === 5 ? 'selected' : '' %>>5</option>
+          <option value="10" <%= pagination.limit === 10 ? 'selected' : '' %>>10</option>
+          <option value="25" <%= pagination.limit === 25 ? 'selected' : '' %>>25</option>
+          <option value="50" <%= pagination.limit === 50 ? 'selected' : '' %>>50</option>
         </select>
       </div>
+    </div>
+
+    <!-- Fila Inferior: Filtros de Selección y Acción de Limpiar -->
+    <div class="table-filters-row uk-flex uk-flex-middle uk-flex-wrap gap-2 uk-width-1-1">
+      <!-- Filtro por Dedicación -->
+      <select name="dedicacion" class="table-filter-select" onchange="this.form.submit()">
+        <option value="">Todas las dedicaciones</option>
+        <option value="DEDICACION_EXCLUSIVA" <%= filters.dedicacion === 'DEDICACION_EXCLUSIVA' ? 'selected' : '' %>>Dedicación Exclusiva</option>
+        <option value="TIEMPO_COMPLETO" <%= filters.dedicacion === 'TIEMPO_COMPLETO' ? 'selected' : '' %>>Tiempo Completo</option>
+        <option value="MEDIO_TIEMPO" <%= filters.dedicacion === 'MEDIO_TIEMPO' ? 'selected' : '' %>>Medio Tiempo</option>
+        <option value="TIEMPO_CONVENCIONAL" <%= filters.dedicacion === 'TIEMPO_CONVENCIONAL' ? 'selected' : '' %>>Tiempo Convencional</option>
+      </select>
+
+      <!-- Filtro por Sede de Adscripción -->
+      <select name="sedeId" class="table-filter-select" onchange="this.form.submit()">
+        <option value="">Todas las sedes / aldeas</option>
+        <% sedes.forEach(function(s) { %>
+          <option value="<%= s.id %>" <%= filters.sedeId === s.id ? 'selected' : '' %>>
+            <%= s.nombre %> <%= s.esAldeaMunicipalizada ? '(Aldea)' : '' %>
+          </option>
+        <% }); %>
+      </select>
+
+      <!-- Filtro por Escalafón -->
+      <select name="escalafon" class="table-filter-select" onchange="this.form.submit()">
+        <option value="">Todos los escalafones</option>
+        <option value="INSTRUCTOR" <%= filters.escalafon === 'INSTRUCTOR' ? 'selected' : '' %>>Instructor</option>
+        <option value="ASISTENTE" <%= filters.escalafon === 'ASISTENTE' ? 'selected' : '' %>>Asistente</option>
+        <option value="AGREGADO" <%= filters.escalafon === 'AGREGADO' ? 'selected' : '' %>>Agregado</option>
+        <option value="ASOCIADO" <%= filters.escalafon === 'ASOCIADO' ? 'selected' : '' %>>Asociado</option>
+        <option value="TITULAR" <%= filters.escalafon === 'TITULAR' ? 'selected' : '' %>>Titular</option>
+        <option value="CONTRATADO" <%= filters.escalafon === 'CONTRATADO' ? 'selected' : '' %>>Contratado</option>
+      </select>
+
+      <!-- Filtro por Estado -->
+      <select name="estado" class="table-filter-select" onchange="this.form.submit()">
+        <option value="">Todos los estados</option>
+        <option value="Activo" <%= filters.estado === 'Activo' ? 'selected' : '' %>>Activos</option>
+        <option value="Inactivo" <%= filters.estado === 'Inactivo' ? 'selected' : '' %>>Inactivos</option>
+      </select>
 
       <!-- Botón Limpiar Filtros -->
       <a 
@@ -212,17 +224,6 @@
         <span uk-icon="icon: refresh; ratio: 0.75"></span>
         <span>Limpiar</span>
       </a>
-    </div>
-
-    <!-- Selector de Filas por Página -->
-    <div class="table-toolbar-right uk-flex uk-flex-middle gap-2">
-      <span class="uk-text-muted uk-text-small">Filas:</span>
-      <select name="limit" class="table-page-size-select" onchange="this.form.submit()">
-        <option value="5" <%= pagination.limit === 5 ? 'selected' : '' %>>5</option>
-        <option value="10" <%= pagination.limit === 10 ? 'selected' : '' %>>10</option>
-        <option value="25" <%= pagination.limit === 25 ? 'selected' : '' %>>25</option>
-        <option value="50" <%= pagination.limit === 50 ? 'selected' : '' %>>50</option>
-      </select>
     </div>
   </form>
 

@@ -1,0 +1,318 @@
+/* ==========================================================================
+   SCHAAH UBV - Tablas Limpias y Componente DataTable (Spec 07)
+   ========================================================================== */
+
+.clean-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.clean-table th {
+  text-align: left;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--surface-card);
+}
+
+.clean-table td {
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.84rem;
+  color: var(--text-body);
+  vertical-align: middle;
+}
+
+.clean-table tr:hover td {
+  background-color: var(--surface-card-hover);
+}
+
+/* Tipografía y Metadatos en Celdas */
+.date-text {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.user-table-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+  color: var(--brand-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.table-user-name {
+  font-weight: 600;
+  color: var(--text-white);
+  line-height: 1.2;
+}
+
+.table-sub-info {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.email-code {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--brand-accent);
+  background-color: var(--accent-blue-bg);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+/* Indicadores de Estado */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.status-active {
+  background-color: var(--accent-green-bg);
+  color: var(--accent-green);
+}
+
+.status-inactive {
+  background-color: var(--accent-red-bg);
+  color: var(--accent-red);
+}
+
+/* Acciones de Fila y Botones */
+.btn-table-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 4px 8px;
+  background-color: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap !important;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.btn-table-action:hover {
+  background-color: var(--surface-card-hover);
+  color: var(--text-white);
+}
+
+/* Celda y Grupo de Acciones (Horizontal Estricto) */
+.table-actions-cell,
+th.table-actions-cell,
+td.table-actions-cell {
+  white-space: nowrap !important;
+  text-align: right !important;
+  width: auto !important;
+}
+
+.table-actions-group {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  flex-wrap: nowrap !important;
+  gap: 0.35rem !important;
+  white-space: nowrap !important;
+  width: 100% !important;
+}
+
+.table-actions-group form {
+  display: inline-flex !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.badge-self {
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  font-style: italic;
+  white-space: nowrap;
+}
+
+/* Encabezados Ordenables (Spec 07) */
+.clean-table th.sortable,
+.clean-table th[data-sort] {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: color 0.15s ease;
+}
+
+.clean-table th.sortable:hover,
+.clean-table th[data-sort]:hover {
+  color: var(--text-white);
+}
+
+.clean-table th.sortable::after,
+.clean-table th[data-sort]::after {
+  content: ' ⇅';
+  font-size: 0.72rem;
+  opacity: 0.4;
+  margin-left: 4px;
+}
+
+.clean-table th.sort-asc::after {
+  content: ' ▲';
+  opacity: 1;
+  color: var(--brand-accent);
+}
+
+.clean-table th.sort-desc::after {
+  content: ' ▼';
+  opacity: 1;
+  color: var(--brand-accent);
+}
+
+/* Paginación en Servidor */
+.table-footer {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 0.85rem;
+  margin-top: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.clean-pagination-list {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.page-nav-btn,
+.page-number-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  color: var(--text-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 9px;
+  min-width: 30px;
+  height: 28px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.page-nav-btn:hover:not(:disabled),
+.page-number-btn:hover:not(.is-active) {
+  background-color: var(--surface-card-hover);
+  color: var(--text-white);
+  border-color: var(--border-medium);
+}
+
+.page-number-btn.is-active {
+  background-color: var(--brand-accent);
+  color: #ffffff;
+  border-color: var(--brand-accent);
+}
+
+.page-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: var(--border-subtle);
+}
+
+.page-ellipsis {
+  padding: 0 4px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* Estado Vacío de Tabla */
+.empty-state-cell {
+  background-color: var(--surface-card);
+  padding: 2.5rem 1rem !important;
+}
+
+.empty-state-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state-icon {
+  color: var(--text-faint);
+}
+
+.empty-state-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-white);
+}
+
+/* Modales y Notificaciones */
+.alert-clean-success {
+  background-color: var(--accent-green-bg);
+  border: 1px solid rgba(63, 185, 80, 0.3);
+  color: var(--accent-green);
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.modal-clean-box,
+.clean-modal,
+.uk-modal-dialog.clean-modal {
+  background-color: var(--surface-card) !important;
+  border: 1px solid var(--border-medium) !important;
+  border-radius: 8px !important;
+  color: var(--text-body) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+  padding: 1.5rem !important;
+}
+
+.modal-clean-title,
+.clean-modal .modal-title {
+  color: var(--text-white) !important;
+  font-size: 1.15rem !important;
+  font-weight: 800 !important;
+}
+
+.clean-modal.border-danger {
+  border-left: 4px solid var(--accent-red) !important;
+}
+
+/* Pie de Página de Plataforma */
+.app-footer {
+  background-color: var(--surface-header);
+  border-top: 1px solid var(--border-subtle);
+  padding: 1.25rem 0;
+  margin-top: auto;
+}
+
+.footer-copy {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin: 0;
+}

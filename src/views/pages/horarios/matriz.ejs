@@ -1,0 +1,598 @@
+<!-- Header de la Matriz Semanal de Horarios -->
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <a href="/periodos" class="uk-link-reset uk-text-muted">Períodos</a>
+        <span class="breadcrumb-separator">/</span>
+        <a href="/periodos/<%= periodo.id %>/secciones" class="uk-link-reset uk-text-muted"><%= periodo.codigo %></a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Matriz Semanal</span>
+      </div>
+      <h1 class="page-title uk-margin-remove">Matriz Semanal de Horarios - <%= periodo.codigo %></h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Visualización y asignación interactiva (Drag & Drop) con verificación en tiempo real de restricciones duras (<span class="font-mono">H-01</span> a <span class="font-mono">H-09</span>).
+      </p>
+    </div>
+    <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
+      <button class="btn-clean-secondary" type="button" onclick="abrirModalSolver()">
+        <span uk-icon="icon: bolt; ratio: 0.85"></span>
+        <span>Optimizar Vacantes (Solver)</span>
+      </button>
+      <a href="/periodos/<%= periodo.id %>/secciones" class="btn-clean-secondary">
+        <span uk-icon="icon: list; ratio: 0.85"></span>
+        <span>Oferta de Secciones</span>
+      </a>
+      <button class="btn-clean-primary" type="button" onclick="exportarHorarioPDF()">
+        <span uk-icon="icon: download; ratio: 0.85"></span>
+        <span>Descargar Horario PDF</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Barra de Filtros y Selector de Perspectiva (Docente / Aula / Sección) -->
+  <div class="admin-subtabs uk-margin-top uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-3">
+    <div class="uk-flex uk-flex-middle gap-2">
+      <span class="text-xs font-semibold uk-text-muted text-uppercase">Perspectiva:</span>
+      <div class="uk-button-group clean-button-group">
+        <a 
+          href="/periodos/<%= periodo.id %>/horarios?tipo=DOCENTE" 
+          class="subtab-item <%= filtroTipo === 'DOCENTE' ? 'is-active' : '' %>"
+        >
+          <span uk-icon="icon: user; ratio: 0.75"></span>
+          <span>Por Docente</span>
+        </a>
+        <a 
+          href="/periodos/<%= periodo.id %>/horarios?tipo=AULA" 
+          class="subtab-item <%= filtroTipo === 'AULA' ? 'is-active' : '' %>"
+        >
+          <span uk-icon="icon: home; ratio: 0.75"></span>
+          <span>Por Aula Física</span>
+        </a>
+        <a 
+          href="/periodos/<%= periodo.id %>/horarios?tipo=SECCION" 
+          class="subtab-item <%= filtroTipo === 'SECCION' ? 'is-active' : '' %>"
+        >
+          <span uk-icon="icon: grid; ratio: 0.75"></span>
+          <span>Por Sección</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Selector dinámico del registro específico -->
+    <div class="uk-flex uk-flex-middle gap-2">
+      <label class="text-xs font-medium uk-text-muted" for="select-entidad">
+        <%= filtroTipo === 'DOCENTE' ? 'Seleccionar Docente:' : (filtroTipo === 'AULA' ? 'Seleccionar Espacio:' : 'Seleccionar Sección:') %>
+      </label>
+      <select 
+        id="select-entidad" 
+        class="table-filter-select" 
+        style="width: 320px;" 
+        onchange="location.href='/periodos/<%= periodo.id %>/horarios?tipo=<%= filtroTipo %>&id=' + this.value"
+      >
+        <% if (filtroTipo === 'DOCENTE') { %>
+          <% profesores.forEach(function(p) { %>
+            <option value="<%= p.id %>" <%= filtroId === p.id ? 'selected' : '' %>>
+              <%= p.apellidos %>, <%= p.nombres %> (V-<%= p.cedula %>)
+            </option>
+          <% }); %>
+        <% } else if (filtroTipo === 'AULA') { %>
+          <% espacios.forEach(function(e) { %>
+            <option value="<%= e.id %>" <%= filtroId === e.id ? 'selected' : '' %>>
+              <%= e.sede.nombre %> - <%= e.nombre %> (Cap: <%= e.capacidad %>)
+            </option>
+          <% }); %>
+        <% } else if (filtroTipo === 'SECCION') { %>
+          <% secciones.forEach(function(s) { %>
+            <option value="<%= s.id %>" <%= filtroId === s.id ? 'selected' : '' %>>
+              <%= s.codigoSeccion %> - <%= s.unidadCurricular.nombre %>
+            </option>
+          <% }); %>
+        <% } %>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- Barra de Resumen de Entidad Activa -->
+<div class="horario-active-summary uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-2">
+  <div class="uk-flex uk-flex-middle gap-3">
+    <span uk-icon="icon: <%= filtroTipo === 'DOCENTE' ? 'user' : (filtroTipo === 'AULA' ? 'home' : 'grid') %>; ratio: 1.2" style="color: var(--brand-accent);"></span>
+    <div>
+      <div class="vista-label">Vista Activa</div>
+      <div class="vista-name"><%= entidadSeleccionadaNombre %></div>
+    </div>
+  </div>
+  <div class="uk-flex uk-flex-middle gap-2">
+    <span class="turno-legend-badge matutino">Verde: Matutino</span>
+    <span class="turno-legend-badge vespertino">Azul: Vespertino</span>
+    <span class="turno-legend-badge nocturno">Púrpura: Nocturno</span>
+  </div>
+</div>
+
+<div class="uk-grid-medium" uk-grid>
+  <!-- Columna Principal: Grilla Semanal de 8 Bloques (Formato Venezolano 12 Horas AM/PM) -->
+  <div class="uk-width-expand@m">
+    <div class="clean-table-container">
+      <div class="uk-overflow-auto">
+        <table class="clean-table horario-grid-table">
+          <thead>
+            <tr>
+              <th style="width: 170px;" class="uk-text-center">Bloque Académico (12h)</th>
+              <% dias.forEach(function(d) { %>
+                <th class="uk-text-center" style="min-width: 150px;"><%= d %></th>
+              <% }); %>
+            </tr>
+          </thead>
+          <tbody>
+            <% franjas.forEach(function(f) { %>
+              <tr>
+                <!-- Encabezado de Fila de Bloque -->
+                <td class="horario-time-cell">
+                  <div class="horario-time-range"><%= f.horaInicio12 %> - <%= f.horaFin12 %></div>
+                  <div class="horario-block-label">
+                    Bloque <%= f.numero %> &bull; <span class="turno-legend-badge <%= f.turno === 'MATUTINO' ? 'matutino' : (f.turno === 'VESPERTINO' ? 'vespertino' : 'nocturno') %>" style="font-size: 0.65rem; padding: 1px 5px;"><%= f.turno %></span>
+                  </div>
+                </td>
+
+                <!-- Celdas por Día de la Semana -->
+                <% dias.forEach(function(d) { 
+                  const bloqueData = (matrizMap[d] && matrizMap[d][f.horaInicio]) ? matrizMap[d][f.horaInicio] : null;
+                %>
+                  <td 
+                    class="horario-slot-cell <%= bloqueData ? 'has-class' : 'empty-slot' %>"
+                    data-dia="<%= d %>"
+                    data-inicio="<%= f.horaInicio %>"
+                    data-fin="<%= f.horaFin %>"
+                    data-inicio12="<%= f.horaInicio12 %>"
+                    data-fin12="<%= f.horaFin12 %>"
+                    ondragover="allowDropHorario(event)"
+                    ondragleave="leaveDropHorario(event)"
+                    ondrop="handleDropHorario(event)"
+                  >
+                    <% if (bloqueData) { %>
+                      <div 
+                        class="horario-card-badge"
+                        draggable="true"
+                        data-horario-id="<%= bloqueData.id %>"
+                        data-seccion-id="<%= bloqueData.seccionId %>"
+                        ondragstart="handleDragStartHorario(event)"
+                      >
+                        <div class="uk-flex uk-flex-between uk-flex-top">
+                          <span class="font-bold text-xs" style="color: var(--accent-primary);"><%= bloqueData.codigoSeccion %></span>
+                          <button 
+                            class="btn-delete-slot" 
+                            title="Desasignar horario"
+                            onclick="eliminarBloqueHorario('<%= bloqueData.id %>', '<%= bloqueData.codigoSeccion %>')"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                        <div class="horario-materia-title"><%= bloqueData.unidadNombre %></div>
+                        
+                        <div class="horario-sub-info uk-margin-xsmall-top">
+                          <% if (filtroTipo !== 'DOCENTE') { %>
+                            <div><span uk-icon="icon: user; ratio: 0.6"></span> <%= bloqueData.profesorNombre %></div>
+                          <% } %>
+                          <% if (filtroTipo !== 'AULA') { %>
+                            <div><span uk-icon="icon: home; ratio: 0.6"></span> <%= bloqueData.espacioNombre %></div>
+                          <% } %>
+                        </div>
+                      </div>
+                    <% } else { %>
+                      <div class="empty-slot-hint">
+                        <span class="text-xxs uk-text-muted">+ Arrastrar aquí</span>
+                      </div>
+                    <% } %>
+                  </td>
+                <% }); %>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Columna Lateral: Bandeja de Secciones Pendientes por Asignar -->
+  <div class="uk-width-1-4@m">
+    <div class="secciones-sidebar-card">
+      <div class="uk-flex uk-flex-between uk-flex-middle uk-margin-small-bottom">
+        <h4 class="font-bold text-sm uk-margin-remove" style="color: var(--text-white);">
+          Por Programar (<%= seccionesPendientes.length %>)
+        </h4>
+        <span class="indicator-gray" style="font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">Arrastrables</span>
+      </div>
+      <p class="text-xs uk-text-muted uk-margin-small-bottom">
+        Arrastra una sección a una celda vacía para agendarla con validación inmediata.
+      </p>
+
+      <div class="secciones-pendientes-list" style="max-height: 600px; overflow-y: auto;">
+        <% if (seccionesPendientes.length === 0) { %>
+          <div class="p-4 uk-text-center uk-text-muted text-xs">
+            ¡Excelente! Todas las secciones tienen bloques asignados en este período.
+          </div>
+        <% } %>
+
+        <% seccionesPendientes.forEach(function(sp) { %>
+          <div 
+            class="draggable-seccion-card"
+            draggable="true"
+            data-seccion-id="<%= sp.id %>"
+            data-codigo="<%= sp.codigoSeccion %>"
+            data-materia="<%= sp.unidadCurricular.nombre %>"
+            data-sede-id="<%= sp.sedeId %>"
+            ondragstart="handleDragStartSeccionPendiente(event)"
+          >
+            <div class="uk-flex uk-flex-between uk-flex-middle">
+              <span class="font-bold text-xs" style="color: var(--brand-accent);"><%= sp.codigoSeccion %></span>
+              <span class="turno-legend-badge <%= sp.turno === 'MATUTINO' ? 'matutino' : (sp.turno === 'VESPERTINO' ? 'vespertino' : 'nocturno') %>" style="font-size: 0.62rem; padding: 1px 4px;"><%= sp.turno %></span>
+            </div>
+            <div class="font-medium text-xs uk-margin-xsmall-top" style="color: var(--text-white);"><%= sp.unidadCurricular.nombre %></div>
+            <div class="text-xxs uk-text-muted uk-margin-xsmall-top">
+              <% if (sp.profesor) { %>
+                <span uk-icon="icon: user; ratio: 0.55"></span> <%= sp.profesor.nombres %> <%= sp.profesor.apellidos %>
+              <% } else { %>
+                <span style="color: var(--accent-amber); font-weight: 600;">⚠ Sin Docente Asignado</span>
+              <% } %>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Confirmación / Ajuste de Movimiento con Selección de Aula -->
+<div id="modal-confirmar-asignacion" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body clean-modal">
+    <button class="uk-modal-close-default" type="button" uk-close></button>
+    <h3 class="modal-title font-semibold text-base uk-margin-xsmall-bottom">Confirmar Asignación en Matriz</h3>
+    <div id="feedback-drop-container" class="uk-margin-small-bottom"></div>
+
+    <form id="form-confirmar-movimiento" class="uk-form-stacked">
+      <input type="hidden" id="modal-seccion-id" name="seccionId">
+      <input type="hidden" id="modal-horario-id" name="horarioId">
+      <input type="hidden" id="modal-dia" name="dia">
+      <input type="hidden" id="modal-hora-inicio" name="horaInicio">
+      <input type="hidden" id="modal-hora-fin" name="horaFin">
+
+      <div class="uk-margin-small">
+        <label class="form-label font-medium text-xs">Franja y Día</label>
+        <div id="modal-resumen-slot" class="font-bold text-sm" style="color: var(--text-white);"></div>
+      </div>
+
+      <div class="uk-margin-small">
+        <label class="form-label font-medium text-xs">Aula / Espacio Físico</label>
+        <select id="modal-espacio-id" name="espacioFisicoId" class="form-input-clean">
+          <option value="">-- Sin Aula Física (Campo / Proyecto) --</option>
+          <% espacios.forEach(function(esp) { %>
+            <option value="<%= esp.id %>">
+              <%= esp.sede.nombre %> - <%= esp.nombre %> (Cap: <%= esp.capacidad %>, Piso: <%= esp.piso || 'PB' %>)
+            </option>
+          <% }); %>
+        </select>
+      </div>
+
+      <div class="uk-margin-small">
+        <label class="form-label font-medium text-xs">Justificación de Auditoría (Requerido para cambios manuales)</label>
+        <input 
+          type="text" 
+          id="modal-justificacion" 
+          name="justificacion" 
+          value="Ajuste manual de cohorte en período <%= periodo.codigo %>"
+          class="form-input-clean"
+        >
+      </div>
+
+      <div class="uk-margin-medium-top uk-text-right">
+        <button class="btn-clean-secondary uk-modal-close" type="button">Cancelar</button>
+        <button class="btn-clean-primary" type="button" id="btn-submit-asignacion" onclick="enviarAsignacion()">
+          Guardar Asignación
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal de Alerta de Conflicto Inviolable (H-01 a H-09) -->
+<div id="modal-conflicto-dura" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body clean-modal border-danger">
+    <div class="uk-flex uk-flex-middle gap-3 uk-margin-small-bottom">
+      <span uk-icon="icon: warning; ratio: 1.5" class="text-danger"></span>
+      <div>
+        <h3 class="modal-title font-bold text-base text-danger uk-margin-remove">Movimiento Bloqueado por Conflicto Normativo</h3>
+        <p class="text-xs uk-text-muted uk-margin-remove">El sistema prohíbe violaciones de restricciones duras de la UBV.</p>
+      </div>
+    </div>
+    
+    <div id="conflicto-detalle-texto" class="p-3 my-3 text-sm text-danger" style="background: rgba(239, 68, 68, 0.08); border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.2);">
+    </div>
+
+    <div class="uk-text-right">
+      <button class="btn-clean-secondary uk-modal-close" type="button">Entendido</button>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- Lógica de Drag & Drop y Validación Asíncrona -->
+<script>
+  let dragData = {
+    seccionId: null,
+    horarioId: null,
+    sourceType: null // 'PENDIENTE' | 'MATRIZ'
+  };
+
+  const PERIODO_ID = '<%= periodo.id %>';
+
+  function handleDragStartHorario(e) {
+    dragData = {
+      seccionId: e.target.dataset.seccionId,
+      horarioId: e.target.dataset.horarioId,
+      sourceType: 'MATRIZ'
+    };
+    e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
+  }
+
+  function handleDragStartSeccionPendiente(e) {
+    dragData = {
+      seccionId: e.currentTarget.dataset.seccionId,
+      horarioId: null,
+      sourceType: 'PENDIENTE'
+    };
+    e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
+  }
+
+  function allowDropHorario(e) {
+    e.preventDefault();
+    e.currentTarget.classList.add('drag-over');
+  }
+
+  function leaveDropHorario(e) {
+    e.currentTarget.classList.remove('drag-over');
+  }
+
+  async function handleDropHorario(e) {
+    e.preventDefault();
+    const cell = e.currentTarget;
+    cell.classList.remove('drag-over');
+
+    const dia = cell.dataset.dia;
+    const horaInicio = cell.dataset.inicio;
+    const horaFin = cell.dataset.fin;
+    const horaInicio12 = cell.dataset.inicio12;
+    const horaFin12 = cell.dataset.fin12;
+
+    if (!dragData.seccionId) return;
+
+    // Ejecutar validación contra servidor
+    try {
+      const response = await fetch(`/periodos/${PERIODO_ID}/horarios/validar-drop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seccionId: dragData.seccionId,
+          horarioId: dragData.horarioId,
+          dia,
+          horaInicio,
+          horaFin
+        })
+      });
+
+      const res = await response.json();
+
+      if (!res.esValido) {
+        // Mostrar modal de conflicto inviolable
+        document.getElementById('conflicto-detalle-texto').innerText = res.mensajeResumen;
+        UIkit.modal('#modal-conflicto-dura').show();
+        return;
+      }
+
+      // Preparar formulario modal para confirmación y selección de aula
+      document.getElementById('modal-seccion-id').value = dragData.seccionId;
+      document.getElementById('modal-horario-id').value = dragData.horarioId || '';
+      document.getElementById('modal-dia').value = dia;
+      document.getElementById('modal-hora-inicio').value = horaInicio;
+      document.getElementById('modal-hora-fin').value = horaFin;
+      document.getElementById('modal-resumen-slot').innerText = `${dia} &bull; ${horaInicio12} - ${horaFin12} (Bloque Oficial)`;
+
+      // Feedback de advertencias si las hay
+      const feedbackDiv = document.getElementById('feedback-drop-container');
+      if (res.advertencias && res.advertencias.length > 0) {
+        feedbackDiv.innerHTML = `<div class="p-2 text-xs uk-alert-warning" uk-alert>${res.advertencias.join('<br>')}</div>`;
+      } else {
+        feedbackDiv.innerHTML = `<div class="p-2 text-xs uk-alert-success" uk-alert>✓ Movimiento verificado y legalmente factible.</div>`;
+      }
+
+      UIkit.modal('#modal-confirmar-asignacion').show();
+
+    } catch (err) {
+      console.error(err);
+      alert('Error de conexión al validar restricciones.');
+    }
+  }
+
+  async function enviarAsignacion() {
+    const btn = document.getElementById('btn-submit-asignacion');
+    btn.disabled = true;
+    btn.innerText = 'Guardando...';
+
+    const payload = {
+      seccionId: document.getElementById('modal-seccion-id').value,
+      horarioId: document.getElementById('modal-horario-id').value,
+      dia: document.getElementById('modal-dia').value,
+      horaInicio: document.getElementById('modal-hora-inicio').value,
+      horaFin: document.getElementById('modal-hora-fin').value,
+      espacioFisicoId: document.getElementById('modal-espacio-id').value,
+      justificacion: document.getElementById('modal-justificacion').value,
+    };
+
+    try {
+      const resp = await fetch(`/periodos/${PERIODO_ID}/horarios/mover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      if (data.success) {
+        location.reload();
+      } else {
+        alert(data.error || 'Error al guardar asignación.');
+        btn.disabled = false;
+        btn.innerText = 'Guardar Asignación';
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error al procesar la solicitud.');
+      btn.disabled = false;
+      btn.innerText = 'Guardar Asignación';
+    }
+  }
+
+  async function eliminarBloqueHorario(horarioId, codigoSeccion) {
+    if (!confirm(`¿Desasignar el bloque de la sección ${codigoSeccion}? Se registrará en la auditoría.`)) {
+      return;
+    }
+
+    try {
+      const resp = await fetch(`/periodos/${PERIODO_ID}/horarios/eliminar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          horarioId,
+          justificacion: 'Desasignación manual desde matriz semanal'
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        location.reload();
+      } else {
+        alert(data.error || 'Error al eliminar el bloque.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error de red.');
+    }
+  }
+
+  // Exportación Limpia Exclusiva del Horario con jsPDF y AutoTable (Formato Carta Apaisado)
+  function exportarHorarioPDF() {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      alert('Cargando librería de generación PDF... Intente nuevamente en un segundo.');
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'letter'
+    });
+
+    const periodoCodigo = '<%= periodo.codigo %>';
+    const entidadNombre = '<%= entidadSeleccionadaNombre %>';
+    const tipoFiltro = '<%= filtroTipo %>';
+
+    // Encabezado Institucional
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(31, 35, 40);
+    doc.text('UNIVERSIDAD BOLIVARIANA DE VENEZUELA (UBV)', 14, 15);
+
+    doc.setFontSize(11);
+    doc.text(`MATRIZ OFICIAL DE HORARIOS - PERÍODO ${periodoCodigo}`, 14, 21);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(87, 96, 106);
+    doc.text(`Perspectiva: ${tipoFiltro} | ${entidadNombre}`, 14, 27);
+    doc.text(`Emitido: ${new Date().toLocaleDateString('es-VE')} - Sistema SCHAAH`, 200, 27);
+
+    // Preparar columnas
+    const head = [['Bloque Académico (12h)', <% dias.forEach(function(d, idx) { %>'<%= d %>'<%= idx < dias.length - 1 ? ', ' : '' %><% }); %>]];
+
+    // Extraer datos de la grilla DOM
+    const body = [];
+    const rows = document.querySelectorAll('.horario-grid-table tbody tr');
+
+    rows.forEach(tr => {
+      const rowData = [];
+      const cells = tr.querySelectorAll('td');
+
+      cells.forEach((td, idx) => {
+        if (idx === 0) {
+          // Bloque horario
+          const timeText = td.querySelector('.horario-time-range')?.innerText?.trim() || '';
+          const blockText = td.querySelector('.horario-block-label')?.innerText?.trim() || '';
+          rowData.push(`${timeText}\n${blockText}`);
+        } else {
+          // Celda de clase
+          const card = td.querySelector('.horario-card-badge');
+          if (card) {
+            const codigo = card.querySelector('.seccion-code')?.innerText?.trim() || '';
+            const materia = card.querySelector('.horario-materia-title')?.innerText?.trim() || '';
+            const subinfo = Array.from(card.querySelectorAll('.horario-sub-info > div')).map(d => d.innerText.trim()).join(' | ');
+            rowData.push(`${codigo}\n${materia}\n${subinfo}`);
+          } else {
+            rowData.push('---');
+          }
+        }
+      });
+      body.push(rowData);
+    });
+
+    // Generar tabla PDF
+    doc.autoTable({
+      startY: 32,
+      head: head,
+      body: body,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [33, 38, 45],
+        textColor: [240, 246, 252],
+        fontStyle: 'bold',
+        fontSize: 8.5,
+        halign: 'center',
+        valign: 'middle'
+      },
+      styles: {
+        font: 'helvetica',
+        fontSize: 7.5,
+        cellPadding: 2.5,
+        valign: 'middle',
+        overflow: 'linebreak'
+      },
+      columnStyles: {
+        0: {
+          cellWidth: 38,
+          halign: 'center',
+          fillColor: [246, 248, 250],
+          fontStyle: 'bold'
+        }
+      },
+      alternateRowStyles: {
+        fillColor: [255, 255, 255]
+      },
+      didDrawCell: function (data) {
+        // Estilizar celdas con asignación
+        if (data.section === 'body' && data.column.index > 0 && data.cell.raw !== '---') {
+          data.cell.styles.fillColor = [240, 247, 255];
+        }
+      }
+    });
+
+    const cleanFilename = `Horario_${periodoCodigo}_${tipoFiltro}_${entidadNombre.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    doc.save(cleanFilename);
+  }
+</script>
+
+<!-- Scripts Vendor de Generación PDF Local vía jsPDF -->
+<script src="/js/vendor/jspdf.umd.min.js"></script>
+<script src="/js/vendor/jspdf.plugin.autotable.min.js"></script>
+
+<!-- Modal Solver de Optimización Automática -->
+<%- include('../../partials/modal-solver', { periodoId: periodo.id, periodoCodigo: periodo.codigo }) %>
+
+

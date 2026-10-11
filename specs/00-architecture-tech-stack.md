@@ -14,7 +14,7 @@
 | **ORM & Persistencia** | Prisma ORM | Modelado declarativo de esquemas, migraciones seguras y generación automática de tipos TypeScript. |
 | **Base de Datos (Desarrollo)** | SQLite 3 (Modo WAL) | Motor embebido sin dependencias externas; concurrencia optimizada mediante `PRAGMA journal_mode = WAL;`. |
 | **Base de Datos (Producción)** | PostgreSQL 15+ | Soporte relacional corporativo con extensiones `btree_gist` para exclusiones temporales. |
-| **Motor Solver** | Google OR-Tools (CP-SAT) en Python Worker | Proceso worker dedicado o invocado vía subproceso CLI / Cola asíncrona (BullMQ + Redis) para resolver el problema NP-duro sin bloquear el event loop de Express. |
+| **Motor Solver** | Google OR-Tools (CP-SAT) WebAssembly (`@google/ortools`) | Paquete oficial compilado a WebAssembly ejecutado en Node.js mediante `worker_threads` (o worker pool). Elimina dependencia externa de runtime Python; resuelve problema NP-duro sin bloquear event loop de Express. |
 | **Diseño Web & UI** | Clean Enterprise SaaS (Linear/Vercel) + UIkit 3 | Estética sobria, moderna y de alta densidad. Cabecera fija de 54px en una sola fila, tarjetas Bento, tablas de datos con búsqueda en vivo, modales limpios y soporte dual de temas claro y oscuro con persistencia en `localStorage`. |
 
 ---
@@ -30,12 +30,12 @@ graph TD
         Controllers --> Views[Motor Vistas EJS]
         Controllers --> Services[Servicios de Negocio]
         Services --> ORM[Prisma ORM Client]
-        Services --> WorkerQueue[Despachador Solver]
+        Services --> SolverDispatcher[Despachador Solver]
     end
 
     ORM <-->|SQL / Pool Conexiones| Postgres[(PostgreSQL 15+)]
-    WorkerQueue <-->|IPC / Redis Queue| SolverProcess[Worker CP-SAT Python / OR-Tools]
-    SolverProcess <-->|Lectura/Escritura Masiva| Postgres
+    SolverDispatcher <-->|worker_threads / Piscina| SolverWasm[Worker Node.js + @google/ortools WebAssembly]
+    SolverWasm <-->|Lectura/Escritura vía Prisma| Postgres
 ```
 
 ---
@@ -62,15 +62,15 @@ schaah/
 │   │   ├── curricular/          # PFG y Unidades Curriculares
 │   │   ├── periodos/            # Períodos lectivos y secciones
 │   │   ├── horarios/            # Asignación, visualizador semanal y drag & drop
-│   │   └── solver/              # Puente de ejecución con el solver CP-SAT
+│   │   └── solver/              # Despachador y lógica de ejecución CP-SAT
 │   ├── views/                   # Plantillas SSR (EJS)
 │   │   ├── layouts/             # Base layout, header, navegación
 │   │   ├── partials/            # Componentes reutilizables (tablas, alertas, modales)
 │   │   └── pages/               # Vistas específicas por módulo
-│   └── public/                  # Assets estáticos (CSS, scripts ligeros para Drag & Drop)
-├── worker/
-│   ├── solver_cpsat.py          # Script matemático en Python con OR-Tools
-│   └── requirements.txt         # ortools, psycopg2-binary
+│   ├── public/                  # Assets estáticos (CSS, scripts ligeros para Drag & Drop)
+│   └── workers/
+│       ├── solver.worker.ts     # Worker Node.js con @google/ortools (WebAssembly)
+│       └── cpsat-model.ts       # Modelado matemático CP-SAT en TypeScript
 └── specs/                       # Documentación formal de desarrollo
 ```
 

@@ -1,0 +1,74 @@
+/* ==========================================================================
+   SCHAAH UBV - Menús Desplegables y Modales Flotantes (Linear Aesthetic)
+   ========================================================================== */
+
+.clean-dropdown,
+.uk-dropdown.clean-dropdown {
+  background-color: var(--surface-card) !important;
+  border: 1px solid var(--border-medium) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4), var(--inset-highlight) !important;
+  padding: 0.45rem !important;
+  min-width: 210px !important;
+  width: auto !important;
+  max-width: 280px !important;
+  white-space: normal !important;
+  box-sizing: border-box !important;
+  z-index: 1050 !important;
+}
+
+.clean-dropdown .uk-nav-header {
+  font-size: 0.68rem !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--text-faint) !important;
+  padding: 0.4rem 0.65rem !important;
+  margin-bottom: 0.25rem !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+}
+
+.clean-dropdown .uk-dropdown-nav > li {
+  margin: 2px 0 !important;
+}
+
+.dropdown-action-btn {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.55rem !important;
+  width: 100% !important;
+  padding: 0.45rem 0.65rem !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--text-body) !important;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+  border-radius: 5px !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  transition: all 0.15s ease !important;
+  font-family: inherit !important;
+}
+
+.dropdown-action-btn:hover {
+  background-color: var(--surface-card-hover) !important;
+  color: var(--text-white) !important;
+}
+
+.dropdown-action-btn.text-danger {
+  color: var(--accent-red) !important;
+}
+
+.dropdown-action-btn.text-danger:hover {
+  background-color: var(--accent-red-bg) !important;
+  color: var(--accent-red) !important;
+}
+
+.dropdown-action-btn.text-success {
+  color: var(--accent-green) !important;
+}
+
+.dropdown-action-btn.text-success:hover {
+  background-color: var(--accent-green-bg) !important;
+  color: var(--accent-green) !important;
+}

@@ -63,6 +63,19 @@
 | `GET` | `/periodos/:id/exportar/pdf` | `ReportesController.exportarPDF` | Stream PDF | Descarga formato oficial de horario por sección y planilla docente. |
 | `GET` | `/periodos/:id/exportar/sur-ubv` | `ReportesController.exportarSUR` | Archivo CSV/JSON | Exportación compatible con la base de datos de SUR@UBV. |
 
+### 2.6 Módulo de Mallas Curriculares y PFG
+| Método | Ruta | Controlador | Vista / Fragmento | Descripción |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/curriculo` | `CurriculoController.index` | `pages/curriculo/index.ejs` | Vista general de PFGs, selección de carrera y listado de materias agrupadas por Trayecto y Tramo. |
+| `POST` | `/curriculo/pfg` | `CurriculoController.crearPfg` | Redirect | Alta de nuevo Programa de Formación de Grado. |
+| `POST` | `/curriculo/pfg/:id/editar` | `CurriculoController.editarPfg` | Redirect | Modificación de datos generales del PFG. |
+| `POST` | `/curriculo/pfg/:id/toggle` | `CurriculoController.togglePfg` | Redirect | Habilitar o suspender un PFG. |
+| `POST` | `/curriculo/unidades` | `CurriculoController.crearUnidad` | Redirect | Registro de nueva Unidad Curricular con desglose $H_T, H_P, H_C$, créditos y tipo de espacio. |
+| `POST` | `/curriculo/unidades/:id/editar` | `CurriculoController.editarUnidad` | Redirect | Actualización de parámetros académicos de la materia. |
+| `POST` | `/curriculo/unidades/:id/toggle` | `CurriculoController.toggleUnidad` | Redirect | Activar o inhabilitar una Unidad Curricular. |
+| `GET` | `/curriculo/api/pfg/:id/unidades` | `CurriculoController.apiUnidades` | JSON | Endpoint reactivo para poblar selectores dependientes en apertura de secciones. |
+
+
 ---
 
 ## 3. Ejemplo de Contrato Controlador TypeScript

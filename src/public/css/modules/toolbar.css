@@ -1,0 +1,140 @@
+/* ==========================================================================
+   SCHAAH UBV - Barra de Filtros, Búsqueda y Herramientas (DataTable Spec 07)
+   ========================================================================== */
+
+.table-toolbar {
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 0.5rem;
+}
+
+.table-toolbar-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.table-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Buscador Rápido */
+.table-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 320px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100% !important;
+  height: 34px !important;
+  line-height: 32px !important;
+  background-color: var(--surface-input) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 6px !important;
+  color: var(--text-white) !important;
+  padding: 0 10px 0 32px !important;
+  font-size: 0.8125rem !important;
+  font-family: inherit !important;
+  outline: none !important;
+  transition: all 0.15s ease !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+.search-input:focus {
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 2px var(--accent-blue-bg) !important;
+}
+
+.search-input::placeholder {
+  color: var(--text-faint);
+}
+
+/* Fila de Filtros y Selectores */
+.table-filters-row {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 0.5rem !important;
+}
+
+.table-filter-select,
+.table-page-size-select,
+select.table-filter-select,
+select.table-page-size-select {
+  height: 34px !important;
+  line-height: 32px !important;
+  background-color: var(--surface-input) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 6px !important;
+  color: var(--text-white) !important;
+  padding: 0 28px 0 10px !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  font-family: inherit !important;
+  outline: none !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b949e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 9px center !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+.table-filter-select:hover,
+.table-page-size-select:hover {
+  border-color: var(--border-medium) !important;
+}
+
+.table-filter-select:focus,
+.table-page-size-select:focus {
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 2px var(--accent-blue-bg) !important;
+}
+
+.table-filter-select option,
+.table-page-size-select option {
+  background-color: var(--surface-card) !important;
+  color: var(--text-white) !important;
+  padding: 8px !important;
+}
+
+/* Botón Limpiar Filtros */
+.btn-clean-ghost {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.35rem !important;
+  height: 34px !important;
+  background: transparent !important;
+  border: 1px dashed var(--border-medium) !important;
+  border-radius: 6px !important;
+  color: var(--text-muted) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  padding: 0 10px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  text-decoration: none !important;
+}
+
+.btn-clean-ghost:hover {
+  background-color: var(--surface-card-hover) !important;
+  color: var(--text-white) !important;
+  border-style: solid !important;
+  border-color: var(--border-focus) !important;
+}

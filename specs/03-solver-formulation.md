@@ -110,10 +110,10 @@ $$\text{DiasExcesivos} = \sum_{p \in \mathcal{P}} \max\left(0, \sum_{d \in \math
 
 ```mermaid
 sequenceDiagram
-    participant API as Backend FastAPI / Node
-    participant Worker as Worker CP-SAT
-    participant Solver as OR-Tools Engine
-    participant DB as PostgreSQL
+    participant API as Backend Express (Node.js)
+    participant Worker as Worker Thread (Node.js)
+    participant Solver as or-tools-wasm (CP-SAT Engine)
+    participant DB as Base de Datos (Prisma)
 
     API->>Worker: Encolar Periodo_ID y Parámetros
     Worker->>DB: Extraer Matrices (Docentes, Secciones, Aulas, Disponibilidad)

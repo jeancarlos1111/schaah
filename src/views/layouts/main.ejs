@@ -20,8 +20,8 @@
   
   <!-- UIkit 3 CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/css/uikit.min.css" />
-  <!-- Clean Enterprise CSS -->
-  <link rel="stylesheet" href="/css/style.css">
+  <!-- Clean Enterprise CSS (Modular Architecture) -->
+  <link rel="stylesheet" href="/css/style.css?v=2.0.4">
   
   <!-- HTMX & UIkit JS -->
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
@@ -66,6 +66,9 @@
             </a>
             <a href="/espacios" class="nav-link <%= title.includes('Espacios') ? 'is-active' : '' %>">
               Espacios
+            </a>
+            <a href="/periodos" class="nav-link <%= title.includes('Períodos') || title.includes('Oferta') ? 'is-active' : '' %>">
+              Períodos
             </a>
           <% } %>
 

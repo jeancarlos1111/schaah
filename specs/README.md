@@ -20,6 +20,8 @@
 | [`06-auth-roles-permissions.md`](./06-auth-roles-permissions.md) | **Autenticación & RBAC** | Matriz de roles (`ADMINISTRADOR`, `DIRECTOR_ACADEMICO`, `COORDINADOR_PFG`, `DOCENTE`), sesiones con cookies y protección de endpoints. |
 | [`07-ui-components-spec.md`](./07-ui-components-spec.md) | **Componentes de UI (Frontend)** | Especificación del componente reutilizable `SchaahDataTable` con búsqueda, filtros cruzados, paginación y ordenamiento. |
 | [`08-capitulo-1-problema-y-objetivos.md`](./08-capitulo-1-problema-y-objetivos.md) | **Marco Metodológico (Capítulo I)** | Planteamiento del problema (UCTP NP-duro en UBV), objetivos generales/específicos, justificación (teórica, técnica, social e institucional), alcance y área de investigación. |
+| [`09-mallas-curriculares-spec.md`](./09-mallas-curriculares-spec.md) | **Mallas Curriculares & PFG** | Gestión web de Programas de Formación de Grado, unidades curriculares por trayecto/tramo, desglose horario ($H_T, H_P, H_C$) y tipología de espacios requeridos. |
+
 
 ---
 

@@ -1,0 +1,25 @@
+<div class="feedback-card <%= resultado.esValido ? 'border-success' : 'border-danger' %> p-3">
+  <div class="uk-flex uk-flex-middle gap-2">
+    <% if (resultado.esValido) { %>
+      <span uk-icon="icon: check; ratio: 1" class="text-success"></span>
+      <div>
+        <div class="font-bold text-sm text-success">Asignación Legalmente Factible</div>
+        <div class="text-xs uk-text-muted"><%= resultado.mensajeResumen %></div>
+      </div>
+    <% } else { %>
+      <span uk-icon="icon: warning; ratio: 1" class="text-danger"></span>
+      <div>
+        <div class="font-bold text-sm text-danger">Conflicto Normativo UBV Detectado</div>
+        <div class="text-xs text-danger"><%= resultado.mensajeResumen %></div>
+      </div>
+    <% } %>
+  </div>
+
+  <% if (resultado.advertencias && resultado.advertencias.length > 0) { %>
+    <div class="uk-margin-xsmall-top text-xs uk-text-warning">
+      <% resultado.advertencias.forEach(function(adv) { %>
+        <div>&bull; <%= adv %></div>
+      <% }); %>
+    </div>
+  <% } %>
+</div>

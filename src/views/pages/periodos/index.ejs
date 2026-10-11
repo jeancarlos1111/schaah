@@ -1,0 +1,428 @@
+<!-- Header del Módulo de Períodos -->
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <span>Gestión Académica</span>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Períodos Lectivos</span>
+      </div>
+      <h1 class="page-title uk-margin-remove">Períodos Académicos y Lapsos</h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Administración de lapsos académicos semestrales, calendario de clases y programación de cohortes en la UBV.
+      </p>
+    </div>
+    <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
+      <button class="btn-clean-primary" uk-toggle="target: #modal-nuevo-periodo">
+        <span uk-icon="icon: plus; ratio: 0.85"></span>
+        <span>+ Aperturar Período</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Alertas de Feedback -->
+<% if (typeof mensaje !== 'undefined' && mensaje) { %>
+  <div class="alert-clean-success uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: check; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= mensaje %></span>
+  </div>
+<% } %>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="alert-clean-danger uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: warning; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= error %></span>
+  </div>
+<% } %>
+
+<!-- Bento Stat Cards de Períodos Académicos (Diseño Canónico SCHAAH) -->
+<div class="uk-grid-small uk-child-width-1-2 uk-child-width-1-4@m uk-margin-medium-bottom" uk-grid>
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Total Períodos</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.totalPeriodos %></span>
+        <span class="stat-unit">lapsos</span>
+      </div>
+      <span class="detail-label">Histórico institucional</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Períodos Activos</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.totalActivos %></span>
+        <span class="stat-unit">en curso</span>
+      </div>
+      <span class="detail-label">Operación académica</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Total Secciones</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.totalSecciones %></span>
+        <span class="stat-unit">secciones</span>
+      </div>
+      <span class="detail-label">Oferta académica global</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Cargas Docentes</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.totalDedicaciones %></span>
+        <span class="stat-unit">profesores</span>
+      </div>
+      <span class="detail-label">Dedicaciones en planta</span>
+    </div>
+  </div>
+</div>
+
+<%
+  // Helpers para URLs de ordenamiento y paginación en servidor (Spec 07)
+  function makeQueryUrl(overrides) {
+    const params = new URLSearchParams({
+      page: overrides.page !== undefined ? overrides.page : pagination.page,
+      limit: overrides.limit !== undefined ? overrides.limit : pagination.limit,
+      q: overrides.q !== undefined ? overrides.q : (filters.q || ''),
+      estado: overrides.estado !== undefined ? overrides.estado : (filters.estado || ''),
+      sortBy: overrides.sortBy !== undefined ? overrides.sortBy : (filters.sortBy || 'codigo'),
+      sortDir: overrides.sortDir !== undefined ? overrides.sortDir : (filters.sortDir || 'asc')
+    });
+    for (const [key, val] of [...params.entries()]) {
+      if (!val) params.delete(key);
+    }
+    return '/periodos?' + params.toString();
+  }
+
+  function getSortUrl(col) {
+    const isCurrent = filters.sortBy === col;
+    const nextDir = isCurrent && filters.sortDir === 'asc' ? 'desc' : 'asc';
+    return makeQueryUrl({ page: 1, sortBy: col, sortDir: nextDir });
+  }
+
+  function getSortHeaderClass(col) {
+    if (filters.sortBy !== col) return 'sortable';
+    return filters.sortDir === 'asc' ? 'sortable sort-asc' : 'sortable sort-desc';
+  }
+%>
+
+<!-- Panel Principal con Componente Reutilizable DataTable (Server-Side - Spec 07) -->
+<div class="clean-panel data-table-wrapper" id="periodos-datatable-wrapper">
+  
+  <!-- Barra de Herramientas Server-Side Estable -->
+  <form 
+    id="periodos-filter-form"
+    action="/periodos"
+    method="GET"
+    class="table-toolbar uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-2"
+  >
+    <input type="hidden" name="page" value="1" />
+    <input type="hidden" name="sortBy" value="<%= filters.sortBy %>" />
+    <input type="hidden" name="sortDir" value="<%= filters.sortDir %>" />
+
+    <div class="table-toolbar-left uk-flex uk-flex-middle uk-flex-wrap gap-2">
+      <!-- Input de Búsqueda en Servidor -->
+      <div class="table-search-box">
+        <span uk-icon="icon: search; ratio: 0.8" class="search-icon"></span>
+        <input 
+          type="text" 
+          name="q"
+          id="periodos-search-input"
+          value="<%= filters.q %>"
+          class="search-input" 
+          placeholder="Buscar por código o nombre..." 
+          autocomplete="off"
+        />
+      </div>
+
+      <!-- Filtro por Estado del Lapso -->
+      <div class="table-filters-row uk-flex uk-flex-middle gap-2">
+        <select name="estado" class="table-filter-select" onchange="this.form.submit()">
+          <option value="">Todos los estados</option>
+          <option value="BORRADOR" <%= filters.estado === 'BORRADOR' ? 'selected' : '' %>>Borrador</option>
+          <option value="PLANIFICACION" <%= filters.estado === 'PLANIFICACION' ? 'selected' : '' %>>Planificación</option>
+          <option value="ACTIVO" <%= filters.estado === 'ACTIVO' ? 'selected' : '' %>>Activo</option>
+          <option value="CERRADO" <%= filters.estado === 'CERRADO' ? 'selected' : '' %>>Cerrado</option>
+        </select>
+      </div>
+
+      <!-- Botón Limpiar Filtros -->
+      <a 
+        href="/periodos" 
+        class="btn-clean-ghost <%= (filters.q || filters.estado || filters.sortBy !== 'codigo') ? '' : 'uk-hidden' %>" 
+        title="Restablecer filtros"
+      >
+        <span uk-icon="icon: refresh; ratio: 0.75"></span>
+        <span>Limpiar</span>
+      </a>
+    </div>
+
+    <!-- Selector de Filas por Página -->
+    <div class="table-toolbar-right uk-flex uk-flex-middle gap-2">
+      <span class="uk-text-muted uk-text-small">Filas:</span>
+      <select name="limit" class="table-page-size-select" onchange="this.form.submit()">
+        <option value="5" <%= pagination.limit === 5 ? 'selected' : '' %>>5</option>
+        <option value="10" <%= pagination.limit === 10 ? 'selected' : '' %>>10</option>
+        <option value="25" <%= pagination.limit === 25 ? 'selected' : '' %>>25</option>
+        <option value="50" <%= pagination.limit === 50 ? 'selected' : '' %>>50</option>
+      </select>
+    </div>
+  </form>
+
+  <!-- Contenedor de Tabla con Estilos Limpios del Sistema -->
+  <div id="periodos-table-container">
+    <div class="uk-overflow-auto uk-margin-small-top">
+      <table class="clean-table" id="periodos-table">
+        <thead>
+          <tr>
+            <th class="<%= getSortHeaderClass('codigo') %>" style="width: 120px; min-width: 110px; white-space: nowrap;">
+              <a href="<%= getSortUrl('codigo') %>" class="uk-link-reset">Código Lapso</a>
+            </th>
+            <th class="<%= getSortHeaderClass('nombre') %>" style="min-width: 220px;">
+              <a href="<%= getSortUrl('nombre') %>" class="uk-link-reset">Denominación Oficial</a>
+            </th>
+            <th class="<%= getSortHeaderClass('fechaInicio') %>" style="width: 210px; min-width: 200px; white-space: nowrap;">
+              <a href="<%= getSortUrl('fechaInicio') %>" class="uk-link-reset">Calendario de Clases</a>
+            </th>
+            <th class="<%= getSortHeaderClass('estado') %>" style="width: 110px; min-width: 100px; text-align: center;">
+              <a href="<%= getSortUrl('estado') %>" class="uk-link-reset">Estado</a>
+            </th>
+            <th style="width: 220px; min-width: 200px; padding-right: 1.5rem;">Cobertura Docente</th>
+            <th class="table-actions-cell uk-text-right" style="width: 320px; min-width: 320px; text-align: right;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (periodos.length === 0) { %>
+            <tr>
+              <td colspan="6" class="uk-text-center uk-text-muted py-5">
+                No se encontraron períodos académicos con los filtros aplicados.
+              </td>
+            </tr>
+          <% } %>
+
+          <% periodos.forEach(function(p) { %>
+            <tr>
+              <!-- Código -->
+              <td style="white-space: nowrap;">
+                <span class="font-bold text-sm" style="color: var(--text-white);"><%= p.codigo %></span>
+              </td>
+
+              <!-- Denominación -->
+              <td>
+                <div class="font-medium text-sm" style="color: var(--text-white);"><%= p.nombre %></div>
+                <div class="table-sub-info">
+                  <%= p._count.secciones %> secciones ofertadas &bull; <%= p._count.dedicaciones %> docentes vinculados
+                </div>
+              </td>
+
+              <!-- Calendario -->
+              <td style="white-space: nowrap;">
+                <div class="date-text">
+                  <%= new Date(p.fechaInicio).toLocaleDateString('es-VE', { timeZone: 'UTC', day: '2-digit', month: 'short', year: 'numeric' }) %>
+                  &rarr;
+                  <%= new Date(p.fechaFin).toLocaleDateString('es-VE', { timeZone: 'UTC', day: '2-digit', month: 'short', year: 'numeric' }) %>
+                </div>
+              </td>
+
+              <!-- Estado -->
+              <td style="text-align: center;">
+                <span class="status-pill <%= p.estado === 'ACTIVO' ? 'status-active' : (p.estado === 'CERRADO' ? 'status-inactive' : 'indicator-blue') %>">
+                  <%= p.estado %>
+                </span>
+              </td>
+
+              <!-- Cobertura Docente -->
+              <td style="width: 220px; min-width: 200px; padding-right: 1.5rem;">
+                <div class="uk-flex uk-flex-between text-xs uk-margin-xsmall-bottom">
+                  <span class="uk-text-muted"><%= p.seccionesAsignadas %>/<%= p._count.secciones %></span>
+                  <span class="font-semibold text-xs" style="color: var(--text-white);"><%= p.porcentajeAsignado %>%</span>
+                </div>
+                <div class="clean-progress-track">
+                  <div class="clean-progress-fill" style="width: <%= p.porcentajeAsignado %>%;"></div>
+                </div>
+              </td>
+
+              <!-- Acciones -->
+              <td class="table-actions-cell uk-text-right" style="width: 320px; min-width: 320px; text-align: right;">
+                <div class="table-actions-group" style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; width: 100%;">
+                  <a 
+                    href="/periodos/<%= p.id %>/secciones" 
+                    class="btn-table-action" 
+                    title="Oferta de Secciones"
+                  >
+                    <span uk-icon="icon: list; ratio: 0.75"></span>
+                    <span>Secciones (<%= p._count.secciones %>)</span>
+                  </a>
+
+                  <a 
+                    href="/periodos/<%= p.id %>/horarios" 
+                    class="btn-table-action" 
+                    title="Matriz de Horarios Semanal"
+                  >
+                    <span uk-icon="icon: table; ratio: 0.75"></span>
+                    <span>Horarios</span>
+                  </a>
+
+                  <!-- Dropdown de Cambio de Estado -->
+                  <div class="uk-inline">
+                    <button class="btn-table-action" type="button" title="Cambiar Estado del Período">
+                      <span uk-icon="icon: cog; ratio: 0.75"></span>
+                      <span>Fase</span>
+                      <span uk-icon="icon: chevron-down; ratio: 0.65"></span>
+                    </button>
+                    <div uk-dropdown="mode: click; pos: bottom-right; offset: 6; flip: true; container: body" class="clean-dropdown">
+                      <ul class="uk-nav uk-dropdown-nav">
+                        <li class="uk-nav-header">Fase del Período</li>
+                        <li>
+                          <form action="/periodos/<%= p.id %>/estado" method="POST">
+                            <input type="hidden" name="estado" value="PLANIFICACION">
+                            <button type="submit" class="dropdown-action-btn">
+                              <span uk-icon="icon: file-edit; ratio: 0.75"></span>
+                              <span>Planificación</span>
+                            </button>
+                          </form>
+                        </li>
+                        <li>
+                          <form action="/periodos/<%= p.id %>/estado" method="POST">
+                            <input type="hidden" name="estado" value="ACTIVO">
+                            <button type="submit" class="dropdown-action-btn text-success">
+                              <span uk-icon="icon: check; ratio: 0.75"></span>
+                              <span>Activo (En Clases)</span>
+                            </button>
+                          </form>
+                        </li>
+                        <li>
+                          <form action="/periodos/<%= p.id %>/estado" method="POST">
+                            <input type="hidden" name="estado" value="CERRADO">
+                            <button type="submit" class="dropdown-action-btn text-danger">
+                              <span uk-icon="icon: lock; ratio: 0.75"></span>
+                              <span>Cerrado (Culminado)</span>
+                            </button>
+                          </form>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginación de Servidor Idéntica al Estilo Institucional (Spec 07) -->
+    <div class="table-footer">
+      <div class="table-sub-info">
+        Mostrando <strong><%= periodos.length %></strong> de <strong><%= pagination.total %></strong> períodos
+      </div>
+
+      <% if (pagination.totalPages > 1) { %>
+        <ul class="clean-pagination-list">
+          <li>
+            <a 
+              href="<%= pagination.hasPrevPage ? makeQueryUrl({ page: pagination.page - 1 }) : '#' %>" 
+              class="page-nav-btn <%= !pagination.hasPrevPage ? 'is-disabled' : '' %>"
+              <%= !pagination.hasPrevPage ? 'tabindex="-1" aria-disabled="true"' : '' %>
+            >
+              <span uk-icon="icon: chevron-left; ratio: 0.75"></span>
+              <span>Anterior</span>
+            </a>
+          </li>
+
+          <% for (let i = 1; i <= pagination.totalPages; i++) { %>
+            <% if (i === 1 || i === pagination.totalPages || (i >= pagination.page - 1 && i <= pagination.page + 1)) { %>
+              <li>
+                <a 
+                  href="<%= makeQueryUrl({ page: i }) %>" 
+                  class="page-number-btn <%= i === pagination.page ? 'is-active' : '' %>"
+                >
+                  <%= i %>
+                </a>
+              </li>
+            <% } else if (i === pagination.page - 2 || i === pagination.page + 2) { %>
+              <li class="page-ellipsis">&hellip;</li>
+            <% } %>
+          <% } %>
+
+          <li>
+            <a 
+              href="<%= pagination.hasNextPage ? makeQueryUrl({ page: pagination.page + 1 }) : '#' %>" 
+              class="page-nav-btn <%= !pagination.hasNextPage ? 'is-disabled' : '' %>"
+              <%= !pagination.hasNextPage ? 'tabindex="-1" aria-disabled="true"' : '' %>
+            >
+              <span>Siguiente</span>
+              <span uk-icon="icon: chevron-right; ratio: 0.75"></span>
+            </a>
+          </li>
+        </ul>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Aperturar Nuevo Período -->
+<div id="modal-nuevo-periodo" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body modal-clean-box">
+    <button class="uk-modal-close-default" type="button" uk-close></button>
+    <h2 class="panel-title uk-margin-small-bottom">Aperturar Nuevo Período Académico</h2>
+    <p class="panel-subtitle uk-margin-bottom">
+      Define el lapso semestral en el que se programará la carga docente y los horarios de la UBV.
+    </p>
+
+    <form action="/periodos" method="POST" class="login-form-clean">
+      <div class="form-group-clean">
+        <label class="label-clean">Código Oficial (ej: 2026-II, 2027-I)</label>
+        <div class="input-wrap-clean">
+          <span uk-icon="icon: tag; ratio: 0.8" class="input-icon-clean"></span>
+          <input type="text" name="codigo" required placeholder="2026-II" class="input-control-clean">
+        </div>
+      </div>
+
+      <div class="form-group-clean">
+        <label class="label-clean">Nombre Descriptivo</label>
+        <div class="input-wrap-clean">
+          <span uk-icon="icon: file-text; ratio: 0.8" class="input-icon-clean"></span>
+          <input type="text" name="nombre" required placeholder="Período Académico 2026-II (Semestral)" class="input-control-clean">
+        </div>
+      </div>
+
+      <div class="uk-grid-small uk-child-width-1-2" uk-grid>
+        <div>
+          <div class="form-group-clean">
+            <label class="label-clean">Fecha Inicio</label>
+            <input type="date" name="fechaInicio" required class="input-control-clean" style="padding-left: 0.75rem;">
+          </div>
+        </div>
+        <div>
+          <div class="form-group-clean">
+            <label class="label-clean">Fecha Culminación</label>
+            <input type="date" name="fechaFin" required class="input-control-clean" style="padding-left: 0.75rem;">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group-clean">
+        <label class="label-clean">Estado Inicial</label>
+        <select name="estado" class="table-filter-select" style="width: 100%; height: 38px;">
+          <option value="BORRADOR">BORRADOR (Fase Inicial)</option>
+          <option value="PLANIFICACION" selected>PLANIFICACION (Carga de Secciones)</option>
+          <option value="ACTIVO">ACTIVO (En Dictado)</option>
+        </select>
+      </div>
+
+      <div class="uk-margin-medium-top uk-text-right uk-flex uk-flex-right gap-2">
+        <button class="btn-clean-ghost uk-modal-close" type="button">Cancelar</button>
+        <button class="btn-clean-primary" type="submit">Guardar Período</button>
+      </div>
+    </form>
+  </div>
+</div>

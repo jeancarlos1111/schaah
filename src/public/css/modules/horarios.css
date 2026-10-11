@@ -1,0 +1,348 @@
+/* ==========================================================================
+   SCHAAH UBV - Matriz Semanal de Horarios (Drag & Drop, Grilla y Celdas)
+   ========================================================================== */
+
+/* Barra de Resumen de Entidad Activa */
+.horario-active-summary {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 0.85rem 1.25rem;
+  margin-bottom: 1.25rem;
+  box-shadow: var(--shadow-card);
+}
+
+.horario-active-summary .vista-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.horario-active-summary .vista-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-white);
+  line-height: 1.2;
+}
+
+/* Indicadores de Turno de la Leyenda */
+.turno-legend-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.turno-legend-badge.matutino {
+  background-color: var(--accent-green-bg);
+  color: var(--accent-green);
+  border: 1px solid rgba(63, 185, 80, 0.25);
+}
+
+.turno-legend-badge.vespertino {
+  background-color: var(--accent-blue-bg);
+  color: var(--brand-accent);
+  border: 1px solid rgba(56, 139, 253, 0.25);
+}
+
+.turno-legend-badge.nocturno {
+  background-color: var(--accent-purple-bg);
+  color: var(--accent-purple);
+  border: 1px solid rgba(163, 113, 247, 0.25);
+}
+
+/* Grilla Semanal de Horarios */
+.horario-grid-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+.horario-grid-table th {
+  padding: 0.65rem 0.5rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background-color: var(--surface-card);
+  border-bottom: 1px solid var(--border-medium);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.horario-grid-table th:last-child {
+  border-right: none;
+}
+
+.horario-grid-table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  vertical-align: top;
+  height: 96px;
+  min-height: 96px;
+  position: relative;
+}
+
+.horario-grid-table td:last-child {
+  border-right: none;
+}
+
+/* Celdas de Tiempo / Horas (Columna 1) */
+.horario-time-cell {
+  background-color: var(--surface-muted) !important;
+  vertical-align: middle !important;
+  text-align: center;
+  padding: 0.6rem 0.5rem !important;
+  width: 165px;
+  min-width: 165px;
+}
+
+.horario-time-range {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-white);
+  letter-spacing: -0.01em;
+  font-feature-settings: 'tnum';
+}
+
+.horario-block-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Celdas Interactivas Drag & Drop */
+.horario-slot-cell {
+  background-color: var(--surface-card);
+  transition: all 0.15s ease;
+}
+
+.horario-slot-cell.empty-slot {
+  cursor: pointer;
+}
+
+.horario-slot-cell.empty-slot:hover {
+  background-color: var(--surface-card-hover);
+}
+
+.horario-slot-cell.drag-over {
+  background-color: var(--accent-blue-bg) !important;
+  outline: 2px dashed var(--brand-accent) !important;
+  outline-offset: -2px;
+}
+
+.empty-slot-hint {
+  height: 100%;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border-subtle);
+  border-radius: 5px;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.horario-slot-cell.empty-slot:hover .empty-slot-hint {
+  border-color: var(--border-medium);
+  color: var(--text-muted);
+}
+
+/* Tarjeta de Asignación en la Grilla */
+.horario-card-badge {
+  background-color: var(--surface-muted);
+  border: 1px solid var(--border-medium);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  box-shadow: var(--shadow-card);
+  cursor: grab;
+  transition: all 0.15s ease;
+}
+
+.horario-card-badge:active {
+  cursor: grabbing;
+}
+
+.horario-card-badge:hover {
+  background-color: var(--surface-card-hover);
+  border-color: var(--border-medium);
+  transform: translateY(-1px);
+}
+
+.horario-card-badge .seccion-code {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-white);
+}
+
+.horario-materia-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-white);
+  line-height: 1.25;
+  margin: 2px 0 4px 0;
+}
+
+.horario-sub-info {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.btn-delete-slot {
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+}
+
+.btn-delete-slot:hover {
+  color: var(--accent-red);
+  background-color: var(--accent-red-bg);
+}
+
+/* Columna Lateral: Secciones por Programar */
+.secciones-sidebar-card {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: var(--shadow-card);
+}
+
+.secciones-pendientes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.draggable-seccion-card {
+  background-color: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  cursor: grab;
+  transition: all 0.15s ease;
+}
+
+.draggable-seccion-card:active {
+  cursor: grabbing;
+}
+
+.draggable-seccion-card:hover {
+  background-color: var(--surface-card-hover);
+  border-color: var(--border-medium);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Modo Impresión Oficial UBV (Imprimir / PDF)
+   ========================================================================== */
+@media print {
+  .app-header,
+  .app-footer,
+  .header-controls,
+  .admin-subtabs,
+  .uk-width-1-4\@m,
+  .btn-delete-slot,
+  .empty-slot-hint,
+  .page-header .header-breadcrumbs,
+  .page-subtitle {
+    display: none !important;
+  }
+
+  body, html {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 10pt !important;
+  }
+
+  .app-main {
+    padding: 0 !important;
+  }
+
+  .app-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .uk-width-expand\@m {
+    width: 100% !important;
+  }
+
+  .horario-active-summary {
+    background: #ffffff !important;
+    border: 1px solid #cccccc !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    margin-bottom: 10px !important;
+    padding: 6px 12px !important;
+  }
+
+  .horario-active-summary .vista-name {
+    color: #000000 !important;
+    font-size: 12pt !important;
+  }
+
+  .horario-grid-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .horario-grid-table th {
+    background: #f0f0f0 !important;
+    color: #000000 !important;
+    border: 1px solid #999999 !important;
+    font-size: 8pt !important;
+    padding: 4px !important;
+  }
+
+  .horario-grid-table td {
+    border: 1px solid #cccccc !important;
+    height: auto !important;
+    min-height: 50px !important;
+    padding: 4px !important;
+  }
+
+  .horario-time-cell {
+    background: #f9f9f9 !important;
+  }
+
+  .horario-time-range {
+    color: #000000 !important;
+    font-size: 8pt !important;
+  }
+
+  .horario-card-badge {
+    background: #f4f4f4 !important;
+    border: 1px solid #aaaaaa !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+    page-break-inside: avoid;
+    padding: 3px 5px !important;
+  }
+
+  .horario-materia-title {
+    color: #000000 !important;
+    font-size: 8pt !important;
+  }
+
+  .horario-sub-info {
+    color: #444444 !important;
+    font-size: 7pt !important;
+  }
+}

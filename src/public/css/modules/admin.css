@@ -1,0 +1,119 @@
+/* ==========================================================================
+   SCHAAH UBV - Módulo Administrativo: Subpestañas y Matriz de Permisos
+   ========================================================================== */
+
+.admin-subtabs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 0.5rem;
+}
+
+.subtab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-muted) !important;
+  text-decoration: none !important;
+  transition: all 0.15s ease;
+}
+
+.subtab-item:hover {
+  color: var(--text-white) !important;
+  background-color: var(--surface-card-hover);
+}
+
+.subtab-item.is-active {
+  color: var(--text-white) !important;
+  background-color: var(--surface-card-hover);
+  border: 1px solid var(--border-medium);
+}
+
+/* Matriz de Permisos por Rol */
+.matrix-table th {
+  padding: 0.85rem 1rem;
+}
+
+.module-header-row td {
+  background-color: var(--surface-muted) !important;
+  padding: 0.5rem 1rem !important;
+  border-top: 1px solid var(--border-medium);
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.module-title {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-white);
+}
+
+.permiso-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.permiso-name {
+  font-weight: 700;
+  color: var(--text-white);
+  font-size: 0.86rem;
+}
+
+.permiso-code {
+  font-family: monospace;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  background-color: var(--surface-input);
+  border: 1px solid var(--border-subtle);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.permiso-desc {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.matrix-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.matrix-checkbox {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--brand-accent);
+  cursor: pointer;
+}
+
+.badge-all-access {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-green);
+  background-color: var(--accent-green-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+}
+
+.border-t {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pt-3 {
+  padding-top: 1rem;
+}

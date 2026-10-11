@@ -126,9 +126,9 @@
         <% franjas.forEach(function(f) { %>
           <tr>
             <td class="uk-text-center table-sub-info font-semibold" style="background-color: var(--surface-muted);">
-              <div class="table-user-name"><%= f.horaInicio %> - <%= f.horaFin %></div>
+              <div class="table-user-name font-semibold"><%= f.horaInicio12 || f.horaInicio %> - <%= f.horaFin12 || f.horaFin %></div>
               <span class="badge-role <%= f.turno === 'MATUTINO' ? 'badge-docente' : (f.turno === 'VESPERTINO' ? 'badge-director' : 'badge-admin') %> text-xxs">
-                <%= f.turno %>
+                Bloque <%= f.numero %> &bull; <%= f.turno %>
               </span>
             </td>
             <% dias.forEach(function(d) { 

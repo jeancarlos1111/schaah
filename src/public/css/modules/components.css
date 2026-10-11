@@ -1,0 +1,373 @@
+/* ==========================================================================
+   SCHAAH UBV - Componentes: Botones, Paneles, Bento Stats y Cards
+   ========================================================================== */
+
+/* Cabecera de Página (Page Header) */
+.page-header {
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+.header-breadcrumbs {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.35rem;
+}
+
+.breadcrumb-separator {
+  color: var(--text-faint);
+}
+
+.active-crumb {
+  color: var(--text-white);
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--text-white);
+  margin: 0;
+  line-height: 1.25;
+}
+
+.page-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0.35rem 0 0;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+/* Botones Principales */
+.btn-clean-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--brand-accent);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #ffffff !important;
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  line-height: 1.4;
+}
+
+.btn-clean-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-clean-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-white);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none !important;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+}
+
+.btn-clean-secondary:hover {
+  background-color: var(--surface-card-hover);
+  color: var(--text-white);
+}
+
+/* Bento Stat Cards */
+.clean-stat-card {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 1.25rem 1.35rem;
+  box-shadow: var(--shadow-card), var(--inset-highlight);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.65rem;
+  transition: border-color 0.15s ease;
+}
+
+.clean-stat-card:hover {
+  border-color: var(--border-medium);
+}
+
+.stat-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-category {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.stat-indicator {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.indicator-blue {
+  background-color: var(--accent-blue-bg);
+  color: var(--brand-accent);
+}
+
+.indicator-teal {
+  background-color: var(--accent-teal-bg);
+  color: var(--accent-teal);
+}
+
+.indicator-gray {
+  background-color: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+.indicator-green {
+  background-color: var(--accent-green-bg);
+  color: var(--accent-green);
+}
+
+.indicator-amber {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.indicator-red {
+  background-color: var(--accent-red-bg);
+  color: var(--accent-red);
+}
+
+/* Badges Canónicos SCHAAH */
+.badge-clean-primary {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background-color: var(--accent-blue-bg);
+  color: var(--brand-accent);
+  letter-spacing: 0.02em;
+}
+
+.badge-clean-success {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background-color: var(--accent-green-bg);
+  color: var(--accent-green);
+  letter-spacing: 0.02em;
+}
+
+.badge-clean-danger {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background-color: var(--accent-red-bg);
+  color: var(--accent-red);
+  letter-spacing: 0.02em;
+}
+
+.badge-clean-amber {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  letter-spacing: 0.02em;
+}
+
+.stat-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0.2rem 0;
+}
+
+.stat-number {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-white);
+  line-height: 1;
+  font-feature-settings: 'tnum';
+}
+
+.stat-unit {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.clean-progress-track {
+  width: 100%;
+  height: 4px;
+  background-color: var(--surface-muted);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 0.25rem 0;
+}
+
+.clean-progress-fill {
+  height: 100%;
+  background-color: var(--brand-primary);
+  border-radius: 999px;
+}
+
+.stat-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.detail-highlight {
+  font-weight: 700;
+  color: var(--text-white);
+}
+
+.detail-label {
+  color: var(--text-muted);
+}
+
+.text-green { color: var(--accent-green) !important; }
+.text-red   { color: var(--accent-red) !important; }
+
+/* Panel de Módulos (Clean Bento Tiles) */
+.clean-panel {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 1.35rem;
+  box-shadow: var(--shadow-card), var(--inset-highlight);
+  margin-top: 1.5rem;
+}
+
+.clean-panel-header {
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 0.85rem;
+  margin-bottom: 1.15rem;
+}
+
+.panel-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-white);
+  margin: 0;
+}
+
+.panel-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+}
+
+.clean-tile {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  min-height: 155px;
+  text-decoration: none !important;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.clean-tile:hover {
+  background-color: var(--surface-card-hover);
+  border-color: var(--border-medium);
+  transform: translateY(-2px);
+}
+
+.tile-bar-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.accent-teal   { background-color: var(--accent-teal); }
+.accent-blue   { background-color: var(--brand-accent); }
+.accent-purple { background-color: var(--accent-purple); }
+.accent-amber  { background-color: var(--accent-amber); }
+
+.tile-icon-box {
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  background-color: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-white);
+  margin-bottom: 0.75rem;
+}
+
+.tile-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-white);
+  margin: 0 0 0.3rem 0;
+}
+
+.tile-description {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.tile-action {
+  margin-top: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--brand-accent);
+}

@@ -20,11 +20,12 @@ En la actualidad, la asignación horaria y de carga lectiva en la UBV se ejecuta
 - **Fenómeno de teletransportación territorial**: Asignación de bloques contiguos a un docente en sedes o aldeas distantes entre sí, sin considerar el tiempo mínimo de traslado físico intersede (estimado en al menos 90 minutos), obligando a ausencias forzadas o retrasos crónicos.
 - **Incompatibilidad y subutilización de espacios**: Asignación de asignaturas con matrículas superiores al aforo físico de aulas disponibles, o asignación de clases puramente teóricas en laboratorios especializados, restando cupos a unidades con requerimientos computacionales.
 - **Dispersión de la jornada docente y estudiantil**: Generación de extensas franjas desocupadas intermedias ("horas muertas" o huecos) en un mismo día, afectando la calidad de vida profesoral, la retención estudiantil y desaprovechando las franjas de preferencia y disponibilidad vinculante declaradas por el profesorado.
+- **Desarticulación curricular y distorsión de planes de estudio**: Inexistencia de un catálogo centralizado y validado de mallas curriculares por PFG, propiciando la apertura anómala de secciones con asignaturas cruzadas ajenas a la carrera en curso (ej. estudiantes de Informática asignados arbitrariamente a unidades curriculares de Agroecología o Gestión Ambiental), así como la alteración empírica de las horas lectivas semanales ($H_T, H_P, H_C$) frente a los diseños curriculares aprobados por el Consejo Nacional de Universidades (CNU), desvirtuando los créditos académicos y el perfil de egreso.
 - **Ineficiencia administrativa**: La resolución manual del cronograma insume semanas de trabajo intensivo en cada inicio de período lectivo, produciendo retrasos en la oferta académica y una alta tasa de reprocesos ante reclamos justificados.
 
 ### Formulación del Problema
 
-¿De qué manera el desarrollo de un sistema automatizado de carga horaria y asignación de horarios, soportado en programación por restricciones y adaptado a las condiciones normativas y territoriales de la Universidad Bolivariana de Venezuela, permitirá optimizar la planificación docente, erradicar solapamientos y garantizar el cumplimiento estricto de las regulaciones laborales y de infraestructura física?
+¿De qué manera el desarrollo de un sistema automatizado de carga horaria y asignación de horarios, soportado en programación por restricciones y adaptado a las condiciones normativas, curriculares y territoriales de la Universidad Bolivariana de Venezuela, permitirá optimizar la planificación docente, erradicar solapamientos, garantizar la fidelidad de las mallas de estudio y asegurar el cumplimiento estricto de las regulaciones laborales y de infraestructura física?
 
 ---
 
@@ -32,17 +33,17 @@ En la actualidad, la asignación horaria y de carga lectiva en la UBV se ejecuta
 
 ### 1.2.1 Objetivo General
 
-Desarrollar un Sistema de Carga Horaria y Asignación Automática de Horarios (SCHAAH) para la Universidad Bolivariana de Venezuela (UBV), basado en programación por restricciones (CP-SAT) y arquitectura web modular, que optimice la distribución de carga académica docente, garantice el cumplimiento del régimen legal de dedicaciones y asigne eficientemente espacios físicos en las diversas sedes y modalidades territoriales.
+Desarrollar un Sistema de Carga Horaria y Asignación Automática de Horarios (SCHAAH) para la Universidad Bolivariana de Venezuela (UBV), basado en programación por restricciones (CP-SAT) y arquitectura web modular, que optimice la distribución de carga académica docente, garantice el cumplimiento del régimen legal de dedicaciones, preserve la fidelidad de las mallas curriculares de los PFG y asigne eficientemente espacios físicos en las diversas sedes y modalidades territoriales.
 
 ---
 
 ## 1.3 Objetivos Específicos
 
-1. **Diagnosticar** los procesos actuales de asignación de carga docente, la infraestructura física territorial (sedes propias, aldeas y espacios comunitarios) y las restricciones normativas aplicables (Ley de Universidades, Documento Rector de la UBV y Convención Colectiva Única) para definir el catálogo formal de reglas institucionales.
-2. **Formular** el modelo matemático de optimización mediante programación por restricciones (CSP/COP), especificando formalmente las restricciones duras de factibilidad absoluta (no solapamiento, topes de dedicación, aforos, antiteletransportación, integridad de bloques) y las restricciones blandas de preferencia y bienestar (reducción de huecos, compactación de jornadas, afinidad horaria).
-3. **Diseñar** la arquitectura tecnológica y el modelo relacional de datos bajo estándares web corporativos (Node.js, Express, TypeScript, Prisma ORM y PostgreSQL) incorporando control de acceso basado en roles (RBAC) y vistas renderizadas en el servidor (SSR con EJS/HTMX) para la administración de períodos, PFG, espacios y disponibilidades.
+1. **Diagnosticar** los procesos actuales de asignación de carga docente, la infraestructura física territorial (sedes propias, aldeas y espacios comunitarios) y las restricciones normativas y curriculares aplicables (Ley de Universidades, Documento Rector de la UBV, resoluciones del CNU y Convención Colectiva Única) para definir el catálogo formal de reglas institucionales.
+2. **Formular** el modelo matemático de optimización mediante programación por restricciones (CSP/COP), especificando formalmente las restricciones duras de factibilidad absoluta (no solapamiento, topes de dedicación, adecuación de espacios requeridos por malla, aforos, antiteletransportación, integridad de bloques) y las restricciones blandas de preferencia y bienestar (reducción de huecos, compactación de jornadas, afinidad horaria).
+3. **Diseñar e implementar** la arquitectura tecnológica y los módulos web administrativos bajo estándares corporativos (Node.js, Express, TypeScript, Prisma ORM y PostgreSQL) con control de acceso basado en roles (RBAC) y vistas renderizadas en el servidor (SSR con EJS/HTMX) para la administración integral de mallas curriculares por PFG (trayectos, tramos, horas teóricas/prácticas/campo y tipología de espacios), infraestructura física territorial, períodos académicos, secciones y disponibilidades docentes.
 4. **Construir** el motor de resolución matemática desacoplado (Worker CP-SAT con Google OR-Tools) y los módulos de interacción visual interactiva (matriz horaria semanal y reajuste asistido por drag-and-drop con validación reactiva de reglas duras en tiempo real).
-5. **Validar** el comportamiento funcional, la integridad de los horarios generados y la satisfacción de restricciones normativas mediante pruebas de aceptación dirigidas por comportamiento (BDD con escenarios Gherkin) y análisis de cobertura de carga lectiva.
+5. **Validar** el comportamiento funcional, la integridad de los horarios generados, la preservación curricular y la satisfacción de restricciones normativas mediante pruebas de aceptación dirigidas por comportamiento (BDD con escenarios Gherkin) y análisis de cobertura de carga lectiva.
 
 ---
 
@@ -55,7 +56,8 @@ El proyecto aplica principios de la Investigación de Operaciones, la Inteligenc
 La implementación de SCHAAH moderniza la gestión tecnológica universitaria reemplazando herramientas ofimáticas aisladas por una arquitectura robusta:
 - Tipado estático de extremo a extremo mediante TypeScript.
 - Persistencia formal y migraciones reproducibles con Prisma ORM sobre PostgreSQL/SQLite WAL.
-- Desacoplamiento de la computación pesada NP-dura mediante un worker especializado en Python/Google OR-Tools, previniendo el bloqueo del servidor web.
+- Módulo web de mallas curriculares con integridad relacional estricta, impidiendo la asignación cruzada de materias incompatibles y garantizando que los bloques de horario calculados coincidan exactamente con las horas teóricas y prácticas oficiales.
+- Desacoplamiento de la computación pesada NP-dura mediante workers especializados en Node.js con Google OR-Tools compilado a WebAssembly (`@google/ortools`), previniendo el bloqueo del event loop sin dependencias de entornos externos.
 - Interfaz reactiva y accesible vía SSR con HTMX y UIkit 3, minimizando la sobrecarga de red y garantizando rendimiento en conexiones institucionales estándar.
 
 ### 1.4.3 Justificación Social y Laboral
@@ -65,10 +67,11 @@ SCHAAH promueve la humanización de las condiciones laborales del personal docen
 - Erradica los traslados geográficos imposibles entre sedes lejanas (restricción de antiteletransportación de al menos 90 min).
 - Compacta la jornada estudiantil en días contiguos y turnos homogéneos, reduciendo el gasto de transporte y favoreciendo la permanencia y prosecución de la masa estudiantil.
 
-### 1.4.4 Justificación Institucional
+### 1.4.4 Justificación Institucional y Curricular
 A nivel de gobernanza académica y rendición de cuentas:
+- Garantiza la fidelidad curricular de las carreras ante el CNU y el Documento Rector UBV, evitando distorsiones en las cargas horarias y en los perfiles de egreso.
 - Proporciona a la Dirección General Académica y a los Consejos de PFG trazabilidad total y auditoría sobre cada asignación horaria.
-- Optimiza el uso de la infraestructura física del Estado, maximizando la ocupación de aulas y laboratorios tecnológicos.
+- Optimiza el uso de la infraestructura física del Estado, maximizando la ocupación de aulas y laboratorios tecnológicos según los requerimientos pedagógicos de cada materia.
 - Reduce el ciclo de planificación de horarios de 3-4 semanas a minutos de ejecución computacional, permitiendo arrancar los períodos académicos con cronogramas estables y sin retrasos.
 
 ---
@@ -77,7 +80,8 @@ A nivel de gobernanza académica y rendición de cuentas:
 
 ### 1.5.1 Alcance Funcional
 El sistema contempla:
-- **Gestión Curricular y Estructural**: Parametrización de ejes territoriales, sedes físicas, aldeas universitarias, espacios comunitarios, tipos de aula (teórica, laboratorio, campo), PFG, trayectos/tramos y unidades curriculares con sus horas semanales requeridas.
+- **Gestión Curricular y Mallas de Formación**: Módulo web para parametrización y administración integral de Programas de Formación de Grado (PFG), catalogación de mallas organizadas jerárquicamente en Trayectos (1 a 4) y Tramos (1 y 2), registro analítico de Unidades Curriculares con tipificación de horas semanales (teóricas $H_T$, prácticas $H_P$, campo comunitario $H_C$), unidades de crédito, tipología requerida de espacio físico (aulas teóricas, laboratorios de informática, laboratorios científicos, auditorios, campo comunitario) y delimitación del eje transversal de Proyecto Comunitario. Validación restrictiva en la apertura de secciones para impedir asignaciones curriculares cruzadas o incompatibles.
+- **Infraestructura Territorial**: Parametrización de ejes territoriales, sedes físicas, aldeas universitarias, espacios comunitarios y catálogo de recintos con aforos y tipos.
 - **Régimen Docente**: Registro y clasificación del personal académico bajo dedicaciones legales (Dedicación Exclusiva, Tiempo Completo, Medio Tiempo, Tiempo Convencional).
 - **Matriz de Disponibilidad**: Captura semanal de indisponibilidad justificada (bloqueos duros) y preferencias docentes cualificadas (P1 prioridad alta, P2 prioridad media, P3 franja evitable).
 - **Catálogo de Restricciones del Solver**:

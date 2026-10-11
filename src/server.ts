@@ -8,6 +8,9 @@ import usuarioRoutes from './modules/usuarios/usuarioRoutes';
 import roleRoutes from './modules/roles/roleRoutes';
 import espacioRoutes from './modules/espacios/espacioRoutes';
 import docenteRoutes from './modules/docentes/docenteRoutes';
+import periodoRoutes from './modules/periodos/periodoRoutes';
+import horarioRoutes from './modules/horarios/horarioRoutes';
+import solverRoutes from './modules/solver/solverRoutes';
 import { attachUserToLocals, requireAuth } from './modules/auth/middlewares/authMiddleware';
 import prisma, { enableSqliteWal } from './core/database/prisma';
 
@@ -58,6 +61,9 @@ app.use(usuarioRoutes);
 app.use(roleRoutes);
 app.use(espacioRoutes);
 app.use(docenteRoutes);
+app.use(periodoRoutes);
+app.use(horarioRoutes);
+app.use(solverRoutes);
 
 // Dashboard Principal (Protegido)
 app.get('/', requireAuth, async (req: Request, res: Response) => {

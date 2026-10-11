@@ -10,6 +10,7 @@ import {
   LIMITES_DEDICACION,
   evaluarNormativaDocente,
 } from '../../../core/domain/rules/dedicacionRules';
+import { BLOQUES_HORARIOS_OFICIALES } from '../../../core/domain/rules/timeSlotUtils';
 
 // Helper para asegurar o recuperar el período académico activo (por defecto 2026-I)
 async function getPeriodoActivo() {
@@ -436,17 +437,8 @@ export class DocentesController {
         });
       }
 
-      // Franjas horarias canónicas de la UBV
-      const franjas = [
-        { codigo: '07:30-09:00', horaInicio: '07:30', horaFin: '09:00', turno: 'MATUTINO', label: 'Bloque 1 (07:30 - 09:00)' },
-        { codigo: '09:05-10:35', horaInicio: '09:05', horaFin: '10:35', turno: 'MATUTINO', label: 'Bloque 2 (09:05 - 10:35)' },
-        { codigo: '10:45-12:15', horaInicio: '10:45', horaFin: '12:15', turno: 'MATUTINO', label: 'Bloque 3 (10:45 - 12:15)' },
-        { codigo: '12:30-14:00', horaInicio: '12:30', horaFin: '14:00', turno: 'VESPERTINO', label: 'Bloque 4 (12:30 - 14:00)' },
-        { codigo: '14:05-15:35', horaInicio: '14:05', horaFin: '15:35', turno: 'VESPERTINO', label: 'Bloque 5 (14:05 - 15:35)' },
-        { codigo: '15:45-17:15', horaInicio: '15:45', horaFin: '17:15', turno: 'VESPERTINO', label: 'Bloque 6 (15:45 - 17:15)' },
-        { codigo: '17:30-19:00', horaInicio: '17:30', horaFin: '19:00', turno: 'NOCTURNO', label: 'Bloque 7 (17:30 - 19:00)' },
-        { codigo: '19:05-20:35', horaInicio: '19:05', horaFin: '20:35', turno: 'NOCTURNO', label: 'Bloque 8 (19:05 - 20:35)' },
-      ];
+      // Franjas horarias canónicas de la UBV con formato oficial venezolano 12h AM/PM
+      const franjas = BLOQUES_HORARIOS_OFICIALES;
 
       const dias = [
         DiaSemana.LUNES,
