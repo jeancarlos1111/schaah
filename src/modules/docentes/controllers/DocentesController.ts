@@ -38,7 +38,7 @@ async function getPeriodoActivo() {
 
 export class DocentesController {
   /**
-   * Listado principal de profesores con SchaahDataTable server-side y métricas Bento
+   * Listado principal de profesores con SahadDataTable server-side y métricas Bento
    */
   async index(req: Request, res: Response) {
     try {

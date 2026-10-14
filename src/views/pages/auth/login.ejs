@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><%= title %> | SCHAAH - UBV</title>
+  <title><%= title %> | SAHAD - UBV Kerepakupai Vena</title>
   
   <!-- Detección Inmediata de Tema para Evitar FOUC -->
   <script>
     (function() {
-      const savedTheme = localStorage.getItem('schaah-theme') || 'dark';
+      const savedTheme = localStorage.getItem('sahad-theme') || localStorage.getItem('schaah-theme') || 'dark';
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
   </script>
@@ -21,7 +21,7 @@
   <!-- UIkit 3 CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/css/uikit.min.css" />
   <!-- Clean Enterprise CSS -->
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/style.css?v=2.0.5">
   
   <!-- UIkit JS -->
   <script src="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/js/uikit.min.js"></script>
@@ -44,11 +44,11 @@
       <div class="login-header-section">
         <div class="brand-badge-clean">
           <span uk-icon="icon: grid; ratio: 0.95" class="brand-badge-icon"></span>
-          <span>SCHAAH</span>
+          <span>SAHAD</span>
         </div>
         <h1 class="login-title">Iniciar Sesión</h1>
         <p class="login-description">
-          Sistema de Carga Horaria &bull; Universidad Bolivariana de Venezuela
+          Sistema Automatizado de Horarios &bull; UBV Eje Regional Kerepakupai Vena
         </p>
       </div>
 
@@ -130,7 +130,7 @@
       const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
       const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('schaah-theme', newTheme);
+      localStorage.setItem('sahad-theme', newTheme);
       updateThemeIcon(newTheme);
     }
 

@@ -1,4 +1,4 @@
-# SCHAAH - Especificación de Componentes de Interfaz de Usuario
+# SAHAD - Especificación de Componentes de Interfaz de Usuario
 ## Spec 07: Componente Reutilizable DataTable (Paginación, Filtro, Búsqueda y Ordenación en Servidor)
 
 ### 1. Principio Arquitectónico: Paginación en Servidor (Server-Side)

@@ -23,7 +23,7 @@
       </a>
       <button class="btn-clean-primary" uk-toggle="target: #modal-nueva-seccion">
         <span uk-icon="icon: plus; ratio: 0.85"></span>
-        <span>+ Nueva Sección</span>
+        <span>Nueva Sección</span>
       </button>
     </div>
   </div>
@@ -46,7 +46,7 @@
   </div>
 <% } %>
 
-<!-- Bento Stat Cards de Oferta Académica (Diseño Canónico SCHAAH) -->
+<!-- Bento Stat Cards de Oferta Académica (Diseño Canónico SAHAD) -->
 <div class="uk-grid-small uk-child-width-1-2 uk-child-width-1-4@m uk-margin-medium-bottom" uk-grid>
   <div>
     <div class="clean-stat-card">
@@ -420,37 +420,62 @@
   </div>
 </div>
 
-<!-- Modal para Crear Nueva Sección -->
+<!-- Modal para Crear Nueva Sección Asistida por Malla Curricular (Spec 09) -->
 <div id="modal-nueva-seccion" uk-modal>
-  <div class="uk-modal-dialog uk-modal-body modal-clean-box">
+  <div class="uk-modal-dialog uk-modal-body modal-clean-box" style="max-width: 650px;">
     <button class="uk-modal-close-default" type="button" uk-close></button>
     <h2 class="panel-title uk-margin-small-bottom">Aperturar Nueva Sección</h2>
     <p class="panel-subtitle uk-margin-bottom">
-      Registra una cohorte para el período <%= periodo.codigo %> vinculada a una Unidad Curricular.
+      Apertura asistida para el período <strong style="color: var(--brand-accent);"><%= periodo.codigo %></strong> con validación curricular RC-02.
     </p>
 
-    <form action="/periodos/<%= periodo.id %>/secciones" method="POST" class="login-form-clean">
+    <form action="/periodos/<%= periodo.id %>/secciones" method="POST" class="login-form-clean" id="form-crear-seccion-asistida">
+      <!-- 1. Selección de PFG -->
       <div class="form-group-clean">
-        <label class="label-clean">Unidad Curricular</label>
-        <select name="unidadCurricularId" required class="table-filter-select" style="width: 100%; height: 38px;">
-          <option value="">-- Seleccionar Unidad Curricular --</option>
+        <label class="label-clean">1. Programa de Formación de Grado (PFG)</label>
+        <select id="seccion-select-pfg" name="pfgId" required class="table-filter-select" style="width: 100%; height: 38px;" onchange="alCambiarPfgSeccion(this.value)">
+          <option value="">-- Seleccionar PFG del Estudiante --</option>
           <% pfgs.forEach(function(pfg) { %>
-            <optgroup label="<%= pfg.nombre %>">
-              <% pfg.unidadesCurriculares.forEach(function(uc) { %>
-                <option value="<%= uc.id %>">
-                  T<%= uc.trayecto %>-M<%= uc.tramo %> | <%= uc.codigo %> - <%= uc.nombre %> (<%= uc.horasTeoricasSemanales + uc.horasPracticasSemanales + uc.horasCampoComunitarioSemanales %>h)
-                </option>
-              <% }); %>
-            </optgroup>
+            <option value="<%= pfg.id %>">[<%= pfg.codigo %>] <%= pfg.nombre %></option>
           <% }); %>
         </select>
+      </div>
+
+      <!-- 2. Unidad Curricular Filtrada -->
+      <div class="form-group-clean">
+        <label class="label-clean">2. Unidad Curricular de la Malla</label>
+        <select id="seccion-select-uc" name="unidadCurricularId" required class="table-filter-select" style="width: 100%; height: 38px;" onchange="alSeleccionarUcSeccion(this)">
+          <option value="">-- Seleccione primero un PFG --</option>
+        </select>
+      </div>
+
+      <!-- Info-Card Reactiva de Requerimientos Curriculares y Solver -->
+      <div id="seccion-uc-infocard" class="uk-card uk-card-default uk-card-body uk-margin-small-bottom" style="display: none; background-color: var(--surface-card-hover); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 0.85rem;">
+        <div class="uk-flex uk-flex-between uk-flex-middle">
+          <span class="text-xs font-semibold uk-text-muted uk-text-uppercase">Parámetros Solver CP-SAT / Genético:</span>
+          <span id="uc-badge-espacio" class="badge-trayecto" style="font-size: 0.72rem;">AULA_TEORICA</span>
+        </div>
+        <div class="uk-grid-small uk-child-width-1-3 uk-margin-xsmall-top" uk-grid>
+          <div>
+            <span class="text-xs uk-text-muted uk-display-block">Carga Lectiva (HT+HP):</span>
+            <strong id="uc-info-horas" style="color: var(--text-white); font-size: 0.9rem;">4h / semana</strong>
+          </div>
+          <div>
+            <span class="text-xs uk-text-muted uk-display-block">Bloques Semanales:</span>
+            <strong id="uc-info-bloques" style="color: var(--brand-accent); font-size: 0.9rem;">2 de 90 min</strong>
+          </div>
+          <div>
+            <span class="text-xs uk-text-muted uk-display-block">Ubicación Malla:</span>
+            <span id="uc-info-ubicacion" style="color: var(--text-muted); font-size: 0.85rem;">T1 - M1</span>
+          </div>
+        </div>
       </div>
 
       <div class="uk-grid-small uk-child-width-1-2" uk-grid>
         <div>
           <div class="form-group-clean">
-            <label class="label-clean">Código de Sección (ej: INF-T1-A)</label>
-            <input type="text" name="codigoSeccion" required placeholder="INF-T1-A" class="input-control-clean" style="padding-left: 0.75rem;">
+            <label class="label-clean">3. Código de Sección (Sugerido)</label>
+            <input type="text" id="seccion-codigo-input" name="codigoSeccion" required placeholder="SEC-<%= periodo.codigo %>-UC-M-01" class="input-control-clean" style="padding-left: 0.75rem;">
           </div>
         </div>
         <div>
@@ -475,7 +500,7 @@
         <div>
           <div class="form-group-clean">
             <label class="label-clean">Turno de Dictado</label>
-            <select name="turno" required class="table-filter-select" style="width: 100%; height: 38px;">
+            <select id="seccion-select-turno" name="turno" required class="table-filter-select" style="width: 100%; height: 38px;" onchange="actualizarCodigoSugerido()">
               <% turnos.forEach(function(t) { %>
                 <option value="<%= t %>"><%= t %></option>
               <% }); %>
@@ -497,12 +522,96 @@
       </div>
 
       <div class="uk-margin-medium-top uk-text-right uk-flex uk-flex-right gap-2">
-        <button class="btn-clean-ghost uk-modal-close" type="button">Cancelar</button>
-        <button class="btn-clean-primary" type="submit">Guardar Sección</button>
+        <button class="btn-clean-secondary uk-modal-close" type="button">
+          <span>Cancelar</span>
+        </button>
+        <button class="btn-clean-primary" type="submit">
+          <span uk-icon="icon: check; ratio: 0.8"></span>
+          <span>Aperturar Sección</span>
+        </button>
       </div>
     </form>
   </div>
 </div>
+
+<script>
+  let ucsActualesPfg = [];
+  const periodoCodigoActual = '<%= periodo.codigo %>';
+
+  async function alCambiarPfgSeccion(pfgId) {
+    const selectUc = document.getElementById('seccion-select-uc');
+    const infoCard = document.getElementById('seccion-uc-infocard');
+    selectUc.innerHTML = '<option value="">-- Cargando unidades de la malla... --</option>';
+    infoCard.style.display = 'none';
+
+    if (!pfgId) {
+      selectUc.innerHTML = '<option value="">-- Seleccione primero un PFG --</option>';
+      return;
+    }
+
+    try {
+      const resp = await fetch('/curriculo/api/pfg/' + encodeURIComponent(pfgId) + '/unidades');
+      const data = await resp.json();
+      if (data.ok && Array.isArray(data.unidades)) {
+        ucsActualesPfg = data.unidades;
+        if (ucsActualesPfg.length === 0) {
+          selectUc.innerHTML = '<option value="">-- No hay UCs registradas para este PFG --</option>';
+        } else {
+          selectUc.innerHTML = '<option value="">-- Seleccionar Unidad Curricular --</option>' +
+            ucsActualesPfg.map(u => 
+              `<option value="${u.id}" data-codigo="${u.codigo}" data-ht="${u.horasTeoricas}" data-hp="${u.horasPracticas}" data-bloques="${u.bloques90Min}" data-espacio="${u.tipoEspacioRequerido}" data-trayecto="${u.trayecto}" data-tramo="${u.tramo}">
+                T${u.trayecto}-M${u.tramo} | ${u.codigo} - ${u.nombre} (${u.horasLectivas}h lectivas)
+              </option>`
+            ).join('');
+        }
+      } else {
+        selectUc.innerHTML = '<option value="">-- Error al cargar catálogo --</option>';
+      }
+    } catch (err) {
+      console.error('Error fetching UCs:', err);
+      selectUc.innerHTML = '<option value="">-- Error al consultar servidor --</option>';
+    }
+  }
+
+  function alSeleccionarUcSeccion(selectElem) {
+    const selectedOpt = selectElem.options[selectElem.selectedIndex];
+    const infoCard = document.getElementById('seccion-uc-infocard');
+
+    if (!selectedOpt || !selectedOpt.value) {
+      infoCard.style.display = 'none';
+      return;
+    }
+
+    const codigo = selectedOpt.getAttribute('data-codigo') || 'UC';
+    const ht = parseInt(selectedOpt.getAttribute('data-ht') || '0', 10);
+    const hp = parseInt(selectedOpt.getAttribute('data-hp') || '0', 10);
+    const bloques = parseInt(selectedOpt.getAttribute('data-bloques') || '0', 10);
+    const espacio = selectedOpt.getAttribute('data-espacio') || 'AULA_TEORICA';
+    const trayecto = selectedOpt.getAttribute('data-trayecto') || '1';
+    const tramo = selectedOpt.getAttribute('data-tramo') || '1';
+
+    document.getElementById('uc-badge-espacio').textContent = espacio.replace(/_/g, ' ');
+    document.getElementById('uc-info-horas').textContent = (ht + hp) + 'h / semana (HT:' + ht + ' HP:' + hp + ')';
+    document.getElementById('uc-info-bloques').textContent = bloques + ' Bloques de 90 min';
+    document.getElementById('uc-info-ubicacion').textContent = 'Trayecto ' + trayecto + ' - Tramo ' + tramo;
+
+    infoCard.style.display = 'block';
+
+    actualizarCodigoSugerido(codigo);
+  }
+
+  function actualizarCodigoSugerido(codigoUcParam) {
+    const selectUc = document.getElementById('seccion-select-uc');
+    const selectedOpt = selectUc.options[selectUc.selectedIndex];
+    const ucCodigo = codigoUcParam || (selectedOpt ? selectedOpt.getAttribute('data-codigo') : null);
+    if (!ucCodigo) return;
+
+    const turno = document.getElementById('seccion-select-turno').value || 'MATUTINO';
+    const inicialTurno = turno.charAt(0).toUpperCase();
+    const codigoInput = document.getElementById('seccion-codigo-input');
+    codigoInput.value = `SEC-${periodoCodigoActual}-${ucCodigo}-${inicialTurno}-01`;
+  }
+</script>
 
 <!-- Modal Solver de Optimización Automática -->
 <%- include('../../partials/modal-solver', { periodoId: periodo.id, periodoCodigo: periodo.codigo }) %>

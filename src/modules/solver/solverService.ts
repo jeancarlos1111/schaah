@@ -197,7 +197,7 @@ export class SolverService {
               profesorNombre: asig.profesorNombre,
             }),
             justificacionResolucion:
-              'Asignación optimizada automática generada por motor solver genético SCHAAH UBV cumpliendo restricciones H-01 a H-09.',
+              'Asignación optimizada automática generada por motor solver genético SAHAD UBV cumpliendo restricciones H-01 a H-09.',
           },
         });
       }

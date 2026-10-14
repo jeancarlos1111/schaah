@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
-  title: API de Carga Horaria y Asignación de Horarios (SCHAAH - UBV)
+  title: Sistema Automatizado para la Asignación de Horarios Académicos (SAHAD - UBV Kerepakupai Vena)
   version: 1.0.0
-  description: Contratos de API para la gestión, optimización algorítmica y ajuste manual de horarios universitarios UBV.
+  description: API del Sistema Automatizado para la Asignación de los Horarios Académicos de los Docentes en la Universidad Bolivariana de Venezuela Eje Geopolítico Regional Kerepakupai Vena.
 
 servers:
   - url: http://localhost:8000/api/v1

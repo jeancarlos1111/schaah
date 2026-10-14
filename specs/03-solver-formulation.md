@@ -1,5 +1,5 @@
 # Spec 3: Formulación Matemática del Motor Solver (CP-SAT)
-**Sistema de Carga Horaria y Asignación Automática de Horarios (SCHAAH - UBV)**
+**Sistema Automatizado para la Asignación de Horarios Académicos (SAHAD — UBV Eje Regional Kerepakupai Vena)**
 **Tecnología Base: Google OR-Tools (Constraint Programming - SAT)**
 
 ---

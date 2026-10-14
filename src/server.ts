@@ -11,6 +11,7 @@ import docenteRoutes from './modules/docentes/docenteRoutes';
 import periodoRoutes from './modules/periodos/periodoRoutes';
 import horarioRoutes from './modules/horarios/horarioRoutes';
 import solverRoutes from './modules/solver/solverRoutes';
+import curriculoRoutes from './modules/curriculo/curriculoRoutes';
 import { attachUserToLocals, requireAuth } from './modules/auth/middlewares/authMiddleware';
 import prisma, { enableSqliteWal } from './core/database/prisma';
 
@@ -30,7 +31,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Sesiones HTTP
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || 'schaah_default_secret_dev',
+    secret: process.env.SESSION_SECRET || 'sahad_default_secret_dev',
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -64,6 +65,7 @@ app.use(docenteRoutes);
 app.use(periodoRoutes);
 app.use(horarioRoutes);
 app.use(solverRoutes);
+app.use(curriculoRoutes);
 
 // Dashboard Principal (Protegido)
 app.get('/', requireAuth, async (req: Request, res: Response) => {
@@ -124,15 +126,15 @@ app.get('/', requireAuth, async (req: Request, res: Response) => {
 app.get('/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
-    system: 'SCHAAH - UBV',
+    system: 'SAHAD - UBV Kerepakupai Vena',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
   });
 });
 
 app.listen(PORT, () => {
-  console.log(`[SCHAAH-UBV] Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`[SCHAAH-UBV] Modo: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`[SAHAD-UBV] Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`[SAHAD-UBV] Modo: ${process.env.NODE_ENV || 'development'}`);
 });
 
 export default app;

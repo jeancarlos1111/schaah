@@ -1,10 +1,10 @@
 /**
- * SCHAAH - Componente Reutilizable DataTable (Vanilla JS)
+ * SAHAD - Componente Reutilizable DataTable (Vanilla JS)
  * Implementa: Búsqueda en vivo, Filtros múltiples, Paginación, Ordenamiento y Estado Vacío.
  * Cumple: specs/07-ui-components-spec.md
  */
 
-class SchaahDataTable {
+class SahadDataTable {
   constructor(options = {}) {
     this.wrapper = typeof options.wrapper === 'string' 
       ? document.querySelector(options.wrapper) 
@@ -351,9 +351,11 @@ class SchaahDataTable {
 // Auto-inicialización global para elementos con [data-datatable="true"]
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('[data-datatable="true"]').forEach((wrapper) => {
-    new SchaahDataTable({ wrapper });
+    new SahadDataTable({ wrapper });
   });
 });
 
-// Exponer globalmente en window para inicialización imperativa
-window.SchaahDataTable = SchaahDataTable;
+// Exponer globalmente en window (Canónico: SahadDataTable, Alias: SchaahDataTable)
+window.SahadDataTable = SahadDataTable;
+window.SchaahDataTable = SahadDataTable;
+const SchaahDataTable = SahadDataTable;

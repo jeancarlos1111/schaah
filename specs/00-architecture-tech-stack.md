@@ -1,5 +1,5 @@
 # Spec 0: Arquitectura Tecnológica y Stack de Ejecución
-**Sistema de Carga Horaria y Asignación Automática de Horarios (SCHAAH - UBV)**
+**Sistema Automatizado para la Asignación de Horarios Académicos (SAHAD — UBV Eje Regional Kerepakupai Vena)**
 
 ---
 
@@ -43,7 +43,7 @@ graph TD
 ## 3. Estructura del Proyecto
 
 ```text
-schaah/
+sahad/
 ├── package.json
 ├── tsconfig.json
 ├── prisma/

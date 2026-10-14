@@ -1,5 +1,5 @@
 # Spec 6: Autenticación, Usuarios, Roles y Permisos (RBAC)
-**Sistema de Carga Horaria y Asignación Automática de Horarios (SCHAAH - UBV)**
+**Sistema Automatizado para la Asignación de Horarios Académicos (SAHAD — UBV Eje Regional Kerepakupai Vena)**
 
 ---
 

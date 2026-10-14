@@ -1,5 +1,5 @@
 # Spec 9: Módulo Web de Mallas Curriculares y Unidades Curriculares
-**Sistema de Carga Horaria y Asignación Automática de Horarios (SCHAAH - UBV)**
+**Sistema Automatizado para la Asignación de Horarios Académicos (SAHAD — UBV Eje Regional Kerepakupai Vena)**
 
 ---
 
@@ -9,7 +9,7 @@ El Documento Rector de la Universidad Bolivariana de Venezuela (2003) y los dise
 1. **Unidades Curriculares de Formación Básica y Especializada**: Con horas de teoría ($H_T$) y prácticas/laboratorios ($H_P$) que demandan aulas físicas o laboratorios especializados.
 2. **Unidad Integradora de Proyecto Comunitario (P1 a P4)**: Eje transversal con horas de campo comunitario ($H_C$) que consumen dedicación y permanencia docente pero se ejecutan en comunidades sin requerimiento de aula universitaria física tradicional.
 
-Para erradicar la apertura errática de asignaturas, la asignación de materias cruzadas no pertenecientes a la especialidad y el descuadre de bloques horarios frente a los créditos oficiales, SCHAAH implementa un **Módulo Web Administrativo de Mallas Curriculares y Unidades Curriculares**.
+Para erradicar la apertura errática de asignaturas, la asignación de materias cruzadas no pertenecientes a la especialidad y el descuadre de bloques horarios frente a los créditos oficiales, SAHAD implementa un **Módulo Web Administrativo de Mallas Curriculares y Unidades Curriculares**.
 
 ---
 
@@ -36,6 +36,14 @@ graph TD
   - Las horas de campo comunitario ($H_C$) se consolidan en la planilla docente pero no saturan el aforo de aulas en la matriz semanal.
 - **`RC-04` Tipología Obligatoria de Espacio**: Cada Unidad Curricular define su requerimiento infraestructural (`AULA_TEORICA`, `LABORATORIO_INFORMATICA`, `LABORATORIO_CIENCIAS`, `AUDITORIO`, `CANCHA`, `TERRENO_COMUNITARIO`). El solver CP-SAT y el validador manual imponen esta restricción como regla dura `H-03`.
 - **`RC-05` Tratamiento de Proyecto**: Las materias marcadas como `esProyectoComunitario = true` admiten asignación horaria con `espacioFisicoId = null` y bloque tipo `CAMPO_COMUNIDAD`.
+- **`RC-06` Correspondencia Estricta Trayecto-Tramo**: Todo Trayecto anual $T$ solo admite los dos Tramos semestrales correlativos correspondientes según la fórmula oficial UBV:
+  $$\text{Tramos válidos para } T = \{2T - 1, \; 2T\} \quad (T \in \{1, 2, 3, 4\})$$
+  - **Trayecto I**: Únicamente Tramo 1 y Tramo 2.
+  - **Trayecto II**: Únicamente Tramo 3 y Tramo 4.
+  - **Trayecto III**: Únicamente Tramo 5 y Tramo 6.
+  - **Trayecto IV**: Únicamente Tramo 7 y Tramo 8.
+  - **Trayecto Inicial (0)**: Únicamente Tramo 0 o Tramo 1.
+  Queda prohibido registrar o actualizar una Unidad Curricular con un Tramo que no corresponda estrictamente a su Trayecto (y viceversa). Toda petición fuera de esta correspondencia debe ser rechazada con error de validación.
 
 ---
 

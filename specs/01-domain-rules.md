@@ -1,6 +1,6 @@
-# Spec 1: Reglas de Dominio y Normativa UBV (SCHAAH)
-**Sistema de Carga Horaria y Asignación Automática de Horarios**
-**Universidad Bolivariana de Venezuela (UBV)**
+# Spec 1: Reglas de Dominio y Normativa UBV (SAHAD)
+**Sistema Automatizado para la Asignación de los Horarios Académicos de los Docentes**
+**Universidad Bolivariana de Venezuela (UBV) — Eje Geopolítico Regional Kerepakupai Vena**
 
 ---
 
@@ -86,7 +86,7 @@ Objetivos deseables que el motor de optimización maximiza o minimiza mediante p
 
 ## 5. Modelo de Disponibilidad Docente y Matriz Semanal
 
-En SCHAAH, la **Disponibilidad Docente** no representa una simple encuesta informal, sino el contrato temporal vinculante entre la jornada profesoral y el motor de optimización matemática CP-SAT:
+En SAHAD, la **Disponibilidad Docente** no representa una simple encuesta informal, sino el contrato temporal vinculante entre la jornada profesoral y el motor de optimización matemática CP-SAT:
 
 ### 5.1 Dualidad Normativo-Matemática
 Cada slot semanal (intersección de día y bloque horario de 90 min) posee dos dimensiones:

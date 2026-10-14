@@ -1,4 +1,4 @@
-// Enums canónicos del dominio SCHAAH UBV (Tipado estricto independiente de BD)
+// Enums canónicos del dominio SAHAD UBV (Tipado estricto independiente de BD)
 
 export enum RolUsuario {
   ADMINISTRADOR = 'ADMINISTRADOR',

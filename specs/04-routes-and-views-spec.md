@@ -1,5 +1,5 @@
 # Spec 4: Rutas, Controladores y Vistas SSR (Express + EJS + HTMX)
-**Sistema de Carga Horaria y Asignación Automática de Horarios (SCHAAH - UBV)**
+**Sistema Automatizado para la Asignación de Horarios Académicos (SAHAD — UBV Eje Regional Kerepakupai Vena)**
 
 ---
 

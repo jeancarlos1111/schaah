@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SCHAAH UBV - Menús Desplegables y Modales Flotantes (Linear Aesthetic)
+   SAHAD UBV - Menús Desplegables y Modales Flotantes (Linear Aesthetic)
    ========================================================================== */
 
 .clean-dropdown,
@@ -15,6 +15,26 @@
   white-space: normal !important;
   box-sizing: border-box !important;
   z-index: 1050 !important;
+  text-align: left !important;
+}
+
+.clean-dropdown form,
+.uk-dropdown.clean-dropdown form {
+  display: block !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: left !important;
+}
+
+.clean-dropdown ul,
+.clean-dropdown li,
+.clean-dropdown .uk-nav,
+.clean-dropdown .uk-dropdown-nav {
+  text-align: left !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
 }
 
 .clean-dropdown .uk-nav-header {
@@ -28,15 +48,19 @@
   border-bottom: 1px solid var(--border-subtle) !important;
 }
 
-.clean-dropdown .uk-dropdown-nav > li {
+.clean-dropdown .uk-dropdown-nav > li,
+.clean-dropdown li {
   margin: 2px 0 !important;
+  text-align: left !important;
 }
 
 .dropdown-action-btn {
   display: flex !important;
   align-items: center !important;
+  justify-content: flex-start !important;
   gap: 0.55rem !important;
   width: 100% !important;
+  box-sizing: border-box !important;
   padding: 0.45rem 0.65rem !important;
   border: none !important;
   background: transparent !important;

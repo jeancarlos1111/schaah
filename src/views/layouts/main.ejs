@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><%= title %> | SCHAAH - UBV</title>
+  <title><%= title %> | SAHAD - UBV Kerepakupai Vena</title>
   
   <!-- Detección Inmediata de Tema -->
   <script>
     (function() {
-      const savedTheme = localStorage.getItem('schaah-theme') || 'dark';
+      const savedTheme = localStorage.getItem('sahad-theme') || localStorage.getItem('schaah-theme') || 'dark';
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
   </script>
@@ -21,7 +21,7 @@
   <!-- UIkit 3 CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/css/uikit.min.css" />
   <!-- Clean Enterprise CSS (Modular Architecture) -->
-  <link rel="stylesheet" href="/css/style.css?v=2.0.4">
+  <link rel="stylesheet" href="/css/style.css?v=2.0.5">
   
   <!-- HTMX & UIkit JS -->
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
@@ -31,7 +31,7 @@
   <!-- Inyección de Estilos Específicos de la Vista (express-ejs-layouts) -->
   <%- style %>
 </head>
-<body class="schaah-body">
+<body class="sahad-body schaah-body">
 
   <!-- Header Minimalista y Elegante (Tipo Linear / Vercel) -->
   <header class="app-header">
@@ -43,7 +43,7 @@
           <div class="brand-mark">
             <span uk-icon="icon: grid; ratio: 0.9"></span>
           </div>
-          <span class="brand-text">SCHAAH<span class="brand-ubv">UBV</span></span>
+          <span class="brand-text">SAHAD<span class="brand-ubv">UBV</span></span>
         </a>
       </div>
 
@@ -61,6 +61,9 @@
           <% } %>
 
           <% if (usuario.rol === 'ADMINISTRADOR' || usuario.rol === 'DIRECTOR_ACADEMICO' || usuario.rol === 'COORDINADOR_PFG') { %>
+            <a href="/curriculo" class="nav-link <%= title.includes('Mallas') || title.includes('Currículo') ? 'is-active' : '' %>">
+              Mallas
+            </a>
             <a href="/docentes" class="nav-link <%= title.includes('Docentes') ? 'is-active' : '' %>">
               Docentes
             </a>
@@ -129,12 +132,12 @@
   <footer class="app-footer">
     <div class="app-container">
       <p class="footer-copy">
-        Universidad Bolivariana de Venezuela &copy; <%= new Date().getFullYear() %> &bull; Sistema de Carga Horaria y Asignación Automática (SCHAAH)
+        Universidad Bolivariana de Venezuela &copy; <%= new Date().getFullYear() %> &bull; Eje Geopolítico Regional Kerepakupai Vena &bull; Sistema Automatizado de Horarios (SAHAD)
       </p>
     </div>
   </footer>
 
-  <!-- Biblioteca Reutilizable DataTable SCHAAH -->
+  <!-- Biblioteca Reutilizable DataTable SAHAD -->
   <script src="/js/data-table.js"></script>
 
   <!-- Script de Gestión de Tema en LocalStorage -->
@@ -153,7 +156,7 @@
       const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
       const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('schaah-theme', newTheme);
+      localStorage.setItem('sahad-theme', newTheme);
       updateThemeIcon(newTheme);
     }
 

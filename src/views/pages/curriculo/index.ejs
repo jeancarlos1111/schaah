@@ -1,0 +1,1042 @@
+<!-- Header del Módulo de Currículo -->
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <span>Gestión Académica</span>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Mallas Curriculares</span>
+      </div>
+      <h1 class="page-title uk-margin-remove">Mallas y Unidades Curriculares</h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Administración de Programas de Formación de Grado (PFG), Trayectos Anuales, Tramos Semestrales y Cargas Horarias UBV.
+      </p>
+    </div>
+    <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
+      <% if (usuario && (usuario.rol === 'ADMINISTRADOR' || usuario.rol === 'DIRECTOR_ACADEMICO')) { %>
+        <button class="btn-clean-secondary" uk-toggle="target: #modal-nuevo-pfg">
+          <span uk-icon="icon: folder; ratio: 0.85"></span>
+          <span>Nuevo PFG</span>
+        </button>
+      <% } %>
+
+      <% if (pfgSeleccionado) { %>
+        <button class="btn-clean-primary" uk-toggle="target: #modal-nueva-unidad">
+          <span uk-icon="icon: plus; ratio: 0.85"></span>
+          <span>Nueva Unidad Curricular</span>
+        </button>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Alertas de Feedback -->
+<% if (typeof mensaje !== 'undefined' && mensaje) { %>
+  <div class="alert-clean-success uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: check; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= mensaje %></span>
+  </div>
+<% } %>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="alert-clean-danger uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: warning; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= error %></span>
+  </div>
+<% } %>
+
+<!-- Bento Stat Cards de Malla Curricular Activa (Desacopladas de paginación - Spec 07 DoD 3) -->
+<% if (pfgSeleccionado) { %>
+  <div class="uk-grid-small uk-child-width-1-2 uk-child-width-1-4@m uk-margin-medium-bottom" uk-grid>
+    <div>
+      <div class="clean-stat-card">
+        <span class="stat-category">Total Asignaturas</span>
+        <div class="stat-value-row">
+          <span class="stat-number"><%= stats.totalUnidades %></span>
+          <span class="stat-unit">UCs</span>
+        </div>
+        <span class="detail-label"><%= pfgSeleccionado.nombre %></span>
+      </div>
+    </div>
+
+    <div>
+      <div class="clean-stat-card">
+        <span class="stat-category">Créditos de Carrera</span>
+        <div class="stat-value-row">
+          <span class="stat-number"><%= stats.totalCreditos %></span>
+          <span class="stat-unit">UC</span>
+        </div>
+        <span class="detail-label">Carga total aprobada CNU</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="clean-stat-card">
+        <span class="stat-category">Horas Aula / Semanales</span>
+        <div class="stat-value-row">
+          <span class="stat-number"><%= stats.totalHorasLectivas %></span>
+          <span class="stat-unit">h/sem</span>
+        </div>
+        <span class="detail-label">Cómputo HT + HP (Demanda Aulas)</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="clean-stat-card">
+        <span class="stat-category">Proyectos Comunitarios</span>
+        <div class="stat-value-row">
+          <span class="stat-number"><%= stats.totalProyectos %></span>
+          <span class="stat-unit">ejes</span>
+        </div>
+        <span class="detail-label">Proyecto I al IV en Comunidad</span>
+      </div>
+    </div>
+  </div>
+<% } %>
+
+<%
+  // Helpers para URLs de ordenamiento y paginación en servidor (Spec 07)
+  function makeQueryUrl(overrides) {
+    const params = new URLSearchParams({
+      page: overrides.page !== undefined ? overrides.page : pagination.page,
+      limit: overrides.limit !== undefined ? overrides.limit : pagination.limit,
+      q: overrides.q !== undefined ? overrides.q : (filters.q || ''),
+      pfg: overrides.pfg !== undefined ? overrides.pfg : (filters.pfg || ''),
+      trayecto: overrides.trayecto !== undefined ? overrides.trayecto : (filters.trayecto || ''),
+      tramo: overrides.tramo !== undefined ? overrides.tramo : (filters.tramo || ''),
+      tipoEspacio: overrides.tipoEspacio !== undefined ? overrides.tipoEspacio : (filters.tipoEspacio || ''),
+      sortBy: overrides.sortBy !== undefined ? overrides.sortBy : (filters.sortBy || 'trayecto'),
+      sortDir: overrides.sortDir !== undefined ? overrides.sortDir : (filters.sortDir || 'asc')
+    });
+    for (const [key, val] of [...params.entries()]) {
+      if (!val) params.delete(key);
+    }
+    return '/curriculo?' + params.toString();
+  }
+
+  function getSortUrl(col) {
+    const isCurrent = filters.sortBy === col;
+    const nextDir = isCurrent && filters.sortDir === 'asc' ? 'desc' : 'asc';
+    return makeQueryUrl({ page: 1, sortBy: col, sortDir: nextDir });
+  }
+
+  function getSortHeaderClass(col) {
+    if (filters.sortBy !== col) return 'sortable';
+    return filters.sortDir === 'asc' ? 'sortable sort-asc' : 'sortable sort-desc';
+  }
+%>
+
+<!-- Panel Principal con Componente Reutilizable DataTable (Server-Side - Spec 07 / Spec 09) -->
+<div class="clean-panel data-table-wrapper" id="curriculo-datatable-wrapper">
+  
+  <!-- Barra de Herramientas Server-Side Estable en 2 Filas -->
+  <form 
+    id="curriculo-filter-form" 
+    action="/curriculo" 
+    method="GET" 
+    hx-get="/curriculo" 
+    hx-target="#curriculo-table-container" 
+    hx-select="#curriculo-table-container" 
+    hx-swap="outerHTML" 
+    hx-push-url="true"
+    class="table-toolbar"
+    style="display: flex; flex-direction: column; width: 100%; gap: 0.65rem; padding-bottom: 0.85rem;"
+  >
+    <input type="hidden" name="page" value="1" id="filter-page-input" />
+    <input type="hidden" name="sortBy" value="<%= filters.sortBy %>" />
+    <input type="hidden" name="sortDir" value="<%= filters.sortDir %>" />
+
+    <!-- Fila 1: Selector de PFG (Izquierda), Buscador Reactivo y Filas (Derecha) - Spec 09 / Spec 07 -->
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 1rem; margin-bottom: 0.65rem; flex-wrap: nowrap;">
+      <!-- Izquierda: Selector de Programa PFG -->
+      <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 1; min-width: 0;">
+        <span class="text-xs font-semibold uk-text-muted uk-text-uppercase" style="white-space: nowrap; flex-shrink: 0;">PFG:</span>
+        <select 
+          name="pfg" 
+          class="table-filter-select" 
+          style="width: 240px; max-width: 280px; height: 34px; text-overflow: ellipsis;"
+          onchange="this.form.requestSubmit()"
+          title="Programa de Formación de Grado"
+        >
+          <% if (pfgs.length === 0) { %>
+            <option value="">-- Sin PFGs Registrados --</option>
+          <% } else { %>
+            <% pfgs.forEach(function(p) { %>
+              <option value="<%= p.id %>" <%= pfgSeleccionado && pfgSeleccionado.id === p.id ? 'selected' : '' %>>
+                [<%= p.codigo %>] <%= p.nombre %>
+              </option>
+            <% }); %>
+          <% } %>
+        </select>
+
+        <% if (pfgSeleccionado && usuario && (usuario.rol === 'ADMINISTRADOR' || usuario.rol === 'DIRECTOR_ACADEMICO')) { %>
+          <button 
+            class="btn-table-action" 
+            type="button"
+            uk-toggle="target: #modal-editar-pfg"
+            title="Editar información del PFG"
+            style="white-space: nowrap; flex-shrink: 0;"
+          >
+            <span uk-icon="icon: file-edit; ratio: 0.75"></span>
+            <span>Editar PFG</span>
+          </button>
+        <% } %>
+      </div>
+
+      <!-- Derecha: Buscador Server-Side y Selector de Filas (Alineados horizontalmente en una sola línea) -->
+      <div style="display: flex; align-items: center; gap: 0.65rem; flex-shrink: 0; white-space: nowrap;">
+        <div class="table-search-box" style="width: 220px; max-width: 220px; position: relative;">
+          <span uk-icon="icon: search; ratio: 0.8" class="search-icon"></span>
+          <input 
+            type="text" 
+            name="q" 
+            id="curriculo-search-input"
+            value="<%= filters.q %>"
+            class="search-input" 
+            placeholder="Buscar asignatura..."
+            hx-get="/curriculo"
+            hx-trigger="input changed delay:350ms, search"
+            hx-target="#curriculo-table-container"
+            hx-select="#curriculo-table-container"
+            hx-swap="outerHTML"
+            hx-push-url="true"
+            hx-include="#curriculo-filter-form"
+            autocomplete="off"
+            style="width: 100% !important; height: 34px !important;"
+          />
+        </div>
+
+        <div class="table-toolbar-right" style="display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0;">
+          <span class="uk-text-muted uk-text-small">Filas:</span>
+          <select name="limit" class="table-page-size-select" style="width: 65px; height: 34px;" onchange="this.form.requestSubmit()">
+            <option value="5" <%= pagination.limit === 5 ? 'selected' : '' %>>5</option>
+            <option value="10" <%= pagination.limit === 10 ? 'selected' : '' %>>10</option>
+            <option value="25" <%= pagination.limit === 25 ? 'selected' : '' %>>25</option>
+            <option value="50" <%= pagination.limit === 50 ? 'selected' : '' %>>50</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fila 2: Filtros Trayecto, Tramo, Espacio (Izquierda) y Botón Nueva UC (Derecha) -->
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 1rem; padding-top: 0.65rem; border-top: 1px solid var(--border-subtle);">
+      <!-- Izquierda: Filtros de Malla Curricular -->
+      <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <!-- Filtro Trayecto -->
+        <select name="trayecto" class="table-filter-select" style="height: 34px; width: 140px;" onchange="this.form.requestSubmit()">
+          <option value="">Todos los Trayectos</option>
+          <% [1, 2, 3, 4].forEach(function(t) { %>
+            <option value="<%= t %>" <%= filters.trayecto == t ? 'selected' : '' %>>
+              Trayecto <%= t %>
+            </option>
+          <% }); %>
+        </select>
+
+        <!-- Filtro Tramo (Tramos 1 al 8 según Planilla Oficial UBV) -->
+        <select name="tramo" class="table-filter-select" style="height: 34px; width: 140px;" onchange="this.form.requestSubmit()">
+          <option value="">Todos los Tramos</option>
+          <% for (let t = 1; t <= 8; t++) { %>
+            <option value="<%= t %>" <%= filters.tramo == t ? 'selected' : '' %>>Tramo <%= t %></option>
+          <% } %>
+        </select>
+
+        <!-- Filtro Tipo Espacio -->
+        <select name="tipoEspacio" class="table-filter-select" style="height: 34px; width: 150px;" onchange="this.form.requestSubmit()">
+          <option value="">Todos los Espacios</option>
+          <% tiposEspacio.forEach(function(te) { %>
+            <option value="<%= te %>" <%= filters.tipoEspacio === te ? 'selected' : '' %>>
+              <%= te.replace(/_/g, ' ') %>
+            </option>
+          <% }); %>
+        </select>
+
+        <% if (filters.trayecto || filters.tramo || filters.tipoEspacio || filters.q) { %>
+          <a 
+            href="/curriculo?pfg=<%= pfgSeleccionado ? pfgSeleccionado.id : '' %>" 
+            class="btn-clean-ghost" 
+            hx-get="/curriculo?pfg=<%= pfgSeleccionado ? pfgSeleccionado.id : '' %>"
+            hx-target="#curriculo-table-container"
+            hx-select="#curriculo-table-container"
+            hx-swap="outerHTML"
+            hx-push-url="true"
+            title="Limpiar filtros de búsqueda"
+            style="height: 34px;"
+          >
+            <span uk-icon="icon: close; ratio: 0.75"></span>
+            <span>Limpiar</span>
+          </a>
+        <% } %>
+      </div>
+
+      <!-- Derecha: Botón Acción Principal -->
+      <% if (pfgSeleccionado) { %>
+        <div style="flex-shrink: 0; white-space: nowrap;">
+          <button 
+            class="btn-clean-primary" 
+            type="button"
+            uk-toggle="target: #modal-nueva-unidad"
+            style="height: 34px; padding: 0 1rem; font-size: 0.82rem; white-space: nowrap;"
+          >
+            <span uk-icon="icon: plus; ratio: 0.8"></span>
+            <span>Nueva Unidad Curricular</span>
+          </button>
+        </div>
+      <% } %>
+    </div>
+  </form>
+
+  <!-- Contenedor Reemplazable HTMX con Tabla y Paginación Server-Side (Spec 07) -->
+  <div id="curriculo-table-container">
+    <% if (!pfgSeleccionado) { %>
+      <div class="uk-card uk-card-default uk-card-body modal-clean-box uk-text-center uk-margin-large-top uk-margin-large-bottom">
+        <span uk-icon="icon: warning; ratio: 2" class="uk-text-warning uk-margin-small-bottom"></span>
+        <h3 class="panel-title">No hay Programa de Formación seleccionado</h3>
+        <p class="panel-subtitle">
+          Cree un nuevo PFG institucional para comenzar a cargar la malla curricular.
+        </p>
+      </div>
+    <% } else if (unidades.length === 0) { %>
+      <div class="uk-card uk-card-default uk-card-body modal-clean-box uk-text-center uk-margin-large-top uk-margin-large-bottom">
+        <span uk-icon="icon: album; ratio: 2" class="uk-text-muted uk-margin-small-bottom"></span>
+        <h3 class="panel-title">No se encontraron asignaturas</h3>
+        <p class="panel-subtitle">
+          No hay Unidades Curriculares que coincidan con los criterios de búsqueda y filtros aplicados.
+        </p>
+        <button class="btn-clean-primary uk-margin-small-top" type="button" uk-toggle="target: #modal-nueva-unidad">
+          <span uk-icon="icon: plus; ratio: 0.85"></span>
+          <span>Agregar Primera Unidad Curricular</span>
+        </button>
+      </div>
+    <% } else { %>
+      <div class="uk-overflow-auto uk-margin-small-top" style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch;">
+        <table class="clean-table curriculo-table" style="min-width: 1180px; width: 100%; border-collapse: separate; border-spacing: 0;">
+          <thead>
+            <tr>
+              <th style="width: 130px; min-width: 120px; white-space: nowrap;">
+                <a 
+                  href="<%= getSortUrl('codigo') %>" 
+                  class="<%= getSortHeaderClass('codigo') %>"
+                  hx-get="<%= getSortUrl('codigo') %>"
+                  hx-target="#curriculo-table-container"
+                  hx-select="#curriculo-table-container"
+                  hx-swap="outerHTML"
+                  hx-push-url="true"
+                  style="white-space: nowrap;"
+                >
+                  Código
+                </a>
+              </th>
+              <th style="min-width: 260px;">
+                <a 
+                  href="<%= getSortUrl('nombre') %>" 
+                  class="<%= getSortHeaderClass('nombre') %>"
+                  hx-get="<%= getSortUrl('nombre') %>"
+                  hx-target="#curriculo-table-container"
+                  hx-select="#curriculo-table-container"
+                  hx-swap="outerHTML"
+                  hx-push-url="true"
+                  style="white-space: nowrap;"
+                >
+                  Asignatura / Unidad Curricular
+                </a>
+              </th>
+              <th style="width: 140px; min-width: 135px; text-align: center; white-space: nowrap;">
+                <a 
+                  href="<%= getSortUrl('trayecto') %>" 
+                  class="<%= getSortHeaderClass('trayecto') %>"
+                  hx-get="<%= getSortUrl('trayecto') %>"
+                  hx-target="#curriculo-table-container"
+                  hx-select="#curriculo-table-container"
+                  hx-swap="outerHTML"
+                  hx-push-url="true"
+                  style="white-space: nowrap;"
+                >
+                  Ubicación Malla
+                </a>
+              </th>
+              <th style="width: 80px; min-width: 75px; text-align: center; white-space: nowrap;">
+                <a 
+                  href="<%= getSortUrl('creditos') %>" 
+                  class="<%= getSortHeaderClass('creditos') %>"
+                  hx-get="<%= getSortUrl('creditos') %>"
+                  hx-target="#curriculo-table-container"
+                  hx-select="#curriculo-table-container"
+                  hx-swap="outerHTML"
+                  hx-push-url="true"
+                  style="white-space: nowrap;"
+                >
+                  Créditos
+                </a>
+              </th>
+              <th style="width: 220px; min-width: 210px; white-space: nowrap;">Desglose Horas (Semanal)</th>
+              <th style="width: 180px; min-width: 170px; white-space: nowrap;">Tipo Espacio Requerido</th>
+              <th style="width: 130px; min-width: 120px; text-align: center; white-space: nowrap;">Eje Curricular</th>
+              <th style="width: 90px; min-width: 85px; text-align: center; white-space: nowrap;">
+                <a 
+                  href="<%= getSortUrl('activa') %>" 
+                  class="<%= getSortHeaderClass('activa') %>"
+                  hx-get="<%= getSortUrl('activa') %>"
+                  hx-target="#curriculo-table-container"
+                  hx-select="#curriculo-table-container"
+                  hx-swap="outerHTML"
+                  hx-push-url="true"
+                  style="white-space: nowrap;"
+                >
+                  Estado
+                </a>
+              </th>
+              <th class="table-actions-cell uk-text-right" style="width: 120px; min-width: 110px; text-align: right; white-space: nowrap;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% unidades.forEach(function(uc) { %>
+              <tr class="uc-row">
+                <!-- Código -->
+                <td style="width: 130px; min-width: 120px; white-space: nowrap;">
+                  <span class="badge-trayecto" style="font-family: monospace; font-size: 0.74rem; font-weight: 700; white-space: nowrap;">
+                    <%= uc.codigo %>
+                  </span>
+                </td>
+
+                <!-- Asignatura / Nombre -->
+                <td style="min-width: 260px;">
+                  <div class="font-medium text-sm" style="color: var(--text-white); line-height: 1.35;">
+                    <%= uc.nombre %>
+                  </div>
+                </td>
+
+                <!-- Ubicación en Malla (Trayecto - Tramo) -->
+                <td style="text-align: center; white-space: nowrap;">
+                  <span class="badge-trayecto" style="font-size: 0.74rem; white-space: nowrap;">
+                    Trayecto <%= uc.trayecto %> &bull; Tramo <%= uc.tramo %>
+                  </span>
+                </td>
+
+                <!-- Créditos -->
+                <td style="text-align: center; white-space: nowrap;">
+                  <span class="font-bold text-xs" style="color: var(--text-white); white-space: nowrap;">
+                    <%= uc.creditos %> UC
+                  </span>
+                </td>
+
+                <!-- Desglose Horario -->
+                <td style="white-space: nowrap;">
+                  <div class="hours-chips-group" style="flex-wrap: nowrap; white-space: nowrap;">
+                    <span class="chip-hora chip-ht" title="Horas Teóricas">HT: <%= uc.horasTeoricasSemanales %>h</span>
+                    <span class="chip-hora chip-hp" title="Horas Prácticas / Laboratorio">HP: <%= uc.horasPracticasSemanales %>h</span>
+                    <% if (uc.horasCampoComunitarioSemanales > 0) { %>
+                      <span class="chip-hora chip-hc" title="Horas Campo Comunitario">HC: <%= uc.horasCampoComunitarioSemanales %>h</span>
+                    <% } %>
+                    <span class="chip-hora chip-total" title="Horas Lectivas de Aula (HT + HP)">
+                      Aula: <%= uc.horasTeoricasSemanales + uc.horasPracticasSemanales %>h
+                    </span>
+                  </div>
+                </td>
+
+                <!-- Tipo Espacio -->
+                <td style="white-space: nowrap;">
+                  <div class="uk-flex uk-flex-middle gap-1 text-xs" style="white-space: nowrap; flex-wrap: nowrap;">
+                    <span uk-icon="icon: location; ratio: 0.7" style="color: var(--brand-accent); flex-shrink: 0;"></span>
+                    <span style="color: var(--text-muted); white-space: nowrap;"><%= uc.tipoEspacioRequerido.replace(/_/g, ' ') %></span>
+                  </div>
+                </td>
+
+                <!-- Eje Proyecto -->
+                <td style="text-align: center; white-space: nowrap;">
+                  <% if (uc.esProyectoComunitario) { %>
+                    <span class="badge-proyecto" style="white-space: nowrap;">
+                      <span uk-icon="icon: star; ratio: 0.65"></span>
+                      Proyecto
+                    </span>
+                  <% } else { %>
+                    <span class="text-xs uk-text-muted" style="white-space: nowrap;">Básica / Específica</span>
+                  <% } %>
+                </td>
+
+                <!-- Estado -->
+                <td style="text-align: center; white-space: nowrap;">
+                  <span class="status-pill <%= uc.activa ? 'status-active' : 'status-inactive' %>" style="white-space: nowrap;">
+                    <%= uc.activa ? 'ACTIVA' : 'INACTIVA' %>
+                  </span>
+                </td>
+
+                <!-- Acciones -->
+                <td class="table-actions-cell uk-text-right" style="white-space: nowrap; text-align: right;">
+                  <div class="table-actions-group" style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; white-space: nowrap;">
+                    <div class="uk-inline">
+                      <button class="btn-table-action" type="button" title="Acciones de la Asignatura" style="white-space: nowrap;">
+                        <span uk-icon="icon: more-vertical; ratio: 0.75"></span>
+                        <span>Opciones</span>
+                      </button>
+                      <div class="clean-dropdown" uk-dropdown="mode: click; pos: bottom-right; offset: 6; flip: true; container: body">
+                        <ul class="uk-nav uk-dropdown-nav" style="margin: 0; padding: 0; list-style: none;">
+                          <li>
+                            <button 
+                              class="dropdown-action-btn"
+                              type="button"
+                              onclick="abrirModalEditarUnidad(<%= JSON.stringify(uc) %>)"
+                            >
+                              <span uk-icon="icon: file-edit; ratio: 0.75"></span>
+                              <span>Editar Asignatura</span>
+                            </button>
+                          </li>
+                          <li>
+                            <form action="/curriculo/unidades/<%= uc.id %>/toggle" method="POST" style="margin: 0; padding: 0; width: 100%; display: block;">
+                              <button type="submit" class="dropdown-action-btn <%= uc.activa ? 'text-danger' : 'text-success' %>">
+                                <span uk-icon="icon: <%= uc.activa ? 'ban' : 'check' %>; ratio: 0.75"></span>
+                                <span><%= uc.activa ? 'Desactivar Oferta' : 'Habilitar Oferta' %></span>
+                              </button>
+                            </form>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pie de Paginación Server-Side (Spec 07) -->
+      <div class="table-footer">
+        <div class="data-table-info uk-text-muted uk-text-small">
+          <% if (pagination.total === 0) { %>
+            Mostrando <strong class="text-white">0</strong> asignaturas
+          <% } else { %>
+            Mostrando <strong class="text-white"><%= pagination.start %></strong> a <strong class="text-white"><%= pagination.end %></strong> de <strong class="text-white"><%= pagination.total %></strong>
+            <% if (pagination.total < stats.totalUnidades) { %>
+              <span class="uk-text-muted">(filtradas de <%= stats.totalUnidades %> en el PFG)</span>
+            <% } else { %>
+              <span class="uk-text-muted">asignaturas</span>
+            <% } %>
+          <% } %>
+        </div>
+
+        <% if (pagination.totalPages > 1) { %>
+          <div class="clean-pagination">
+            <ul class="clean-pagination-list">
+              <li>
+                <% if (pagination.hasPrev) { %>
+                  <a 
+                    href="<%= makeQueryUrl({ page: pagination.page - 1 }) %>"
+                    class="page-nav-btn"
+                    hx-get="<%= makeQueryUrl({ page: pagination.page - 1 }) %>"
+                    hx-target="#curriculo-table-container"
+                    hx-select="#curriculo-table-container"
+                    hx-swap="outerHTML"
+                    hx-push-url="true"
+                  >
+                    <span uk-icon="icon: chevron-left; ratio: 0.8"></span>
+                    <span>Anterior</span>
+                  </a>
+                <% } else { %>
+                  <button type="button" class="page-nav-btn" disabled>
+                    <span uk-icon="icon: chevron-left; ratio: 0.8"></span>
+                    <span>Anterior</span>
+                  </button>
+                <% } %>
+              </li>
+
+              <% for (let p = 1; p <= pagination.totalPages; p++) { %>
+                <li>
+                  <a 
+                    href="<%= makeQueryUrl({ page: p }) %>"
+                    class="page-number-btn <%= p === pagination.page ? 'is-active' : '' %>"
+                    hx-get="<%= makeQueryUrl({ page: p }) %>"
+                    hx-target="#curriculo-table-container"
+                    hx-select="#curriculo-table-container"
+                    hx-swap="outerHTML"
+                    hx-push-url="true"
+                  >
+                    <%= p %>
+                  </a>
+                </li>
+              <% } %>
+
+              <li>
+                <% if (pagination.hasNext) { %>
+                  <a 
+                    href="<%= makeQueryUrl({ page: pagination.page + 1 }) %>"
+                    class="page-nav-btn"
+                    hx-get="<%= makeQueryUrl({ page: pagination.page + 1 }) %>"
+                    hx-target="#curriculo-table-container"
+                    hx-select="#curriculo-table-container"
+                    hx-swap="outerHTML"
+                    hx-push-url="true"
+                  >
+                    <span>Siguiente</span>
+                    <span uk-icon="icon: chevron-right; ratio: 0.8"></span>
+                  </a>
+                <% } else { %>
+                  <button type="button" class="page-nav-btn" disabled>
+                    <span>Siguiente</span>
+                    <span uk-icon="icon: chevron-right; ratio: 0.8"></span>
+                  </button>
+                <% } %>
+              </li>
+            </ul>
+          </div>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<!-- Modal: Crear Nuevo PFG -->
+<div id="modal-nuevo-pfg" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body modal-clean-box">
+    <button class="uk-modal-close-default" type="button" uk-close></button>
+    <h2 class="panel-title uk-margin-small-bottom">Registrar Programa de Formación (PFG)</h2>
+    <p class="panel-subtitle uk-margin-bottom">
+      Apertura de un nuevo Programa de Formación de Grado oficial de la Universidad Bolivariana de Venezuela.
+    </p>
+
+    <form action="/curriculo/pfg" method="POST" class="login-form-clean">
+      <div class="uk-grid-small uk-child-width-1-2" uk-grid>
+        <div>
+          <div class="form-group-clean">
+            <label class="label-clean">Código PFG (ej: INF, AGRO, GES)</label>
+            <input type="text" name="codigo" required placeholder="INF" class="input-control-clean" style="padding-left: 0.75rem;">
+          </div>
+        </div>
+        <div>
+          <div class="form-group-clean">
+            <label class="label-clean">Área de Conocimiento</label>
+            <input type="text" name="areaConocimiento" required placeholder="Ciencias y Tecnologías" class="input-control-clean" style="padding-left: 0.75rem;">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group-clean">
+        <label class="label-clean">Nombre Completo del Programa</label>
+        <input type="text" name="nombre" required placeholder="Informática para la Gestión Social" class="input-control-clean" style="padding-left: 0.75rem;">
+      </div>
+
+      <div class="uk-flex uk-flex-right uk-margin-top gap-2">
+        <button class="btn-clean-secondary uk-modal-close" type="button">
+          <span>Cancelar</span>
+        </button>
+        <button class="btn-clean-primary" type="submit">
+          <span uk-icon="icon: check; ratio: 0.8"></span>
+          <span>Registrar PFG</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Editar PFG Activo -->
+<% if (pfgSeleccionado) { %>
+  <div id="modal-editar-pfg" uk-modal>
+    <div class="uk-modal-dialog uk-modal-body modal-clean-box">
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+      <h2 class="panel-title uk-margin-small-bottom">Editar PFG: <%= pfgSeleccionado.codigo %></h2>
+      <p class="panel-subtitle uk-margin-bottom">
+        Actualizar metadatos del programa curricular.
+      </p>
+
+      <form action="/curriculo/pfg/<%= pfgSeleccionado.id %>/editar" method="POST" class="login-form-clean">
+        <div class="uk-grid-small uk-child-width-1-2" uk-grid>
+          <div>
+            <div class="form-group-clean">
+              <label class="label-clean">Código PFG</label>
+              <input type="text" name="codigo" required value="<%= pfgSeleccionado.codigo %>" class="input-control-clean" style="padding-left: 0.75rem;">
+            </div>
+          </div>
+          <div>
+            <div class="form-group-clean">
+              <label class="label-clean">Área de Conocimiento</label>
+              <input type="text" name="areaConocimiento" required value="<%= pfgSeleccionado.areaConocimiento %>" class="input-control-clean" style="padding-left: 0.75rem;">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group-clean">
+          <label class="label-clean">Nombre Completo</label>
+          <input type="text" name="nombre" required value="<%= pfgSeleccionado.nombre %>" class="input-control-clean" style="padding-left: 0.75rem;">
+        </div>
+
+        <div class="uk-flex uk-flex-between uk-flex-middle uk-margin-top">
+          <form action="/curriculo/pfg/<%= pfgSeleccionado.id %>/toggle" method="POST" class="uk-margin-remove">
+            <button type="submit" class="btn-table-action <%= pfgSeleccionado.activo ? 'text-danger' : 'text-success' %>">
+              <span uk-icon="icon: <%= pfgSeleccionado.activo ? 'ban' : 'check' %>; ratio: 0.75"></span>
+              <span><%= pfgSeleccionado.activo ? 'Inhabilitar PFG' : 'Activar PFG' %></span>
+            </button>
+          </form>
+
+          <div class="uk-flex gap-2">
+            <button class="btn-clean-secondary uk-modal-close" type="button">
+              <span>Cancelar</span>
+            </button>
+            <button class="btn-clean-primary" type="submit">
+              <span uk-icon="icon: check; ratio: 0.8"></span>
+              <span>Guardar Cambios</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+<% } %>
+
+<!-- Modal: Registrar Nueva Unidad Curricular -->
+<% if (pfgSeleccionado) { %>
+  <div id="modal-nueva-unidad" uk-modal>
+    <div class="uk-modal-dialog uk-modal-body modal-clean-box" style="max-width: 650px;">
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+      <h2 class="panel-title uk-margin-small-bottom">Añadir Unidad Curricular a la Malla</h2>
+      <p class="panel-subtitle uk-margin-bottom">
+        Programa: <strong style="color: var(--brand-accent);"><%= pfgSeleccionado.codigo %> — <%= pfgSeleccionado.nombre %></strong>
+      </p>
+
+      <form action="/curriculo/unidades" method="POST" class="login-form-clean" id="form-crear-uc">
+        <input type="hidden" name="pfgId" value="<%= pfgSeleccionado.id %>">
+
+        <div class="uk-grid-small uk-child-width-1-3" uk-grid>
+          <div>
+            <div class="form-group-clean">
+              <label class="label-clean">Código Asignatura</label>
+              <input type="text" name="codigo" required placeholder="INF-101" class="input-control-clean" style="padding-left: 0.75rem;">
+            </div>
+          </div>
+          <div>
+            <div class="form-group-clean">
+              <label class="label-clean">Trayecto</label>
+              <select name="trayecto" id="nuevo-trayecto" class="table-filter-select" style="width: 100%; height: 38px;" onchange="sincronizarTramosPorTrayecto('nuevo')">
+                <option value="1" selected>Trayecto I</option>
+                <option value="2">Trayecto II</option>
+                <option value="3">Trayecto III</option>
+                <option value="4">Trayecto IV</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <div class="form-group-clean">
+              <label class="label-clean">Tramo</label>
+              <select name="tramo" id="nuevo-tramo" class="table-filter-select" style="width: 100%; height: 38px;" onchange="sincronizarTrayectoPorTramo('nuevo')">
+                <option value="1" selected>Tramo 1 (Trayecto I)</option>
+                <option value="2">Tramo 2 (Trayecto I)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="uk-grid-small uk-child-width-3-4 uk-child-width-1-4@s" uk-grid>
+          <div style="flex: 1;">
+            <div class="form-group-clean">
+              <label class="label-clean">Nombre Completo de la Unidad Curricular</label>
+              <input type="text" name="nombre" required placeholder="Lógica y Algoritmos" class="input-control-clean" style="padding-left: 0.75rem;">
+            </div>
+          </div>
+          <div style="width: 120px;">
+            <div class="form-group-clean">
+              <label class="label-clean">Créditos</label>
+              <input type="number" name="creditos" required value="3" min="1" max="15" class="input-control-clean" style="padding-left: 0.75rem;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Desglose Horario Semanal -->
+        <div class="uk-card uk-card-default uk-card-body uk-margin-small-top uk-margin-small-bottom" style="background-color: var(--surface-card-hover); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 0.85rem;">
+          <span class="text-xs font-semibold uk-text-muted uk-text-uppercase uk-display-block uk-margin-xsmall-bottom">
+            Distribución Horaria Semanal (Horas Académicas de 45 min)
+          </span>
+          <div class="uk-grid-small uk-child-width-1-3" uk-grid>
+            <div>
+              <div class="form-group-clean">
+                <label class="label-clean text-xs">HT (Teóricas)</label>
+                <input type="number" id="nuevo-ht" name="horasTeoricasSemanales" value="2" min="0" max="20" class="input-control-clean" style="padding-left: 0.75rem;" oninput="actualizarEstimacionSolver('nuevo')">
+              </div>
+            </div>
+            <div>
+              <div class="form-group-clean">
+                <label class="label-clean text-xs">HP (Prácticas/Lab)</label>
+                <input type="number" id="nuevo-hp" name="horasPracticasSemanales" value="2" min="0" max="20" class="input-control-clean" style="padding-left: 0.75rem;" oninput="actualizarEstimacionSolver('nuevo')">
+              </div>
+            </div>
+            <div>
+              <div class="form-group-clean">
+                <label class="label-clean text-xs">HC (Campo Comunitario)</label>
+                <input type="number" id="nuevo-hc" name="horasCampoComunitarioSemanales" value="0" min="0" max="20" class="input-control-clean" style="padding-left: 0.75rem;" oninput="actualizarEstimacionSolver('nuevo')">
+              </div>
+            </div>
+          </div>
+
+          <!-- Indicador reactivo de cálculo Solver -->
+          <div id="nuevo-info-solver" class="uk-margin-xsmall-top text-xs uk-flex uk-flex-between uk-flex-middle">
+            <span class="uk-text-muted">Horas de Aula (HT + HP): <strong id="nuevo-calc-aula" style="color: var(--text-white);">4h</strong></span>
+            <span class="badge-trayecto" id="nuevo-calc-bloques">2 Bloques de 90 min / sem</span>
+          </div>
+        </div>
+
+        <!-- Tipo Espacio y Switch Proyecto -->
+        <div class="uk-grid-small uk-child-width-1-2" uk-grid>
+          <div>
+            <div class="form-group-clean">
+              <label class="label-clean">Tipo de Espacio Físico Requerido</label>
+              <select name="tipoEspacioRequerido" id="nuevo-tipoEspacio" class="table-filter-select" style="width: 100%; height: 38px;">
+                <% tiposEspacio.forEach(function(te) { %>
+                  <option value="<%= te %>"><%= te.replace(/_/g, ' ') %></option>
+                <% }); %>
+              </select>
+            </div>
+          </div>
+          <div>
+            <div class="form-group-clean">
+              <label class="label-clean">Eje Curricular Especial</label>
+              <label class="uk-flex uk-flex-middle gap-2 uk-margin-small-top" style="cursor: pointer;">
+                <input type="checkbox" name="esProyectoComunitario" id="nuevo-esProyecto" value="true" class="uk-checkbox" onchange="toggleProyectoModal('nuevo')">
+                <span class="text-xs font-semibold" style="color: var(--accent-amber);">Es Proyecto Comunitario (P1 a P4)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="uk-flex uk-flex-right uk-margin-top gap-2">
+          <button class="btn-clean-secondary uk-modal-close" type="button">
+            <span>Cancelar</span>
+          </button>
+          <button class="btn-clean-primary" type="submit">
+            <span uk-icon="icon: check; ratio: 0.8"></span>
+            <span>Registrar Asignatura</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Editar Unidad Curricular Dinámica -->
+  <div id="modal-editar-unidad" uk-modal>
+    <div class="uk-modal-dialog uk-modal-body modal-clean-box" style="max-width: 650px;">
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+      <h2 class="panel-title uk-margin-small-bottom">Editar Unidad Curricular</h2>
+      <p class="panel-subtitle uk-margin-bottom" id="editar-uc-subtitulo">
+        Actualizar parámetros curriculares.
+      </p>
+
+      <form action="" method="POST" class="login-form-clean" id="form-editar-uc">
+        <input type="hidden" name="pfgId" value="<%= pfgSeleccionado.id %>">
+
+        <div class="uk-grid-small uk-child-width-1-3" uk-grid>
+          <div>
+            <div class="form-group-clean">
+              <label class="label-clean">Código Asignatura</label>
+              <input type="text" name="codigo" id="edit-codigo" required class="input-control-clean" style="padding-left: 0.75rem;">
+            </div>
+          </div>
+          <div>
+            <div class="form-group-clean">
+              <label class="label-clean">Trayecto</label>
+              <select name="trayecto" id="edit-trayecto" class="table-filter-select" style="width: 100%; height: 38px;" onchange="sincronizarTramosPorTrayecto('edit')">
+                <option value="1">Trayecto I</option>
+                <option value="2">Trayecto II</option>
+                <option value="3">Trayecto III</option>
+                <option value="4">Trayecto IV</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <div class="form-group-clean">
+              <label class="label-clean">Tramo</label>
+              <select name="tramo" id="edit-tramo" class="table-filter-select" style="width: 100%; height: 38px;" onchange="sincronizarTrayectoPorTramo('edit')">
+                <option value="1">Tramo 1 (Trayecto I)</option>
+                <option value="2">Tramo 2 (Trayecto I)</option>
+                <option value="3">Tramo 3 (Trayecto II)</option>
+                <option value="4">Tramo 4 (Trayecto II)</option>
+                <option value="5">Tramo 5 (Trayecto III)</option>
+                <option value="6">Tramo 6 (Trayecto III)</option>
+                <option value="7">Tramo 7 (Trayecto IV)</option>
+                <option value="8">Tramo 8 (Trayecto IV)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="uk-grid-small uk-child-width-3-4 uk-child-width-1-4@s" uk-grid>
+          <div style="flex: 1;">
+            <div class="form-group-clean">
+              <label class="label-clean">Nombre Completo</label>
+              <input type="text" name="nombre" id="edit-nombre" required class="input-control-clean" style="padding-left: 0.75rem;">
+            </div>
+          </div>
+          <div style="width: 120px;">
+            <div class="form-group-clean">
+              <label class="label-clean">Créditos</label>
+              <input type="number" name="creditos" id="edit-creditos" required min="1" max="15" class="input-control-clean" style="padding-left: 0.75rem;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Desglose Horario Semanal Edit -->
+        <div class="uk-card uk-card-default uk-card-body uk-margin-small-top uk-margin-small-bottom" style="background-color: var(--surface-card-hover); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 0.85rem;">
+          <span class="text-xs font-semibold uk-text-muted uk-text-uppercase uk-display-block uk-margin-xsmall-bottom">
+            Distribución Horaria Semanal
+          </span>
+          <div class="uk-grid-small uk-child-width-1-3" uk-grid>
+            <div>
+              <div class="form-group-clean">
+                <label class="label-clean text-xs">HT (Teóricas)</label>
+                <input type="number" id="edit-ht" name="horasTeoricasSemanales" min="0" max="20" class="input-control-clean" style="padding-left: 0.75rem;" oninput="actualizarEstimacionSolver('edit')">
+              </div>
+            </div>
+            <div>
+              <div class="form-group-clean">
+                <label class="label-clean text-xs">HP (Prácticas/Lab)</label>
+                <input type="number" id="edit-hp" name="horasPracticasSemanales" min="0" max="20" class="input-control-clean" style="padding-left: 0.75rem;" oninput="actualizarEstimacionSolver('edit')">
+              </div>
+            </div>
+            <div>
+              <div class="form-group-clean">
+                <label class="label-clean text-xs">HC (Campo Comunitario)</label>
+                <input type="number" id="edit-hc" name="horasCampoComunitarioSemanales" min="0" max="20" class="input-control-clean" style="padding-left: 0.75rem;" oninput="actualizarEstimacionSolver('edit')">
+              </div>
+            </div>
+          </div>
+
+          <div id="edit-info-solver" class="uk-margin-xsmall-top text-xs uk-flex uk-flex-between uk-flex-middle">
+            <span class="uk-text-muted">Horas de Aula (HT + HP): <strong id="edit-calc-aula" style="color: var(--text-white);">0h</strong></span>
+            <span class="badge-trayecto" id="edit-calc-bloques">0 Bloques</span>
+          </div>
+        </div>
+
+        <div class="uk-grid-small uk-child-width-1-2" uk-grid>
+          <div>
+            <div class="form-group-clean">
+              <label class="label-clean">Tipo de Espacio Físico Requerido</label>
+              <select name="tipoEspacioRequerido" id="edit-tipoEspacio" class="table-filter-select" style="width: 100%; height: 38px;">
+                <% tiposEspacio.forEach(function(te) { %>
+                  <option value="<%= te %>"><%= te.replace(/_/g, ' ') %></option>
+                <% }); %>
+              </select>
+            </div>
+          </div>
+          <div>
+            <div class="form-group-clean">
+              <label class="label-clean">Eje Curricular Especial</label>
+              <label class="uk-flex uk-flex-middle gap-2 uk-margin-small-top" style="cursor: pointer;">
+                <input type="checkbox" name="esProyectoComunitario" id="edit-esProyecto" value="true" class="uk-checkbox" onchange="toggleProyectoModal('edit')">
+                <span class="text-xs font-semibold" style="color: var(--accent-amber);">Es Proyecto Comunitario (P1 a P4)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="uk-flex uk-flex-right uk-margin-top gap-2">
+          <button class="btn-clean-secondary uk-modal-close" type="button">
+            <span>Cancelar</span>
+          </button>
+          <button class="btn-clean-primary" type="submit">
+            <span uk-icon="icon: check; ratio: 0.8"></span>
+            <span>Guardar Asignatura</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+<% } %>
+
+<!-- Script Reactivo para Cálculos de Horas y Modales -->
+<script>
+  function actualizarEstimacionSolver(prefix) {
+    const ht = parseInt(document.getElementById(prefix + '-ht').value, 10) || 0;
+    const hp = parseInt(document.getElementById(prefix + '-hp').value, 10) || 0;
+    const horasAula = ht + hp;
+    const bloques = Math.floor(horasAula / 2);
+    const remanente = horasAula % 2;
+
+    const lblAula = document.getElementById(prefix + '-calc-aula');
+    const lblBloques = document.getElementById(prefix + '-calc-bloques');
+
+    if (lblAula) lblAula.textContent = horasAula + 'h';
+    if (lblBloques) {
+      lblBloques.textContent = bloques + ' Bloques de 90m' + (remanente > 0 ? ` (+${remanente}h)` : '');
+    }
+  }
+
+  function toggleProyectoModal(prefix) {
+    const check = document.getElementById(prefix + '-esProyecto');
+    const selectEspacio = document.getElementById(prefix + '-tipoEspacio');
+    if (check && selectEspacio) {
+      if (check.checked) {
+        selectEspacio.value = 'ESPACIO_COMUNITARIO_CAMPO';
+      }
+    }
+  }
+
+  function abrirModalEditarUnidad(uc) {
+    const form = document.getElementById('form-editar-uc');
+    form.action = '/curriculo/unidades/' + uc.id + '/editar';
+
+    document.getElementById('edit-codigo').value = uc.codigo;
+    document.getElementById('edit-nombre').value = uc.nombre;
+    document.getElementById('edit-trayecto').value = uc.trayecto;
+    sincronizarTramosPorTrayecto('edit', uc.tramo);
+    document.getElementById('edit-creditos').value = uc.creditos;
+    document.getElementById('edit-ht').value = uc.horasTeoricasSemanales;
+    document.getElementById('edit-hp').value = uc.horasPracticasSemanales;
+    document.getElementById('edit-hc').value = uc.horasCampoComunitarioSemanales;
+    document.getElementById('edit-tipoEspacio').value = uc.tipoEspacioRequerido;
+    document.getElementById('edit-esProyecto').checked = Boolean(uc.esProyectoComunitario);
+
+    actualizarEstimacionSolver('edit');
+    UIkit.modal('#modal-editar-unidad').show();
+  }
+
+  const MAPA_TRAYECTO_TRAMOS = {
+    0: [{ val: 1, label: 'Tramo 1 (PIU / Inicial)' }],
+    1: [{ val: 1, label: 'Tramo 1 (Trayecto I)' }, { val: 2, label: 'Tramo 2 (Trayecto I)' }],
+    2: [{ val: 3, label: 'Tramo 3 (Trayecto II)' }, { val: 4, label: 'Tramo 4 (Trayecto II)' }],
+    3: [{ val: 5, label: 'Tramo 5 (Trayecto III)' }, { val: 6, label: 'Tramo 6 (Trayecto III)' }],
+    4: [{ val: 7, label: 'Tramo 7 (Trayecto IV)' }, { val: 8, label: 'Tramo 8 (Trayecto IV)' }]
+  };
+
+  function sincronizarTramosPorTrayecto(prefix, tramoSeleccionado) {
+    const selTrayecto = document.getElementById(prefix + '-trayecto');
+    const selTramo = document.getElementById(prefix + '-tramo');
+    if (!selTrayecto || !selTramo) return;
+
+    const trayecto = parseInt(selTrayecto.value, 10);
+    const opciones = MAPA_TRAYECTO_TRAMOS[trayecto] || [];
+
+    selTramo.innerHTML = '';
+    opciones.forEach(opt => {
+      const el = document.createElement('option');
+      el.value = opt.val;
+      el.textContent = opt.label;
+      selTramo.appendChild(el);
+    });
+
+    if (tramoSeleccionado !== undefined && opciones.some(o => o.val === parseInt(tramoSeleccionado, 10))) {
+      selTramo.value = tramoSeleccionado;
+    } else if (opciones.length > 0) {
+      selTramo.value = opciones[0].val;
+    }
+  }
+
+  function sincronizarTrayectoPorTramo(prefix) {
+    const selTrayecto = document.getElementById(prefix + '-trayecto');
+    const selTramo = document.getElementById(prefix + '-tramo');
+    if (!selTrayecto || !selTramo) return;
+
+    const tramo = parseInt(selTramo.value, 10);
+    let trayecto = 1;
+    if (tramo <= 2) trayecto = 1;
+    else if (tramo <= 4) trayecto = 2;
+    else if (tramo <= 6) trayecto = 3;
+    else if (tramo <= 8) trayecto = 4;
+
+    if (parseInt(selTrayecto.value, 10) !== trayecto) {
+      selTrayecto.value = trayecto;
+      sincronizarTramosPorTrayecto(prefix, tramo);
+    }
+  }
+
+  // Inicializar select de modal nuevo
+  document.addEventListener('DOMContentLoaded', function() {
+    sincronizarTramosPorTrayecto('nuevo');
+  });
+</script>

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SCHAAH UBV - Base y Estructura Global
+   SAHAD UBV - Base y Estructura Global
    ========================================================================== */
 
 *, *::before, *::after {
@@ -13,6 +13,7 @@ html, body {
   min-height: 100vh;
 }
 
+body.sahad-body,
 body.schaah-body {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--canvas-bg);

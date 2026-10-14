@@ -497,9 +497,9 @@
 
     // Encabezado Institucional
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
+    doc.setFontSize(13);
     doc.setTextColor(31, 35, 40);
-    doc.text('UNIVERSIDAD BOLIVARIANA DE VENEZUELA (UBV)', 14, 15);
+    doc.text('UNIVERSIDAD BOLIVARIANA DE VENEZUELA (UBV) — EJE REGIONAL KEREPAKUPAI VENA', 14, 15);
 
     doc.setFontSize(11);
     doc.text(`MATRIZ OFICIAL DE HORARIOS - PERÍODO ${periodoCodigo}`, 14, 21);
@@ -508,7 +508,7 @@
     doc.setFontSize(9.5);
     doc.setTextColor(87, 96, 106);
     doc.text(`Perspectiva: ${tipoFiltro} | ${entidadNombre}`, 14, 27);
-    doc.text(`Emitido: ${new Date().toLocaleDateString('es-VE')} - Sistema SCHAAH`, 200, 27);
+    doc.text(`Emitido: ${new Date().toLocaleDateString('es-VE')} - Sistema SAHAD`, 200, 27);
 
     // Preparar columnas
     const head = [['Bloque Académico (12h)', <% dias.forEach(function(d, idx) { %>'<%= d %>'<%= idx < dias.length - 1 ? ', ' : '' %><% }); %>]];

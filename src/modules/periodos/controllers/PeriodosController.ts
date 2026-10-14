@@ -2,10 +2,11 @@ import { Request, Response } from 'express';
 import prisma from '../../../core/database/prisma';
 import { Turno } from '../../../core/domain/enums';
 import { evaluarNormativaDocente } from '../../../core/domain/rules/dedicacionRules';
+import { validarPertenenciaSeccionUC } from '../../../core/domain/rules/curriculoRules';
 
 export class PeriodosController {
   /**
-   * Listado de períodos académicos con SchaahDataTable server-side y métricas Bento (Spec 07)
+   * Listado de períodos académicos con SahadDataTable server-side y métricas Bento (Spec 07)
    */
   static async index(req: Request, res: Response) {
     try {
@@ -184,7 +185,7 @@ export class PeriodosController {
   }
 
   /**
-   * Panel de gestión de oferta académica y secciones de un período con SchaahDataTable server-side (Spec 07)
+   * Panel de gestión de oferta académica y secciones de un período con SahadDataTable server-side (Spec 07)
    */
   static async secciones(req: Request, res: Response) {
     try {
@@ -363,6 +364,7 @@ export class PeriodosController {
     const { id: periodoId } = req.params;
     try {
       const {
+        pfgId,
         unidadCurricularId,
         sedeId,
         profesorId,
@@ -376,6 +378,28 @@ export class PeriodosController {
           `/periodos/${periodoId}/secciones?error=` +
             encodeURIComponent('Unidad Curricular, Sede y Código de Sección son campos obligatorios.')
         );
+      }
+
+      // RC-02: Validar existencia de la UC y pertenencia al PFG
+      const uc = await prisma.unidadCurricular.findUnique({
+        where: { id: unidadCurricularId },
+      });
+
+      if (!uc) {
+        return res.redirect(
+          `/periodos/${periodoId}/secciones?error=` +
+            encodeURIComponent('La Unidad Curricular seleccionada no existe.')
+        );
+      }
+
+      if (pfgId) {
+        const valPertenencia = validarPertenenciaSeccionUC(pfgId, uc.pfgId);
+        if (!valPertenencia.valido) {
+          return res.redirect(
+            `/periodos/${periodoId}/secciones?error=` +
+              encodeURIComponent(valPertenencia.error || 'Violación de pertenencia curricular RC-02.')
+          );
+        }
       }
 
       // Validar unicidad dentro del período

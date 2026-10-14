@@ -1,5 +1,5 @@
 -- Spec 2: Esquema Relacional de Base de Datos PostgreSQL
--- Sistema de Carga Horaria y Asignación Automática de Horarios (SCHAAH - UBV)
+-- Sistema Automatizado para la Asignación de Horarios Académicos de los Docentes (SAHAD - UBV)
 -- Cumple con PostgreSQL 15+
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

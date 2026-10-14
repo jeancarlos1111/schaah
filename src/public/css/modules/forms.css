@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SCHAAH UBV - Formularios y Pantalla de Autenticación
+   SAHAD UBV - Formularios y Pantalla de Autenticación
    ========================================================================== */
 
 /* Pantalla de Inicio de Sesión */
@@ -122,9 +122,16 @@
 
 .input-icon-clean {
   position: absolute;
-  left: 10px;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--text-muted);
   pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  line-height: 1;
 }
 
 .input-control-clean,
@@ -143,6 +150,12 @@ textarea.form-input-clean {
   outline: none !important;
   transition: all 0.15s ease !important;
   box-sizing: border-box !important;
+}
+
+.input-wrap-clean .input-control-clean,
+.input-wrap-clean .form-input-clean,
+.input-wrap-clean input.form-input-clean {
+  padding-left: 2.35rem !important;
 }
 
 select.form-input-clean {

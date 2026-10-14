@@ -27,7 +27,7 @@ export interface ResultadoValidacionHorario {
 }
 
 /**
- * Validador orquestador del dominio SCHAAH UBV
+ * Validador orquestador del dominio SAHAD UBV
  * Ejecuta la batería de restricciones duras sobre una propuesta de asignación o movimiento.
  */
 export function validarAsignacionHoraria(

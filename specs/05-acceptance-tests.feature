@@ -1,5 +1,7 @@
 # language: es
-Característica: Cumplimiento de Restricciones y Asignación de Carga Horaria UBV (SCHAAH)
+# Marco de Ejecución: Pruebas automatizadas con Vitest (tests/acceptance/ y tests/domain/)
+# Regla Mandatoria: Prohibido bypass o tests superficiales; cada escenario debe comprobar lógica real del sistema.
+Característica: Cumplimiento de Restricciones y Asignación de Carga Horaria UBV (SAHAD)
   Como Coordinador Académico de la UBV
   Quiero que el sistema genere y valide horarios automáticamente
   Para garantizar la legalidad de la carga docente y optimizar el uso de espacios.

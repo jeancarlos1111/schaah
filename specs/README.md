@@ -1,4 +1,4 @@
-# SCHAAH - Sistema de Carga Horaria y Asignación Automática de Horarios (UBV)
+# SAHAD - Sistema Automatizado para la Asignación de los Horarios Académicos de los Docentes de la Universidad Bolivariana de Venezuela Eje Geopolítico Regional Kerepakupai Vena
 ## Especificaciones de Desarrollo (Spec-Driven Development)
 
 **Stack Oficial**: Node.js + pnpm + Express + TypeScript + SSR (EJS + HTMX) + UIkit 3 + Prisma ORM + SQLite WAL (Dev) / PostgreSQL (Prod) + Worker CP-SAT.
@@ -18,7 +18,7 @@
 | [`04-openapi-spec.yaml`](./04-openapi-spec.yaml) | **Contratos REST Auxiliares** | Especificación OpenAPI 3.1 para jobs de optimización, integración con SUR@UBV y exportaciones externas. |
 | [`05-acceptance-tests.feature`](./05-acceptance-tests.feature) | **Pruebas de Aceptación (BDD)** | Casos de prueba Gherkin ejecutables en español para verificar topes legales, no solapamiento, teletransportación territorial y auditoría. |
 | [`06-auth-roles-permissions.md`](./06-auth-roles-permissions.md) | **Autenticación & RBAC** | Matriz de roles (`ADMINISTRADOR`, `DIRECTOR_ACADEMICO`, `COORDINADOR_PFG`, `DOCENTE`), sesiones con cookies y protección de endpoints. |
-| [`07-ui-components-spec.md`](./07-ui-components-spec.md) | **Componentes de UI (Frontend)** | Especificación del componente reutilizable `SchaahDataTable` con búsqueda, filtros cruzados, paginación y ordenamiento. |
+| [`07-ui-components-spec.md`](./07-ui-components-spec.md) | **Componentes de UI (Frontend)** | Especificación del componente reutilizable `SahadDataTable` con búsqueda, filtros cruzados, paginación y ordenamiento. |
 | [`08-capitulo-1-problema-y-objetivos.md`](./08-capitulo-1-problema-y-objetivos.md) | **Marco Metodológico (Capítulo I)** | Planteamiento del problema (UCTP NP-duro en UBV), objetivos generales/específicos, justificación (teórica, técnica, social e institucional), alcance y área de investigación. |
 | [`09-mallas-curriculares-spec.md`](./09-mallas-curriculares-spec.md) | **Mallas Curriculares & PFG** | Gestión web de Programas de Formación de Grado, unidades curriculares por trayecto/tramo, desglose horario ($H_T, H_P, H_C$) y tipología de espacios requeridos. |
 
@@ -31,4 +31,7 @@
 2. **Core Domain & Servicios**: Desarrollar lógica de validación de restricciones en TypeScript (`H-01` a `H-10`) en `src/core/domain`.
 3. **Controladores y Vistas SSR**: Construir vistas EJS y rutas Express siguiendo `specs/04-routes-and-views-spec.md`.
 4. **Worker Solver**: Integrar el script de optimización CP-SAT en `worker/` respetando `specs/03-solver-formulation.md`.
-5. **Testing**: Validar el comportamiento del sistema contra los escenarios BDD de `specs/05-acceptance-tests.feature`.
+5. **Testing Progresivo y Real (BDD / Vitest)**:
+   - Toda funcionalidad o servicio debe validarse con pruebas reales en Vitest (`pnpm test`).
+   - Mapeo directo de los escenarios BDD de [`05-acceptance-tests.feature`](./05-acceptance-tests.feature) a tests automatizados en `tests/`.
+   - **Regla Anti-Bypass**: Prohibidas pruebas vacías, asserciones superficiales, mocks de la lógica de dominio o saltos de test (`test.skip`). Las pruebas deben ejercer la lógica real del sistema.

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SCHAAH UBV - Componentes: Botones, Paneles, Bento Stats y Cards
+   SAHAD UBV - Componentes: Botones, Paneles, Bento Stats y Cards
    ========================================================================== */
 
 /* Cabecera de Página (Page Header) */
@@ -164,7 +164,7 @@
   color: var(--accent-red);
 }
 
-/* Badges Canónicos SCHAAH */
+/* Badges Canónicos SAHAD */
 .badge-clean-primary {
   display: inline-flex;
   align-items: center;
@@ -371,3 +371,137 @@
   font-weight: 700;
   color: var(--brand-accent);
 }
+
+/* ==========================================================================
+   SAHAD UBV - Módulo Curricular (Spec 09)
+   Chips de Horas, Badges de Malla y Contenedores Bento
+   ========================================================================== */
+.hours-chips-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.chip-hora {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: monospace;
+  line-height: 1.3;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.chip-ht {
+  background-color: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.chip-hp {
+  background-color: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.chip-hc {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.chip-total {
+  background-color: var(--surface-muted);
+  color: var(--text-white);
+  border-color: var(--border-subtle);
+}
+
+.badge-proyecto {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badge-trayecto {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  background-color: var(--surface-muted);
+  color: var(--brand-accent);
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.bento-trayecto-container {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-card);
+}
+
+.bento-trayecto-header {
+  padding: 0.85rem 1.25rem;
+  background-color: var(--surface-card-hover);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bento-trayecto-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-white);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.bento-tramo-section {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.bento-tramo-section:last-child {
+  border-bottom: none;
+}
+
+.bento-tramo-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-white);
+  background-color: var(--surface-muted);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 0.75rem;
+}
+

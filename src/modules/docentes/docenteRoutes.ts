@@ -20,7 +20,7 @@ router.get(
   (req, res) => docentesController.cargaConsolidada(req, res)
 );
 
-// Listado de Docentes con SchaahDataTable
+// Listado de Docentes con SahadDataTable
 router.get(
   '/docentes',
   requireAuth,
