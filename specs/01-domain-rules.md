@@ -32,6 +32,16 @@ $$\text{Horas Permanencia} = \text{Docencia Directa} + \text{Horas Proyecto/Comu
 - **Unidad Curricular Proyecto (P1, P2, P3, P4)**: Requiere horas de trabajo en comunidad/campo y horas de aula de acompañamiento. Las horas de campo **no** compiten por aulas físicas universitarias, pero **sí bloquean la disponibilidad horaria del docente**.
 - Ningún docente en categoría ordinaria o contratada puede recibir una carga de docencia directa inferior al mínimo o superior al máximo de su dedicación, salvo autorización expresa de Consejo Universitario.
 
+### Cómputo de la Carga Docente del Período
+La carga de un docente en un período se calcula con `calcularCargaDocente(dedicacion, asignaciones)` (`src/core/domain/rules/dedicacionRules.ts`):
+- **Horas por asignación** (`horasDocenciaSeccion`): las horas semanales declaradas en la oferta del período (`horasSemanalesOferta`) prevalecen; si no existen o son 0, se usan $H_T + H_P$ de la unidad curricular.
+- **Estado normativo**: `EN_NORMA`, `DEFICIT` (bajo el mínimo, H-05), `SOBRECARGA` (sobre el máximo, H-04), `SIN_ASIGNAR` (0 horas) o `SIN_DEDICACION` (el docente no tiene dedicación registrada en el período y H-04 no puede evaluarse).
+- **Horas disponibles**: $\max(0, \text{máximo} - \text{horas})$. Se muestran al asignar docente en `/periodos/:id/secciones` ("Quedaría en X h") y el botón Guardar se deshabilita si la asignación supera el tope H-04.
+- La misma función alimenta el reporte de inconsistencias de la oferta (Spec 10).
+
+### Dedicación Registrada desde la Oferta
+Cuando el consolidado de oferta (Spec 10) trae para una misma cédula filas con dedicaciones distintas, se aplica la más frecuente y el conflicto queda registrado como **dedicación contradictoria** en la bitácora `importaciones_oferta`.
+
 ---
 
 ## 3. Estructura Académico-Territorial UBV
@@ -48,6 +58,11 @@ El sistema no modela un campus aislado, sino una red de sedes y aldeas:
    - **Vespertino**: 12:30 a 17:00
    - **Nocturno**: 17:15 a 21:00
    - **Fin de Semana (Sábados/Domingos)**: 08:00 a 16:30 (Especial para Misión Sucre / Municipalización).
+   - **Única**: Turno declarado así en la oferta para cohortes que no se rigen por los turnos anteriores.
+4. **Programas y Cohortes**:
+   - **Tipos de programa**: `PFG`, `PNF` y `PIU` se organizan por Trayecto/Tramo (RC-06, Spec 09); `PFA` (posgrado) e `IDIOMAS` se organizan por cohortes y pueden registrar unidades sin trayecto.
+   - **Sección / Cohorte (`GrupoSeccion`)**: grupo de estudiantes de un PFG en un período, identificado por el código institucional de la oferta (ej. `KV BO-RC 01 A-M`), con sede, turno, malla (diurna/nocturna), estatus (apertura, continúa, cierra, finaliza) y matrícula. Su código se normaliza (`KV-BO-RC-01-A-M`) y es único por período y PFG.
+   - **Asignación UC (`Seccion`)**: una unidad curricular con su docente dentro de una cohorte. Una cohorte cursa varias asignaciones en paralelo.
 
 ---
 
@@ -58,15 +73,15 @@ Deben cumplirse en el 100% de los casos. Si no se cumplen, la asignación es inv
 
 - **H-01 (No Solapamiento Docente)**: Un docente no puede tener dos asignaciones académicas (aula o campo) en el mismo intervalo de tiempo.
 - **H-02 (No Solapamiento Aula)**: Un espacio físico no puede albergar más de una sección en el mismo intervalo de tiempo.
-- **H-03 (No Solapamiento Sección)**: Los estudiantes de una sección no pueden tener dos unidades curriculares programadas al mismo tiempo.
+- **H-03 (No Solapamiento de Cohorte)**: Los estudiantes de una misma cohorte (`GrupoSeccion`) no pueden tener dos unidades curriculares programadas al mismo tiempo. La clave de cohorte es `claveCohorte()`: el grupo de la asignación (`G:<grupoId>`) o, si la asignación no pertenece a un grupo, la propia asignación (`S:<seccionId>`). Dos asignaciones de grupos distintos pueden coincidir en horario aunque compartan unidad curricular.
 - **H-04 (Límite Máximo Docencia Directa)**: La suma total de horas lectivas semanales asignadas a un docente no debe superar el tope legal de su dedicación contractual.
 - **H-05 (Límite Mínimo Docencia Directa)**: Si un docente está activo en el período, su carga no debe ser inferior al mínimo legal de su dedicación, salvo causal registrada (descarga sindical, permiso sabático, jefatura académica).
-- **H-06 (Disponibilidad Docente Respetada)**: No se puede asignar ninguna clase en franjas donde el docente haya marcado indisponibilidad horaria justificada.
+- **H-06 (Disponibilidad Docente Respetada)**: No se puede asignar ninguna clase en franjas donde el docente haya marcado indisponibilidad horaria justificada. En el solver, una sección con docente asignado solo se programa en las franjas que ese docente declaró disponibles en el período: si no declaró ninguna, la sección **no se programa** y el resultado es infactible (violación dura H-06 con el nombre de la sección y del docente); lo mismo si declaró menos franjas que los bloques que requiere la materia.
 - **H-07 (Capacidad de Aula vs Matrícula)**: El aforo máximo del aula asignada debe ser mayor o igual a la matrícula proyectada de la sección.
 - **H-08 (Adecuación de Tipo de Espacio)**:
   - Una materia teórica requiere aula convencional.
   - Una materia de laboratorio requiere laboratorio específico compatible.
-  - Una materia de campo comunitario no debe reservar aula física, pero sí consumir bloque temporal.
+  - Una materia de campo comunitario (`esProyectoComunitario`) no debe reservar aula física, pero sí consumir bloque temporal y la disponibilidad del docente. Se aplica en el validador (`validarH08AdecuacionEspacio`), al colocar o mover en la matriz (el aula indicada se descarta y el bloque se guarda con `espacio_fisico_id` nulo y tipo `PROYECTO_COMUNITARIO`), en ambos motores del solver (no se generan candidatos de aula) y en el evaluador (un bloque de proyecto con aula es violación dura H-08).
 - **H-09 (Antiteletransportación de Sede)**: Si un docente tiene clases en dos sedes o aldeas distintas en el mismo día, debe existir una brecha mínima de traslado de al menos 90 minutos entre el fin de una y el inicio de la otra.
 - **H-10 (Integridad de Bloque Curricular)**: Las unidades curriculares se dictan en bloques mínimos continuos de 90 minutos (2 horas académicas de 45 min) o 135 minutos (3 horas académicas). No se fraccionan en bloques aislados de 45 minutos.
 
@@ -118,6 +133,7 @@ Para evitar marcar individualmente las 48 celdas semanales (6 días $\times$ 8 b
 
 ## 6. Reglas de Validación de Sobrescritura y Ajustes Manuales
 Cuando un Coordinador Académico realiza una modificación manual vía UI (Drag & Drop):
-1. El sistema **bloquea la operación** si viola las restricciones duras `H-01`, `H-02`, `H-03` o `H-09`.
-2. Si la modificación viola `H-04` o `H-05`, el sistema exige ingresar un motivo justificado (Resolución de Consejo de PFG) y registra el evento en auditoría.
-3. Si la modificación degrada restricciones blandas (`S-01` a `S-08`), el sistema muestra el delta de penalización antes de confirmar el cambio.
+1. El sistema **bloquea la operación** si viola las restricciones duras `H-01`, `H-02`, `H-03`, `H-06`, `H-07`, `H-08` o `H-09`. La validación se ejecuta al soltar (`validar-drop`) y se repite en el servidor al guardar (`mover` responde 409 con los conflictos), de modo que el cliente no puede omitirla.
+2. El coordinador solo puede colocar, mover o eliminar bloques de asignaciones de sus programas (Spec 06, sección 4); los bloques de otros programas se muestran como ocupados.
+3. Si la modificación viola `H-04` o `H-05`, el sistema exige ingresar un motivo justificado (Resolución de Consejo de PFG) y registra el evento en auditoría.
+4. Si la modificación degrada restricciones blandas (`S-01` a `S-08`), el sistema muestra el delta de penalización antes de confirmar el cambio.

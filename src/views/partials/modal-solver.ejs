@@ -24,7 +24,7 @@
           <div class="clean-stat-card" style="padding: 0.85rem;">
             <span class="stat-category">Secciones Vacantes</span>
             <div class="stat-value-row">
-              <span class="stat-number text-primary" id="solver-metric-secciones">--</span>
+              <span class="stat-number" id="solver-metric-secciones">--</span>
               <span class="stat-unit">secciones</span>
             </div>
             <span class="detail-label">Sin horario fijado</span>
@@ -44,12 +44,12 @@
 
         <div>
           <div class="clean-stat-card" style="padding: 0.85rem;">
-            <span class="stat-category">Docentes Asignados</span>
+            <span class="stat-category">Docentes con Disponibilidad</span>
             <div class="stat-value-row">
               <span class="stat-number" id="solver-metric-docentes">--</span>
-              <span class="stat-unit">profesores</span>
+              <span class="stat-unit" id="solver-metric-docentes-total">de --</span>
             </div>
-            <span class="detail-label">Con disponibilidad</span>
+            <span class="detail-label" id="solver-metric-sin-docente">Franjas declaradas en el período</span>
           </div>
         </div>
 
@@ -57,11 +57,17 @@
           <div class="clean-stat-card" style="padding: 0.85rem;">
             <span class="stat-category">Factibilidad Base</span>
             <div class="stat-value-row">
-              <span class="stat-number text-success" id="solver-metric-status">OK</span>
+              <span class="stat-number" id="solver-metric-status">--</span>
             </div>
-            <span class="detail-label">Aulas y turnos listos</span>
+            <span class="detail-label" id="solver-metric-status-detalle">Calculando diagnóstico</span>
           </div>
         </div>
+      </div>
+
+      <div id="solver-alert-diagnostico" class="alert-clean-warning alert-clean-lista uk-margin-bottom uk-hidden">
+        <span uk-icon="icon: warning; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+        <span>Estas secciones quedarán sin programar o incompletas si no se corrigen antes de optimizar:</span>
+        <ul id="solver-diagnostico-lista" class="solver-infactible-lista"></ul>
       </div>
 
       <!-- Parámetros del Algoritmo -->
@@ -143,10 +149,10 @@
       </div>
 
       <!-- Alerta si hubo cuellos de botella -->
-      <div id="solver-alert-infactible" class="alert-clean-danger uk-margin-bottom uk-hidden">
+      <div id="solver-alert-infactible" class="alert-clean-danger alert-clean-lista uk-margin-bottom uk-hidden">
         <span uk-icon="icon: warning; ratio: 0.85" class="uk-margin-xsmall-right"></span>
         <span id="solver-infactible-msg">Conflictos detectados en el modelo.</span>
-        <ul id="solver-infactible-lista" class="uk-margin-xsmall-top uk-text-xs" style="padding-left: 1.25rem;"></ul>
+        <ul id="solver-infactible-lista" class="solver-infactible-lista"></ul>
       </div>
 
       <!-- Tabla de Asignaciones Propuestas -->
@@ -221,7 +227,32 @@
         document.getElementById('solver-metric-secciones').textContent = data.metricas.seccionesPendientes;
         document.getElementById('solver-metric-bloques').textContent = data.metricas.totalBloquesRequeridos;
         document.getElementById('solver-metric-horas').textContent = data.metricas.totalHorasPendientes + ' horas académicas';
-        document.getElementById('solver-metric-docentes').textContent = (data.metricas.seccionesPendientes - data.metricas.seccionesSinProfesor) + ' asignados';
+        document.getElementById('solver-metric-docentes').textContent = data.metricas.docentesConDisponibilidad;
+        document.getElementById('solver-metric-docentes-total').textContent = 'de ' + data.metricas.docentesAsignados + ' docentes';
+        document.getElementById('solver-metric-sin-docente').textContent = data.metricas.seccionesSinProfesor > 0
+          ? data.metricas.seccionesSinProfesor + ' secciones sin docente asignado'
+          : 'Franjas declaradas en el período';
+
+        const estado = document.getElementById('solver-metric-status');
+        const alertaDiagnostico = document.getElementById('solver-alert-diagnostico');
+        const listaDiagnostico = document.getElementById('solver-diagnostico-lista');
+        listaDiagnostico.innerHTML = '';
+        if (data.factible) {
+          estado.textContent = 'OK';
+          estado.className = 'stat-number text-green';
+          document.getElementById('solver-metric-status-detalle').textContent = 'Docentes y aulas suficientes';
+          alertaDiagnostico.classList.add('uk-hidden');
+        } else {
+          estado.textContent = 'REVISAR';
+          estado.className = 'stat-number text-red';
+          document.getElementById('solver-metric-status-detalle').textContent = data.avisos.length + ' avisos por corregir';
+          data.avisos.forEach(function(aviso) {
+            const li = document.createElement('li');
+            li.textContent = aviso;
+            listaDiagnostico.appendChild(li);
+          });
+          alertaDiagnostico.classList.remove('uk-hidden');
+        }
 
         if (data.metricas.seccionesPendientes === 0) {
           document.getElementById('solver-alert-vacio').classList.remove('uk-hidden');

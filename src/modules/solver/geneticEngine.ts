@@ -1,8 +1,9 @@
 import {
   BLOQUES_HORARIOS_OFICIALES,
-  BloqueHorarioOficial,
-  to12HourFormat,
+  diasPorTurno,
+  indicesBloquesPorTurno,
 } from '../../core/domain/rules/timeSlotUtils';
+import { claveCohorte } from '../../core/domain/rules/horarioConflictRules';
 import { evaluarSolucion, EvaluacionResultado } from './evaluator';
 import {
   AsignacionBloquePropuesta,
@@ -54,8 +55,6 @@ export class GeneticSolverEngine {
     this.dominios.clear();
     this.cuellosDeBotella = [];
 
-    const diasSemana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
-
     for (const sec of this.input.seccionesPendientes) {
       // 1. Espacios válidos en la sede con aforo suficiente y tipo compatible
       const espaciosSede = this.input.espacios.filter(
@@ -64,16 +63,8 @@ export class GeneticSolverEngine {
 
       let espaciosValidos: EspacioSolverData[] = [];
       if (sec.esProyectoComunitario) {
-        // Puede usar espacios de campo comunitario o aulas de la sede
-        espaciosValidos = espaciosSede.filter(
-          (e) =>
-            e.tipo === 'ESPACIO_COMUNITARIO_CAMPO' ||
-            e.capacidad >= sec.cuposEstimados
-        );
-        if (espaciosValidos.length === 0) {
-          // Si no hay de campo, cualquier aula con aforo
-          espaciosValidos = espaciosSede.filter((e) => e.capacidad >= sec.cuposEstimados);
-        }
+        // H-08: el proyecto comunitario es trabajo de campo y no reserva aula
+        espaciosValidos = [];
       } else {
         // Materia regular
         const requiereLab = sec.tipoEspacioRequerido.includes('LAB');
@@ -136,18 +127,10 @@ export class GeneticSolverEngine {
         }
       } else {
         // Docente no preasignado: todos los bloques del turno
-        for (const dia of diasSemana) {
-          BLOQUES_HORARIOS_OFICIALES.forEach((bloque, idx) => {
-            if (sec.turno === 'MATUTINO' && idx <= 2) {
-              slotsValidos.push({ dia, oficialSlotIndex: idx, prioridad: 1 });
-            } else if (sec.turno === 'VESPERTINO' && idx >= 3 && idx <= 5) {
-              slotsValidos.push({ dia, oficialSlotIndex: idx, prioridad: 1 });
-            } else if (sec.turno === 'NOCTURNO' && idx >= 6) {
-              slotsValidos.push({ dia, oficialSlotIndex: idx, prioridad: 1 });
-            } else if (!sec.turno) {
-              slotsValidos.push({ dia, oficialSlotIndex: idx, prioridad: 1 });
-            }
-          });
+        for (const dia of diasPorTurno(sec.turno)) {
+          for (const idx of indicesBloquesPorTurno(sec.turno)) {
+            slotsValidos.push({ dia, oficialSlotIndex: idx, prioridad: 1 });
+          }
         }
       }
 
@@ -166,6 +149,12 @@ export class GeneticSolverEngine {
     const individuo: Individuo = [];
     const ocupacionLocalDocente = new Set<string>();
     const ocupacionLocalAula = new Set<string>();
+    const ocupacionLocalCohorte = new Set<string>();
+    for (const h of this.input.horariosExistentes) {
+      ocupacionLocalCohorte.add(`${claveCohorte(h)}_${h.dia}_${h.horaInicio}`);
+      if (h.profesorId) ocupacionLocalDocente.add(`${h.profesorId}_${h.dia}_${h.horaInicio}`);
+      if (h.espacioFisicoId) ocupacionLocalAula.add(`${h.espacioFisicoId}_${h.dia}_${h.horaInicio}`);
+    }
 
     // Ordenar secciones por mayor restricción (MRV: menor cantidad de slots válidos primero)
     const seccionesOrdenadas = [...this.input.seccionesPendientes].sort((a, b) => {
@@ -203,15 +192,24 @@ export class GeneticSolverEngine {
             continue; // Docente ocupado
           }
 
+          if (ocupacionLocalCohorte.has(`${claveCohorte({ seccionId: sec.id, grupoId: sec.grupoId })}_${slot.dia}_${bloqueOficial.horaInicio}`)) {
+            continue; // Estudiantes del grupo ocupados
+          }
+
           // Buscar espacio libre
           const espCandidato = dom.espaciosValidos.find((esp) => {
             const aulaKey = `${esp.id}_${slot.dia}_${bloqueOficial.horaInicio}`;
             return !ocupacionLocalAula.has(aulaKey);
           });
 
-          if (espCandidato || sec.esProyectoComunitario) {
+          if (sec.esProyectoComunitario) {
             elegidoSlot = slot;
-            elegidoEspacio = espCandidato || (dom.espaciosValidos[0] ?? null);
+            elegidoEspacio = null;
+            break;
+          }
+          if (espCandidato) {
+            elegidoSlot = slot;
+            elegidoEspacio = espCandidato;
             break;
           }
         }
@@ -230,6 +228,9 @@ export class GeneticSolverEngine {
           if (elegidoEspacio) {
             ocupacionLocalAula.add(`${elegidoEspacio.id}_${elegidoSlot.dia}_${bloqueOficial.horaInicio}`);
           }
+          ocupacionLocalCohorte.add(
+            `${claveCohorte({ seccionId: sec.id, grupoId: sec.grupoId })}_${elegidoSlot.dia}_${bloqueOficial.horaInicio}`
+          );
           diasAsignados.add(elegidoSlot.dia);
 
           individuo.push({

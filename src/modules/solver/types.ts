@@ -32,6 +32,8 @@ export interface EspacioSolverData {
 
 export interface SeccionSolverData {
   id: string;
+  grupoId?: string | null;
+  grupoCodigo?: string | null;
   codigoSeccion: string;
   unidadCurricularId: string;
   nombreMateria: string;
@@ -49,6 +51,9 @@ export interface SeccionSolverData {
 export interface BloqueOcupadoExistente {
   id: string;
   seccionId: string;
+  codigoSeccion?: string;
+  grupoId?: string | null;
+  grupoCodigo?: string | null;
   profesorId?: string | null;
   espacioFisicoId?: string | null;
   sedeId: string;
@@ -63,6 +68,8 @@ export interface SolverInput {
   docentes: Map<string, DocenteSolverData>;
   espacios: EspacioSolverData[];
   horariosExistentes: BloqueOcupadoExistente[];
+  /** Nombre visible de cada sede, para que los mensajes no muestren identificadores internos. */
+  nombresSedes?: Map<string, string>;
 }
 
 export interface AsignacionBloquePropuesta {

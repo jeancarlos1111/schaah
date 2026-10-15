@@ -32,3 +32,18 @@
 
 /* 10. Matriz Semanal de Horarios (Drag & Drop, Grilla y Celdas) */
 @import url('./modules/horarios.css');
+
+/* 11. Oferta de Carga Horaria: Importación, Vista Previa y Secciones (Cohortes) */
+@import url('./modules/oferta.css');
+
+/* 12. Mallas Curriculares: Ubicación Trayecto/Tramo y Selector de Prelaciones */
+@import url('./modules/curriculo.css');
+
+/* 13. Usuarios: Programas que coordina un COORDINADOR_PFG */
+@import url('./modules/usuarios.css');
+
+/* 14. Manual de Usuario: Índice, Documento Markdown y Capturas */
+@import url('./modules/manual.css');
+
+/* 15. Disponibilidad Docente: Matriz, Motivo del Cambio e Historial Auditado */
+@import url('./modules/disponibilidad.css');

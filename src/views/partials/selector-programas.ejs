@@ -1,0 +1,22 @@
+<div class="form-group-clean programa-picker uk-margin-small-top" id="<%= prefijo %>-programas" hidden>
+  <div class="programa-picker-header">
+    <label class="label-clean" for="<%= prefijo %>-prog-buscar" style="margin: 0;">Programas que coordina</label>
+    <span class="programa-picker-counter" id="<%= prefijo %>-prog-contador">0 seleccionados</span>
+  </div>
+  <div class="table-search-box programa-picker-search">
+    <span class="search-icon" uk-icon="icon: search; ratio: 0.8"></span>
+    <input id="<%= prefijo %>-prog-buscar" type="search" class="search-input" placeholder="Buscar por código o nombre..." autocomplete="off" oninput="filtrarProgramas('<%= prefijo %>')">
+  </div>
+  <div class="programa-picker-list" id="<%= prefijo %>-prog-lista" role="group" aria-label="Programas de formación que coordina">
+    <% programas.forEach(function(p) { %>
+      <label class="programa-picker-item" data-busqueda="<%= (p.codigo + ' ' + p.nombre).toLowerCase() %>">
+        <input type="checkbox" class="uk-checkbox" name="programas" value="<%= p.id %>" onchange="actualizarProgramas('<%= prefijo %>')">
+        <span class="programa-picker-code"><%= p.codigo %></span>
+        <span class="programa-picker-name" title="<%= p.nombre %>"><%= p.nombre %></span>
+        <span class="programa-picker-type"><%= p.tipo %></span>
+      </label>
+    <% }); %>
+    <div class="programa-picker-empty" id="<%= prefijo %>-prog-vacio" hidden>Ningún programa coincide con la búsqueda.</div>
+  </div>
+  <p class="programa-picker-hint">El coordinador solo verá y modificará mallas, asignaciones, códigos y horarios de estos programas.</p>
+</div>

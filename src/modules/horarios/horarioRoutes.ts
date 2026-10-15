@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { HorariosController } from './controllers/HorariosController';
 import { requireAuth, requireRole } from '../auth/middlewares/authMiddleware';
-import { RolUsuario } from '../../core/domain/enums';
+import { ROLES_PROGRAMACION_HORARIOS } from '../../core/domain/rules/alcancePfgRules';
 
 const router = Router();
 
@@ -22,14 +22,14 @@ router.post(
 router.post(
   '/periodos/:id/horarios/mover',
   requireAuth,
-  requireRole([RolUsuario.ADMINISTRADOR, RolUsuario.DIRECTOR_ACADEMICO, RolUsuario.COORDINADOR_PFG]),
+  requireRole(ROLES_PROGRAMACION_HORARIOS),
   HorariosController.moverBloque
 );
 
 router.post(
   '/periodos/:id/horarios/eliminar',
   requireAuth,
-  requireRole([RolUsuario.ADMINISTRADOR, RolUsuario.DIRECTOR_ACADEMICO, RolUsuario.COORDINADOR_PFG]),
+  requireRole(ROLES_PROGRAMACION_HORARIOS),
   HorariosController.eliminarBloque
 );
 

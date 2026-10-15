@@ -21,6 +21,7 @@ export enum EscalafonDocente {
   ASOCIADO = 'ASOCIADO',
   TITULAR = 'TITULAR',
   CONTRATADO = 'CONTRATADO',
+  AUXILIAR_DOCENTE = 'AUXILIAR_DOCENTE',
 }
 
 export enum CondicionLaboral {
@@ -28,6 +29,27 @@ export enum CondicionLaboral {
   CONTRATADO = 'CONTRATADO',
   JUBILADO_ACTIVO = 'JUBILADO_ACTIVO',
   COMISION_SERVICIO = 'COMISION_SERVICIO',
+  POR_CONTRATAR = 'POR_CONTRATAR',
+}
+
+export enum TipoPrograma {
+  PFG = 'PFG',         // Programa de Formación de Grado
+  PNF = 'PNF',         // Programa Nacional de Formación
+  PFA = 'PFA',         // Programa de Formación Avanzada (posgrado por cohortes)
+  PIU = 'PIU',         // Programa de Iniciación Universitaria
+  IDIOMAS = 'IDIOMAS', // Cursos de idiomas sin trayecto/tramo
+}
+
+export enum MallaGrupo {
+  DIURNA = 'DIURNA',
+  NOCTURNA = 'NOCTURNA',
+}
+
+export enum EstatusGrupo {
+  APERTURA = 'APERTURA',
+  CONTINUA = 'CONTINUA',
+  CIERRA = 'CIERRA',
+  FINALIZA = 'FINALIZA',
 }
 
 export enum TipoEspacio {
@@ -54,6 +76,7 @@ export enum Turno {
   VESPERTINO = 'VESPERTINO',
   NOCTURNO = 'NOCTURNO',
   FIN_DE_SEMANA = 'FIN_DE_SEMANA',
+  UNICA = 'UNICA',
 }
 
 export enum EstadoAsignacion {

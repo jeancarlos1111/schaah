@@ -8,8 +8,10 @@ import {
 } from 'or-tools-wasm/cp-sat';
 import {
   BLOQUES_HORARIOS_OFICIALES,
-  timeToMinutes,
+  diasPorTurno,
+  indicesBloquesPorTurno,
 } from '../../core/domain/rules/timeSlotUtils';
+import { claveCohorte } from '../../core/domain/rules/horarioConflictRules';
 import {
   AsignacionBloquePropuesta,
   EspacioSolverData,
@@ -67,8 +69,6 @@ export class CpSatSolverEngine {
 
     const model = new CpModel();
     const variables: VariableDecisionCP[] = [];
-    const diasSemana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
-
     // Mapear espacios
     const mapaEspacios = new Map(this.input.espacios.map((e) => [e.id, e]));
 
@@ -81,11 +81,8 @@ export class CpSatSolverEngine {
 
       let espaciosCandidatos: (EspacioSolverData | null)[] = [];
       if (sec.esProyectoComunitario) {
-        // Puede usar espacios de campo o cualquier aula con aforo
-        const campoEspacios = espaciosSede.filter(
-          (e) => e.tipo === 'ESPACIO_COMUNITARIO_CAMPO' || e.capacidad >= sec.cuposEstimados
-        );
-        espaciosCandidatos = campoEspacios.length > 0 ? campoEspacios : [null];
+        // H-08: el proyecto comunitario es trabajo de campo y no reserva aula
+        espaciosCandidatos = [null];
       } else {
         const requiereLab = sec.tipoEspacioRequerido.includes('LAB');
         if (requiereLab) {
@@ -129,13 +126,10 @@ export class CpSatSolverEngine {
           }
         }
       } else {
-        for (const dia of diasSemana) {
-          BLOQUES_HORARIOS_OFICIALES.forEach((b, idx) => {
-            if (sec.turno === 'MATUTINO' && idx <= 2) slotsCandidatos.push({ dia, slotIdx: idx, prioridad: 1 });
-            else if (sec.turno === 'VESPERTINO' && idx >= 3 && idx <= 5) slotsCandidatos.push({ dia, slotIdx: idx, prioridad: 1 });
-            else if (sec.turno === 'NOCTURNO' && idx >= 6) slotsCandidatos.push({ dia, slotIdx: idx, prioridad: 1 });
-            else if (!sec.turno) slotsCandidatos.push({ dia, slotIdx: idx, prioridad: 1 });
-          });
+        for (const dia of diasPorTurno(sec.turno)) {
+          for (const idx of indicesBloquesPorTurno(sec.turno)) {
+            slotsCandidatos.push({ dia, slotIdx: idx, prioridad: 1 });
+          }
         }
       }
 
@@ -171,10 +165,13 @@ export class CpSatSolverEngine {
 
     // 2. RESTRICCIONES DURAS
     // ----------------------------------------------------
-    // H-03: No solapamiento de sección en el mismo día y slot (a lo sumo 1 bloque)
+    // H-03: No solapamiento de cohorte (grupo de estudiantes) en el mismo día y slot (a lo sumo 1 bloque)
+    const mapaSecciones = new Map(this.input.seccionesPendientes.map((s) => [s.id, s]));
     const varsPorSeccionDiaSlot = new Map<string, BoolVar[]>();
     for (const item of variables) {
-      const key = `${item.seccionId}_${item.dia}_${item.slotIdx}`;
+      const sec = mapaSecciones.get(item.seccionId);
+      const cohorte = claveCohorte({ seccionId: item.seccionId, grupoId: sec?.grupoId });
+      const key = `${cohorte}_${item.dia}_${item.slotIdx}`;
       const list = varsPorSeccionDiaSlot.get(key) || [];
       list.push(item.variable);
       varsPorSeccionDiaSlot.set(key, list);
@@ -222,6 +219,12 @@ export class CpSatSolverEngine {
     for (const h of this.input.horariosExistentes) {
       const slotIdx = BLOQUES_HORARIOS_OFICIALES.findIndex((b) => b.horaInicio === h.horaInicio);
       if (slotIdx === -1) continue;
+
+      // Si la cohorte ya tiene clase en ese slot
+      const cohorteKey = `${claveCohorte(h)}_${h.dia}_${slotIdx}`;
+      for (const v of varsPorSeccionDiaSlot.get(cohorteKey) || []) {
+        model.addEquality(v, 0);
+      }
 
       // Si el docente ya está ocupado en ese slot
       if (h.profesorId) {

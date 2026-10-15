@@ -1,6 +1,19 @@
 import { Request, Response } from 'express';
-import { SolverService } from '../solverService';
+import { AsignacionFueraDeAlcanceError, SolverService } from '../solverService';
 import prisma from '../../../core/database/prisma';
+import { filtroPfg } from '../../../core/domain/rules/alcancePfgRules';
+import { alcanceDe } from '../../auth/middlewares/alcancePfg';
+import {
+  SeccionDiagnostico,
+  bloquesRequeridosPorHoras,
+  diagnosticarFactibilidad,
+  horasSemanalesSeccion,
+} from '../../../core/domain/rules/diagnosticoFactibilidad';
+
+/** Programas a los que se limita el solver para el usuario (Spec 06); `undefined` = todos. */
+function pfgIdsSolver(req: Request): string[] | undefined {
+  return filtroPfg(alcanceDe(req))?.in;
+}
 
 export class SolverController {
   /**
@@ -9,13 +22,15 @@ export class SolverController {
   static async diagnostico(req: Request, res: Response) {
     try {
       const { id: periodoId } = req.params;
+      const pfgIds = pfgIdsSolver(req);
+      const whereAlcance = pfgIds ? { unidadCurricular: { pfgId: { in: pfgIds } } } : {};
 
       const periodo = await prisma.periodoAcademico.findUnique({
         where: { id: periodoId },
         include: {
           _count: {
             select: {
-              secciones: true,
+              secciones: { where: whereAlcance },
               dedicaciones: true,
               disponibilidades: true,
             },
@@ -31,34 +46,47 @@ export class SolverController {
         where: {
           periodoId,
           horarios: { none: {} },
+          ...whereAlcance,
         },
         include: {
           unidadCurricular: true,
           profesor: true,
           sede: true,
         },
+        orderBy: { codigoSeccion: 'asc' },
       });
 
-      const totalHorasPendientes = seccionesPendientes.reduce((acc, s) => {
-        const uc = s.unidadCurricular;
-        return (
-          acc +
-          uc.horasTeoricasSemanales +
-          uc.horasPracticasSemanales +
-          uc.horasCampoComunitarioSemanales
-        );
-      }, 0);
+      const seccionesDiagnostico: SeccionDiagnostico[] = seccionesPendientes.map((s) => ({
+        codigoSeccion: s.codigoSeccion,
+        nombreMateria: s.unidadCurricular.nombre,
+        profesorId: s.profesorId,
+        profesorNombre: s.profesor ? `${s.profesor.nombres} ${s.profesor.apellidos}` : null,
+        sedeId: s.sedeId,
+        cuposEstimados: s.cuposEstimados,
+        bloquesRequeridos: bloquesRequeridosPorHoras(horasSemanalesSeccion(s.horasSemanalesOferta, s.unidadCurricular)),
+        tipoEspacioRequerido: s.unidadCurricular.tipoEspacioRequerido,
+        esProyectoComunitario: s.unidadCurricular.esProyectoComunitario,
+      }));
+      const totalHorasPendientes = seccionesPendientes.reduce(
+        (acc, s) => acc + horasSemanalesSeccion(s.horasSemanalesOferta, s.unidadCurricular),
+        0
+      );
+      const totalBloquesRequeridos = seccionesDiagnostico.reduce((acc, s) => acc + s.bloquesRequeridos, 0);
 
-      const totalBloquesRequeridos = seccionesPendientes.reduce((acc, s) => {
-        const uc = s.unidadCurricular;
-        const totalH =
-          uc.horasTeoricasSemanales +
-          uc.horasPracticasSemanales +
-          uc.horasCampoComunitarioSemanales;
-        return acc + Math.max(1, Math.round(totalH / 2));
-      }, 0);
-
-      const seccionesSinProfesor = seccionesPendientes.filter((s) => !s.profesorId);
+      const profesorIds = [...new Set(seccionesPendientes.map((s) => s.profesorId).filter((id): id is string => !!id))];
+      const [franjas, espacios] = await Promise.all([
+        prisma.profesorDisponibilidad.groupBy({
+          by: ['profesorId'],
+          where: { periodoId, disponible: true, profesorId: { in: profesorIds } },
+          _count: { _all: true },
+        }),
+        prisma.espacioFisico.findMany({ where: { activo: true }, select: { sedeId: true, tipo: true, capacidad: true } }),
+      ]);
+      const diagnostico = diagnosticarFactibilidad(
+        seccionesDiagnostico,
+        new Map(franjas.map((f) => [f.profesorId, f._count._all])),
+        espacios
+      );
 
       res.json({
         ok: true,
@@ -73,9 +101,14 @@ export class SolverController {
           seccionesPendientes: seccionesPendientes.length,
           totalHorasPendientes,
           totalBloquesRequeridos,
-          seccionesSinProfesor: seccionesSinProfesor.length,
+          seccionesSinProfesor: diagnostico.seccionesSinDocente,
+          seccionesSinAula: diagnostico.seccionesSinAula,
+          docentesAsignados: diagnostico.docentesAsignados,
+          docentesConDisponibilidad: diagnostico.docentesConDisponibilidad,
           disponibilidadesRegistradas: periodo._count.disponibilidades,
         },
+        factible: diagnostico.factible,
+        avisos: diagnostico.avisos,
         secciones: seccionesPendientes.map((s) => ({
           id: s.id,
           codigoSeccion: s.codigoSeccion,
@@ -107,21 +140,27 @@ export class SolverController {
         motor = 'CP_SAT',
       } = req.body;
 
-      const usuarioNombre = (req.session as any)?.user?.email || 'SISTEMA_SOLVER';
+      const usuarioNombre = req.session?.usuario?.email || 'SISTEMA_SOLVER';
+      const pfgIds = pfgIdsSolver(req);
 
-      const resultado = await SolverService.optimizarPeriodo(periodoId, {
-        tamanoPoblacion: Number(tamanoPoblacion),
-        maxGeneraciones: Number(maxGeneraciones),
-        timeoutMs: Number(timeoutMs),
-        motor: motor === 'GENETICO' ? 'GENETICO' : 'CP_SAT',
-      });
+      const resultado = await SolverService.optimizarPeriodo(
+        periodoId,
+        {
+          tamanoPoblacion: Number(tamanoPoblacion),
+          maxGeneraciones: Number(maxGeneraciones),
+          timeoutMs: Number(timeoutMs),
+          motor: motor === 'GENETICO' ? 'GENETICO' : 'CP_SAT',
+        },
+        { pfgIds }
+      );
 
       let aplicados = 0;
       if (autoAplicar && resultado.status !== 'INFEASIBLE') {
         const resAplicar = await SolverService.aplicarPropuesta(
           periodoId,
           usuarioNombre,
-          resultado
+          resultado,
+          { pfgIds }
         );
         aplicados = resAplicar.aplicados;
       }
@@ -155,12 +194,13 @@ export class SolverController {
         return res.status(400).json({ ok: false, error: 'Propuesta inválida o incompleta' });
       }
 
-      const usuarioNombre = (req.session as any)?.user?.email || 'ADMINISTRADOR';
+      const usuarioNombre = req.session?.usuario?.email || 'ADMINISTRADOR';
 
       const resAplicar = await SolverService.aplicarPropuesta(
         periodoId,
         usuarioNombre,
-        propuesta
+        propuesta,
+        { pfgIds: pfgIdsSolver(req) }
       );
 
       res.json({
@@ -169,6 +209,9 @@ export class SolverController {
         mensaje: `Se aplicaron exitosamente ${resAplicar.aplicados} bloques de horario a la base de datos.`,
       });
     } catch (err: any) {
+      if (err instanceof AsignacionFueraDeAlcanceError) {
+        return res.status(403).json({ ok: false, error: err.message });
+      }
       console.error('[SOLVER-APLICAR-ERROR]', err);
       res.status(500).json({ ok: false, error: err.message || 'Error al aplicar horarios' });
     }

@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= title %> | SAHAD - UBV Kerepakupai Vena</title>
   
+  <!-- Favicon Institucional UBV -->
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="shortcut icon" href="/favicon.ico">
+
   <!-- Detección Inmediata de Tema -->
   <script>
     (function() {
@@ -21,7 +25,7 @@
   <!-- UIkit 3 CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/css/uikit.min.css" />
   <!-- Clean Enterprise CSS (Modular Architecture) -->
-  <link rel="stylesheet" href="/css/style.css?v=2.0.5">
+  <link rel="stylesheet" href="/css/style.css?v=2.0.9">
   
   <!-- HTMX & UIkit JS -->
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
@@ -37,13 +41,14 @@
   <header class="app-header">
     <div class="header-inner">
       
-      <!-- Marca Principal -->
+      <!-- Marca Principal con Logotipo Oficial UBV -->
       <div class="header-left">
-        <a class="brand-link" href="/">
-          <div class="brand-mark">
-            <span uk-icon="icon: grid; ratio: 0.9"></span>
+        <a class="brand-link" href="/" uk-tooltip="title: SAHAD - Universidad Bolivariana de Venezuela; pos: bottom" style="display: flex; align-items: center; gap: 8px; text-decoration: none;">
+          <img src="/img/logo-ubv.png" alt="UBV" class="ubv-header-logo-img" style="height: 38px; width: 38px; object-fit: contain; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3);" />
+          <div class="brand-text-wrap" style="display: flex; flex-direction: column; line-height: 1.15;">
+            <span class="brand-text" style="font-size: 1.05rem; font-weight: 800; letter-spacing: -0.02em; color: var(--text-white);">SAHAD<span style="color: #e11d48; margin-left: 2px;">UBV</span></span>
+            <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.02em;">Eje Kerepakupai Vena</span>
           </div>
-          <span class="brand-text">SAHAD<span class="brand-ubv">UBV</span></span>
         </a>
       </div>
 
@@ -75,6 +80,12 @@
             </a>
           <% } %>
 
+          <% if (usuario.rol === 'DOCENTE') { %>
+            <a href="/mi-disponibilidad" class="nav-link <%= title.includes('Disponibilidad') ? 'is-active' : '' %>">
+              Mi Disponibilidad
+            </a>
+          <% } %>
+
           <a href="/horarios" class="nav-link <%= title.includes('Horarios') ? 'is-active' : '' %>">
             Horarios
           </a>
@@ -85,6 +96,11 @@
 
         <!-- Controles y Perfil Derecho -->
         <div class="header-right">
+          <!-- Botón de Ayuda en Línea -->
+          <button type="button" class="icon-btn" uk-toggle="target: #modal-ayuda" uk-tooltip="title: Ayuda en línea; pos: bottom">
+            <span uk-icon="icon: question; ratio: 0.85"></span>
+          </button>
+
           <!-- Conmutador Tema -->
           <button id="theme-toggle-btn" class="icon-btn" onclick="toggleTheme()" uk-tooltip="title: Cambiar tema; pos: bottom">
             <span id="theme-icon" uk-icon="icon: paint-bucket; ratio: 0.8"></span>
@@ -109,6 +125,9 @@
         </div>
       <% } else { %>
         <div class="header-right">
+          <button type="button" class="icon-btn" uk-toggle="target: #modal-ayuda" uk-tooltip="title: Ayuda en línea; pos: bottom">
+            <span uk-icon="icon: question; ratio: 0.85"></span>
+          </button>
           <button id="theme-toggle-btn" class="icon-btn" onclick="toggleTheme()" uk-tooltip="title: Cambiar tema; pos: bottom">
             <span id="theme-icon" uk-icon="icon: paint-bucket; ratio: 0.8"></span>
           </button>
@@ -168,6 +187,9 @@
 
   <!-- Inyección de Scripts Específicos de la Vista (express-ejs-layouts) -->
   <%- script %>
+
+  <!-- Modal de Ayuda en Línea -->
+  <%- include('../partials/modal-ayuda') %>
 
 </body>
 </html>

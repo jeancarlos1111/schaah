@@ -19,6 +19,9 @@ prisma/*.db-journal
 prisma/*.db-wal
 prisma/*.db-shm
 
+# Respaldos de la base de datos (pnpm db:respaldo y antes de cada importación de oferta)
+backups/
+
 # Logs
 logs/
 *.log

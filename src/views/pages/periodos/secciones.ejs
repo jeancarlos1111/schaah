@@ -21,9 +21,17 @@
         <span uk-icon="icon: table; ratio: 0.85"></span>
         <span>Ver Matriz de Horarios</span>
       </a>
-      <button class="btn-clean-primary" uk-toggle="target: #modal-nueva-seccion">
+      <a href="/periodos/<%= periodo.id %>/oferta" class="btn-clean-secondary">
+        <span uk-icon="icon: file-text; ratio: 0.85"></span>
+        <span>Oferta de Carga Horaria</span>
+      </a>
+      <button class="btn-clean-secondary" type="button" uk-toggle="target: #modal-nuevo-grupo">
+        <span uk-icon="icon: users; ratio: 0.85"></span>
+        <span>Nueva Sección (Cohorte)</span>
+      </button>
+      <button class="btn-clean-primary" type="button" uk-toggle="target: #modal-nueva-seccion">
         <span uk-icon="icon: plus; ratio: 0.85"></span>
-        <span>Nueva Sección</span>
+        <span>Nueva Asignación UC</span>
       </button>
     </div>
   </div>
@@ -104,6 +112,7 @@
       turno: overrides.turno !== undefined ? overrides.turno : (filters.turno || ''),
       sedeId: overrides.sedeId !== undefined ? overrides.sedeId : (filters.sedeId || ''),
       docente: overrides.docente !== undefined ? overrides.docente : (filters.docente || ''),
+      grupoId: overrides.grupoId !== undefined ? overrides.grupoId : (filters.grupoId || ''),
       sortBy: overrides.sortBy !== undefined ? overrides.sortBy : (filters.sortBy || 'codigoSeccion'),
       sortDir: overrides.sortDir !== undefined ? overrides.sortDir : (filters.sortDir || 'asc')
     });
@@ -123,6 +132,9 @@
     if (filters.sortBy !== col) return 'sortable';
     return filters.sortDir === 'asc' ? 'sortable sort-asc' : 'sortable sort-desc';
   }
+
+  const etiquetaTurno = { MATUTINO: 'Matutino', VESPERTINO: 'Vespertino', NOCTURNO: 'Nocturno', FIN_DE_SEMANA: 'Fin de Semana', UNICA: 'Única' };
+  const claseTurno = { MATUTINO: 'status-active', VESPERTINO: 'indicator-blue', NOCTURNO: 'indicator-teal', FIN_DE_SEMANA: 'indicator-amber', UNICA: 'indicator-gray' };
 %>
 
 <!-- Panel Principal con Componente Reutilizable DataTable (Server-Side - Spec 07) -->
@@ -182,10 +194,17 @@
       <!-- Filtro por Turno -->
       <select name="turno" class="table-filter-select" onchange="this.form.submit()">
         <option value="">Todos los turnos</option>
-        <option value="MATUTINO" <%= filters.turno === 'MATUTINO' ? 'selected' : '' %>>Matutino</option>
-        <option value="VESPERTINO" <%= filters.turno === 'VESPERTINO' ? 'selected' : '' %>>Vespertino</option>
-        <option value="NOCTURNO" <%= filters.turno === 'NOCTURNO' ? 'selected' : '' %>>Nocturno</option>
-        <option value="FIN_DE_SEMANA" <%= filters.turno === 'FIN_DE_SEMANA' ? 'selected' : '' %>>Fin de Semana</option>
+        <% turnos.forEach(function(t) { %>
+          <option value="<%= t %>" <%= filters.turno === t ? 'selected' : '' %>><%= etiquetaTurno[t] || t %></option>
+        <% }); %>
+      </select>
+
+      <!-- Filtro por Sección (Cohorte) -->
+      <select name="grupoId" class="table-filter-select" onchange="this.form.submit()">
+        <option value="">Todas las secciones (cohortes)</option>
+        <% grupos.forEach(function(g) { %>
+          <option value="<%= g.id %>" <%= filters.grupoId === g.id ? 'selected' : '' %>><%= g.codigoNormalizado %> (<%= g.pfg.codigo %>)</option>
+        <% }); %>
       </select>
 
       <!-- Filtro por Sede -->
@@ -208,7 +227,7 @@
       <!-- Botón Limpiar Filtros -->
       <a 
         href="/periodos/<%= periodo.id %>/secciones" 
-        class="btn-clean-ghost <%= (filters.q || filters.pfgId || filters.turno || filters.sedeId || filters.docente || filters.sortBy !== 'codigoSeccion') ? '' : 'uk-hidden' %>" 
+        class="btn-clean-ghost <%= (filters.q || filters.pfgId || filters.turno || filters.sedeId || filters.docente || filters.grupoId || filters.sortBy !== 'codigoSeccion') ? '' : 'uk-hidden' %>" 
         title="Restablecer filtros"
       >
         <span uk-icon="icon: refresh; ratio: 0.75"></span>
@@ -223,8 +242,8 @@
       <table class="clean-table" id="secciones-table">
         <thead>
           <tr>
-            <th class="<%= getSortHeaderClass('codigoSeccion') %>" style="width: 140px;">
-              <a href="<%= getSortUrl('codigoSeccion') %>" class="uk-link-reset">Código Sección</a>
+            <th class="<%= getSortHeaderClass('codigoSeccion') %>" style="width: 190px;">
+              <a href="<%= getSortUrl('codigoSeccion') %>" class="uk-link-reset">Sección / Asignación</a>
             </th>
             <th>Unidad Curricular</th>
             <th style="width: 180px;">PFG & Trayecto</th>
@@ -252,13 +271,21 @@
             const uc = s.unidadCurricular;
             const pfg = uc.pfg;
             const horasTotales = uc.horasTeoricasSemanales + uc.horasPracticasSemanales + uc.horasCampoComunitarioSemanales;
+            const horasOferta = s.horasSemanalesOferta && s.horasSemanalesOferta > 0 ? s.horasSemanalesOferta : null;
           %>
             <tr>
-              <!-- Código Sección -->
+              <!-- Sección (cohorte) y código de la asignación -->
               <td>
-                <span class="font-bold text-sm" style="color: var(--text-white);"><%= s.codigoSeccion %></span>
+                <% if (s.grupo) { %>
+                  <a href="<%= makeQueryUrl({ page: 1, grupoId: s.grupo.id }) %>" class="grupo-codigo grupo-codigo-link" title="Ver todas las UC de esta sección">
+                    <%= s.grupo.codigoNormalizado %>
+                  </a>
+                <% } else { %>
+                  <span class="oferta-chip oferta-chip-muted">Sin cohorte</span>
+                <% } %>
+                <div class="table-sub-info"><%= s.codigoSeccion %></div>
                 <% if (uc.esProyectoComunitario) { %>
-                  <span class="badge-role badge-admin text-xxs uk-margin-xsmall-left">Proyecto</span>
+                  <span class="badge-role badge-admin text-xxs">Proyecto</span>
                 <% } %>
               </td>
 
@@ -266,20 +293,26 @@
               <td>
                 <div class="font-medium text-sm" style="color: var(--text-white);"><%= uc.nombre %></div>
                 <div class="table-sub-info">
-                  <%= uc.codigo %> &bull; <%= horasTotales %>h sem (<%= uc.horasTeoricasSemanales %>T / <%= uc.horasPracticasSemanales %>P <%= uc.horasCampoComunitarioSemanales > 0 ? '/ ' + uc.horasCampoComunitarioSemanales + 'C' : '' %>)
+                  <% if (horasOferta) { %>
+                    <%= uc.codigo %> &bull; <%= horasOferta %>h sem (según oferta)
+                  <% } else { %>
+                    <%= uc.codigo %> &bull; <%= horasTotales %>h sem (<%= uc.horasTeoricasSemanales %>T / <%= uc.horasPracticasSemanales %>P <%= uc.horasCampoComunitarioSemanales > 0 ? '/ ' + uc.horasCampoComunitarioSemanales + 'C' : '' %>)
+                  <% } %>
                 </div>
               </td>
 
               <!-- PFG & Trayecto -->
               <td>
                 <div class="text-sm font-medium" style="color: var(--text-white);"><%= pfg.nombre %></div>
-                <div class="table-sub-info">Trayecto <%= uc.trayecto %>, Tramo <%= uc.tramo %></div>
+                <div class="table-sub-info">
+                  <%= (uc.trayecto === null || uc.tramo === null) ? 'Sin malla por trayectos' : ('Trayecto ' + uc.trayecto + ', Tramo ' + uc.tramo) %>
+                </div>
               </td>
 
               <!-- Turno -->
               <td>
-                <span class="status-pill <%= s.turno === 'MATUTINO' ? 'status-active' : (s.turno === 'VESPERTINO' ? 'indicator-blue' : 'indicator-teal') %>">
-                  <%= s.turno %>
+                <span class="status-pill <%= claseTurno[s.turno] || 'indicator-gray' %>">
+                  <%= etiquetaTurno[s.turno] || s.turno %>
                 </span>
               </td>
 
@@ -298,7 +331,7 @@
                     <%= s.profesor.nombres %> <%= s.profesor.apellidos %>
                   </div>
                   <div class="table-sub-info">
-                    V-<%= s.profesor.cedula %> &bull; <%= s.profesor.escalafon %>
+                    <%= s.profesor.cedula %> &bull; <%= s.profesor.escalafon %>
                   </div>
                 <% } else { %>
                   <span class="status-pill status-inactive">Vacante (Sin Asignar)</span>
@@ -314,54 +347,28 @@
               <td class="table-actions-cell uk-text-right">
                 <div class="table-actions-group">
                   <button 
+                    type="button"
                     class="btn-table-action" 
-                    uk-toggle="target: #modal-asignar-docente-<%= s.id %>"
                     title="Asignar o Cambiar Docente"
+                    data-asignar-docente
+                    data-seccion-id="<%= s.id %>"
+                    data-codigo="<%= s.codigoSeccion %>"
+                    data-unidad="<%= uc.nombre %>"
+                    data-horas="<%= horasOferta || (uc.horasTeoricasSemanales + uc.horasPracticasSemanales) %>"
+                    data-profesor-id="<%= s.profesorId || '' %>"
                   >
                     <span uk-icon="icon: user; ratio: 0.75"></span>
                     <span><%= s.profesorId ? 'Cambiar Prof.' : 'Asignar' %></span>
                   </button>
 
+                  <% if (usuario && ['ADMINISTRADOR', 'DIRECTOR_ACADEMICO'].includes(usuario.rol)) { %>
                   <form action="/periodos/<%= periodo.id %>/secciones/<%= s.id %>/eliminar" method="POST" onsubmit="return confirm('¿Eliminar la sección <%= s.codigoSeccion %>?');">
                     <button class="btn-table-action text-danger" type="submit" title="Eliminar Sección">
                       <span uk-icon="icon: trash; ratio: 0.75"></span>
+                      <span>Eliminar</span>
                     </button>
                   </form>
-                </div>
-
-                <!-- Modal Asignar Docente -->
-                <div id="modal-asignar-docente-<%= s.id %>" uk-modal>
-                  <div class="uk-modal-dialog uk-modal-body modal-clean-box uk-text-left">
-                    <button class="uk-modal-close-default" type="button" uk-close></button>
-                    <h3 class="panel-title uk-margin-xsmall-bottom">
-                      Asignación Docente: <%= s.codigoSeccion %>
-                    </h3>
-                    <p class="panel-subtitle uk-margin-small-bottom">
-                      <%= uc.nombre %> (<%= horasTotales %>h semanales). Se evalúa automáticamente la regla H-04 para evitar sobrecarga legal.
-                    </p>
-
-                    <form action="/periodos/<%= periodo.id %>/secciones/<%= s.id %>/asignar-profesor" method="POST" class="login-form-clean">
-                      <div class="form-group-clean">
-                        <label class="label-clean">Seleccionar Profesor</label>
-                        <select name="profesorId" class="table-filter-select" style="width: 100%; height: 38px;">
-                          <option value="">-- Dejar Vacante (Sin Docente) --</option>
-                          <% profesores.forEach(function(p) { 
-                            const ded = p.dedicaciones[0] ? p.dedicaciones[0].dedicacion : 'SIN DEDICACIÓN';
-                            const isSelected = s.profesorId === p.id;
-                          %>
-                            <option value="<%= p.id %>" <%= isSelected ? 'selected' : '' %>>
-                              <%= p.apellidos %>, <%= p.nombres %> (V-<%= p.cedula %>) [<%= ded %>]
-                            </option>
-                          <% }); %>
-                        </select>
-                      </div>
-
-                      <div class="uk-margin-medium-top uk-text-right uk-flex uk-flex-right gap-2">
-                        <button class="btn-clean-ghost uk-modal-close" type="button">Cancelar</button>
-                        <button class="btn-clean-primary" type="submit">Guardar Asignación</button>
-                      </div>
-                    </form>
-                  </div>
+                  <% } %>
                 </div>
               </td>
             </tr>
@@ -420,16 +427,69 @@
   </div>
 </div>
 
+<!-- Modal único de asignación docente: se rellena con los datos de la fila al abrirlo -->
+<div id="modal-asignar-docente" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body modal-clean-box uk-text-left docente-picker-modal">
+    <button class="uk-modal-close-default" type="button" uk-close></button>
+    <h3 class="panel-title uk-margin-xsmall-bottom">
+      Asignación Docente: <span id="asig-codigo"></span>
+    </h3>
+    <p class="panel-subtitle uk-margin-small-bottom">
+      <span id="asig-unidad"></span> (<span id="asig-horas"></span>h semanales). Se muestra la carga del período de cada docente y cómo quedaría con esta asignación (regla H-04).
+    </p>
+
+    <form id="form-asignar-docente" method="POST" class="login-form-clean">
+      <input type="hidden" name="profesorId" id="asig-profesor-id" value="">
+      <input type="hidden" name="volver" value="<%= urlActual %>">
+
+      <div class="docente-picker-toolbar">
+        <div class="table-search-box docente-picker-search">
+          <span class="search-icon" uk-icon="icon: search; ratio: 0.8"></span>
+          <input id="asig-buscar" type="search" class="search-input" placeholder="Buscar por nombre, apellido o cédula..." autocomplete="off" aria-label="Buscar docente">
+        </div>
+        <button type="button" id="asig-solo-disponibles" class="docente-picker-toggle" aria-pressed="false">
+          <span uk-icon="icon: check; ratio: 0.75"></span>
+          <span>Solo con horas disponibles</span>
+        </button>
+      </div>
+
+      <div id="asig-lista" class="docente-picker-list" role="listbox" aria-label="Docentes"></div>
+      <div id="asig-contador" class="table-sub-info docente-picker-counter"></div>
+      <div id="asig-resumen" class="docente-picker-summary"></div>
+
+      <div class="uk-margin-medium-top uk-text-right uk-flex uk-flex-right gap-2">
+        <button class="btn-clean-ghost uk-modal-close" type="button">Cancelar</button>
+        <button id="asig-guardar" class="btn-clean-primary" type="submit">Guardar Asignación</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script type="application/json" id="docentes-carga-data"><%- JSON.stringify(docentesCarga).replace(/</g, '\\u003c') %></script>
+
 <!-- Modal para Crear Nueva Sección Asistida por Malla Curricular (Spec 09) -->
 <div id="modal-nueva-seccion" uk-modal>
   <div class="uk-modal-dialog uk-modal-body modal-clean-box" style="max-width: 650px;">
     <button class="uk-modal-close-default" type="button" uk-close></button>
-    <h2 class="panel-title uk-margin-small-bottom">Aperturar Nueva Sección</h2>
+    <h2 class="panel-title uk-margin-small-bottom">Nueva Asignación de Unidad Curricular</h2>
     <p class="panel-subtitle uk-margin-bottom">
-      Apertura asistida para el período <strong style="color: var(--brand-accent);"><%= periodo.codigo %></strong> con validación curricular RC-02.
+      Agrega una unidad curricular con su docente a una sección (cohorte) del período <strong style="color: var(--brand-accent);"><%= periodo.codigo %></strong>, con validación curricular RC-02.
     </p>
 
     <form action="/periodos/<%= periodo.id %>/secciones" method="POST" class="login-form-clean" id="form-crear-seccion-asistida">
+      <!-- 0. Sección (cohorte) -->
+      <div class="form-group-clean">
+        <label class="label-clean">Sección (Cohorte de Estudiantes)</label>
+        <select id="seccion-select-grupo" name="grupoId" class="table-filter-select form-select-full" onchange="alSeleccionarGrupo(this)">
+          <option value="">-- Asignación independiente (sin cohorte) --</option>
+          <% grupos.forEach(function(g) { %>
+            <option value="<%= g.id %>" data-pfg="<%= g.pfgId %>" data-codigo="<%= g.codigoNormalizado %>" <%= filters.grupoId === g.id ? 'selected' : '' %>>
+              <%= g.codigoNormalizado %> (<%= g.pfg.codigo %>)
+            </option>
+          <% }); %>
+        </select>
+        <span class="label-hint">Las UC de una misma cohorte no pueden solaparse en el horario (regla H-03). La sede, turno y matrícula se heredan de la cohorte.</span>
+      </div>
+
       <!-- 1. Selección de PFG -->
       <div class="form-group-clean">
         <label class="label-clean">1. Programa de Formación de Grado (PFG)</label>
@@ -481,9 +541,14 @@
         <div>
           <div class="form-group-clean">
             <label class="label-clean">Cupos Estimados</label>
-            <input type="number" name="cuposEstimados" required value="30" min="5" max="100" class="input-control-clean" style="padding-left: 0.75rem;">
+            <input type="number" name="cuposEstimados" required value="30" min="1" max="200" class="input-control-clean" style="padding-left: 0.75rem;">
           </div>
         </div>
+      </div>
+
+      <div class="form-group-clean">
+        <label class="label-clean">Horas Semanales según Oferta (Opcional)</label>
+        <input type="number" name="horasSemanalesOferta" min="1" max="40" placeholder="Si se deja vacío se usan HT + HP de la malla" class="input-control-clean" style="padding-left: 0.75rem;">
       </div>
 
       <div class="uk-grid-small uk-child-width-1-2" uk-grid>
@@ -516,7 +581,7 @@
           <% profesores.forEach(function(p) { 
             const ded = p.dedicaciones[0] ? p.dedicaciones[0].dedicacion : 'SIN DEDICACIÓN';
           %>
-            <option value="<%= p.id %>"><%= p.apellidos %>, <%= p.nombres %> (V-<%= p.cedula %>) [<%= ded %>]</option>
+            <option value="<%= p.id %>"><%= p.apellidos %>, <%= p.nombres %> (<%= p.cedula %>) [<%= ded %>]</option>
           <% }); %>
         </select>
       </div>
@@ -527,7 +592,136 @@
         </button>
         <button class="btn-clean-primary" type="submit">
           <span uk-icon="icon: check; ratio: 0.8"></span>
-          <span>Aperturar Sección</span>
+          <span>Registrar Asignación</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal para registrar una Sección (Cohorte) que agrupa varias UC -->
+<div id="modal-nuevo-grupo" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body modal-clean-box" style="max-width: 650px;">
+    <button class="uk-modal-close-default" type="button" uk-close></button>
+    <h2 class="panel-title uk-margin-small-bottom">Nueva Sección (Cohorte)</h2>
+    <p class="panel-subtitle uk-margin-bottom">
+      Grupo de estudiantes que cursa varias unidades curriculares en el período <strong style="color: var(--brand-accent);"><%= periodo.codigo %></strong>, con el código institucional de la oferta (ej. KV BO-RC 01 A-M).
+    </p>
+
+    <form action="/periodos/<%= periodo.id %>/grupos" method="POST" class="login-form-clean">
+      <div class="uk-grid-small uk-child-width-1-2" uk-grid>
+        <div>
+          <div class="form-group-clean">
+            <label class="label-clean">Código de la Sección</label>
+            <input type="text" name="codigo" required placeholder="KV BO-RC 01 A-M" class="input-control-clean" style="padding-left: 0.75rem;">
+          </div>
+        </div>
+        <div>
+          <div class="form-group-clean">
+            <label class="label-clean">Programa</label>
+            <select name="pfgId" required class="table-filter-select form-select-full">
+              <option value="">-- Seleccionar programa --</option>
+              <% pfgs.forEach(function(pfg) { %>
+                <option value="<%= pfg.id %>">[<%= pfg.codigo %>] <%= pfg.nombre %></option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-grid-small uk-child-width-1-3" uk-grid>
+        <div>
+          <div class="form-group-clean">
+            <label class="label-clean">Trayecto</label>
+            <input type="number" name="trayecto" min="0" max="5" placeholder="0 a 5" class="input-control-clean" style="padding-left: 0.75rem;">
+          </div>
+        </div>
+        <div>
+          <div class="form-group-clean">
+            <label class="label-clean">Tramo</label>
+            <input type="number" name="tramo" min="0" max="10" placeholder="0 a 10" class="input-control-clean" style="padding-left: 0.75rem;">
+          </div>
+        </div>
+        <div>
+          <div class="form-group-clean">
+            <label class="label-clean">Estudiantes</label>
+            <input type="number" name="cantidadEstudiantes" min="1" max="500" placeholder="Matrícula" class="input-control-clean" style="padding-left: 0.75rem;">
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-grid-small uk-child-width-1-3" uk-grid>
+        <div>
+          <div class="form-group-clean">
+            <label class="label-clean">Turno</label>
+            <select name="turno" class="table-filter-select form-select-full">
+              <option value="">Según código (-M / -T / -N)</option>
+              <% turnos.forEach(function(t) { %>
+                <option value="<%= t %>"><%= etiquetaTurno[t] || t %></option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+        <div>
+          <div class="form-group-clean">
+            <label class="label-clean">Malla</label>
+            <select name="malla" class="table-filter-select form-select-full">
+              <option value="">No indicada</option>
+              <% mallas.forEach(function(m) { %>
+                <option value="<%= m %>"><%= m %></option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+        <div>
+          <div class="form-group-clean">
+            <label class="label-clean">Estatus</label>
+            <select name="estatus" class="table-filter-select form-select-full">
+              <option value="">No indicado</option>
+              <% estatusGrupo.forEach(function(e) { %>
+                <option value="<%= e %>"><%= e %></option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="uk-grid-small uk-child-width-1-2" uk-grid>
+        <div>
+          <div class="form-group-clean">
+            <label class="label-clean">Sede / Aldea</label>
+            <select name="sedeId" required class="table-filter-select form-select-full">
+              <% sedes.forEach(function(sede) { %>
+                <option value="<%= sede.id %>"><%= sede.nombre %></option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+        <div>
+          <div class="form-group-clean">
+            <label class="label-clean">Eje Municipal</label>
+            <select name="ejeMunicipal" class="table-filter-select form-select-full">
+              <option value="">No indicado</option>
+              <% ['RÍO CAURA', 'RÍO CARONÍ', 'SIERRA IMATACA', 'INDIO PEMÓN', 'FAJA DEL ORINOCO'].forEach(function(eje) { %>
+                <option value="<%= eje %>"><%= eje %></option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group-clean">
+        <label class="label-clean">Observaciones</label>
+        <input type="text" name="observaciones" maxlength="300" class="input-control-clean" style="padding-left: 0.75rem;">
+      </div>
+
+      <div class="uk-margin-medium-top uk-flex uk-flex-right gap-2">
+        <button class="btn-clean-secondary uk-modal-close" type="button">
+          <span>Cancelar</span>
+        </button>
+        <button class="btn-clean-primary" type="submit">
+          <span uk-icon="icon: check; ratio: 0.8"></span>
+          <span>Registrar Sección</span>
         </button>
       </div>
     </form>
@@ -537,6 +731,18 @@
 <script>
   let ucsActualesPfg = [];
   const periodoCodigoActual = '<%= periodo.codigo %>';
+
+  function alSeleccionarGrupo(selectElem) {
+    const opcion = selectElem.options[selectElem.selectedIndex];
+    const pfgId = opcion ? opcion.getAttribute('data-pfg') : null;
+    if (!pfgId) return;
+    const selectPfg = document.getElementById('seccion-select-pfg');
+    if (selectPfg.value !== pfgId) {
+      selectPfg.value = pfgId;
+      alCambiarPfgSeccion(pfgId);
+    }
+    actualizarCodigoSugerido();
+  }
 
   async function alCambiarPfgSeccion(pfgId) {
     const selectUc = document.getElementById('seccion-select-uc');
@@ -560,7 +766,7 @@
           selectUc.innerHTML = '<option value="">-- Seleccionar Unidad Curricular --</option>' +
             ucsActualesPfg.map(u => 
               `<option value="${u.id}" data-codigo="${u.codigo}" data-ht="${u.horasTeoricas}" data-hp="${u.horasPracticas}" data-bloques="${u.bloques90Min}" data-espacio="${u.tipoEspacioRequerido}" data-trayecto="${u.trayecto}" data-tramo="${u.tramo}">
-                T${u.trayecto}-M${u.tramo} | ${u.codigo} - ${u.nombre} (${u.horasLectivas}h lectivas)
+                ${u.trayecto === null || u.tramo === null ? 'Sin trayecto' : 'T' + u.trayecto + '-M' + u.tramo} | ${u.codigo} - ${u.nombre} (${u.horasLectivas}h lectivas)
               </option>`
             ).join('');
         }
@@ -593,7 +799,9 @@
     document.getElementById('uc-badge-espacio').textContent = espacio.replace(/_/g, ' ');
     document.getElementById('uc-info-horas').textContent = (ht + hp) + 'h / semana (HT:' + ht + ' HP:' + hp + ')';
     document.getElementById('uc-info-bloques').textContent = bloques + ' Bloques de 90 min';
-    document.getElementById('uc-info-ubicacion').textContent = 'Trayecto ' + trayecto + ' - Tramo ' + tramo;
+    document.getElementById('uc-info-ubicacion').textContent = (trayecto === 'null' || tramo === 'null')
+      ? 'Sin malla por trayectos'
+      : 'Trayecto ' + trayecto + ' - Tramo ' + tramo;
 
     infoCard.style.display = 'block';
 
@@ -606,11 +814,202 @@
     const ucCodigo = codigoUcParam || (selectedOpt ? selectedOpt.getAttribute('data-codigo') : null);
     if (!ucCodigo) return;
 
+    const codigoInput = document.getElementById('seccion-codigo-input');
+    const selectGrupo = document.getElementById('seccion-select-grupo');
+    const grupoOpt = selectGrupo.options[selectGrupo.selectedIndex];
+    const grupoCodigo = grupoOpt ? grupoOpt.getAttribute('data-codigo') : null;
+    if (grupoCodigo) {
+      codigoInput.value = `${grupoCodigo}-${ucCodigo}`;
+      return;
+    }
     const turno = document.getElementById('seccion-select-turno').value || 'MATUTINO';
     const inicialTurno = turno.charAt(0).toUpperCase();
-    const codigoInput = document.getElementById('seccion-codigo-input');
     codigoInput.value = `SEC-${periodoCodigoActual}-${ucCodigo}-${inicialTurno}-01`;
   }
+</script>
+
+<script>
+  (function () {
+    const MAX_VISIBLES = 60;
+    const ETIQUETA_DEDICACION = {
+      DEDICACION_EXCLUSIVA: 'Exclusiva',
+      TIEMPO_COMPLETO: 'Tiempo completo',
+      MEDIO_TIEMPO: 'Medio tiempo',
+      TIEMPO_CONVENCIONAL: 'Convencional',
+    };
+    const normalizar = (t) => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const docentes = JSON.parse(document.getElementById('docentes-carga-data').textContent);
+    docentes.forEach((d) => {
+      d.busqueda = normalizar(`${d.nombre} ${d.cedula} ${d.cedula.replace(/\D/g, '')}`);
+    });
+
+    const form = document.getElementById('form-asignar-docente');
+    const lista = document.getElementById('asig-lista');
+    const buscar = document.getElementById('asig-buscar');
+    const toggle = document.getElementById('asig-solo-disponibles');
+    const contador = document.getElementById('asig-contador');
+    const resumen = document.getElementById('asig-resumen');
+    const guardar = document.getElementById('asig-guardar');
+    const inputProfesor = document.getElementById('asig-profesor-id');
+
+    let fila = null;
+    let seleccionado = '';
+    let soloDisponibles = false;
+
+    function proyectadas(d) {
+      return d.id === fila.profesorId ? d.horas : d.horas + fila.horas;
+    }
+
+    function excede(d) {
+      return d.dedicacion !== null && proyectadas(d) > d.maxHoras;
+    }
+
+    function elemento(tag, clase, texto) {
+      const el = document.createElement(tag);
+      if (clase) el.className = clase;
+      if (texto !== undefined) el.textContent = texto;
+      return el;
+    }
+
+    function chipEstado(d) {
+      if (d.dedicacion === null) return elemento('span', 'oferta-chip oferta-chip-muted', 'Sin dedicación en el período');
+      const total = proyectadas(d);
+      if (total > d.maxHoras) return elemento('span', 'oferta-chip oferta-chip-danger', `Quedaría en ${total} h (excede ${d.maxHoras} h)`);
+      if (total < d.minHoras) return elemento('span', 'oferta-chip oferta-chip-warning', `Quedaría en ${total} h (mínimo ${d.minHoras} h)`);
+      return elemento('span', 'oferta-chip oferta-chip-ok', `Quedaría en ${total} h`);
+    }
+
+    function itemDocente(d) {
+      const item = elemento('button', 'docente-picker-item');
+      item.type = 'button';
+      item.setAttribute('role', 'option');
+      item.setAttribute('aria-selected', String(seleccionado === d.id));
+      item.dataset.id = d.id;
+
+      const info = elemento('div', 'docente-picker-info');
+      info.appendChild(elemento('span', 'docente-picker-name', d.nombre));
+      const ded = d.dedicacion ? ETIQUETA_DEDICACION[d.dedicacion] || d.dedicacion : 'Sin dedicación';
+      const actual = d.id === fila.profesorId ? ' • Docente actual' : '';
+      info.appendChild(elemento('span', 'table-sub-info', `${d.cedula} • ${ded}${actual}`));
+
+      const carga = elemento('div', 'docente-picker-load');
+      carga.appendChild(elemento('span', 'docente-picker-hours', `${d.horas}/${d.maxHoras} h`));
+      const barra = elemento('div', 'docente-picker-bar');
+      const relleno = elemento('span', d.horas > d.maxHoras ? 'is-over' : '');
+      relleno.style.width = `${Math.min(100, Math.round((d.horas / Math.max(d.maxHoras, 1)) * 100))}%`;
+      barra.appendChild(relleno);
+      carga.appendChild(barra);
+      carga.appendChild(chipEstado(d));
+
+      item.appendChild(info);
+      item.appendChild(carga);
+      return item;
+    }
+
+    function itemVacante() {
+      const item = elemento('button', 'docente-picker-item docente-picker-item-vacante');
+      item.type = 'button';
+      item.setAttribute('role', 'option');
+      item.setAttribute('aria-selected', String(seleccionado === ''));
+      item.dataset.id = '';
+      const info = elemento('div', 'docente-picker-info');
+      info.appendChild(elemento('span', 'docente-picker-name', 'Dejar vacante (sin docente)'));
+      info.appendChild(elemento('span', 'table-sub-info', 'La asignación queda como POR ASIGNAR en la oferta'));
+      item.appendChild(info);
+      return item;
+    }
+
+    function ordenar(a, b) {
+      if (a.id === fila.profesorId) return -1;
+      if (b.id === fila.profesorId) return 1;
+      const rango = (d) => (d.dedicacion === null ? 1 : excede(d) ? 2 : 0);
+      return rango(a) - rango(b) || a.nombre.localeCompare(b.nombre, 'es');
+    }
+
+    function render() {
+      const termino = normalizar(buscar.value.trim());
+      const coinciden = docentes
+        .filter((d) => !termino || d.busqueda.includes(termino))
+        .filter((d) => !soloDisponibles || (d.dedicacion !== null && !excede(d)))
+        .sort(ordenar);
+
+      lista.replaceChildren();
+      if (!termino && !soloDisponibles) lista.appendChild(itemVacante());
+      coinciden.slice(0, MAX_VISIBLES).forEach((d) => lista.appendChild(itemDocente(d)));
+      if (coinciden.length === 0) lista.appendChild(elemento('div', 'docente-picker-empty', 'Ningún docente coincide con la búsqueda.'));
+
+      contador.textContent =
+        coinciden.length > MAX_VISIBLES
+          ? `Mostrando ${MAX_VISIBLES} de ${coinciden.length} docentes. Escriba para acotar la búsqueda.`
+          : `${coinciden.length} docente(s)`;
+      actualizarResumen();
+    }
+
+    function actualizarResumen() {
+      inputProfesor.value = seleccionado;
+      resumen.replaceChildren();
+      resumen.className = 'docente-picker-summary';
+      guardar.disabled = false;
+      if (!seleccionado) {
+        resumen.textContent = 'La asignación quedará vacante.';
+        return;
+      }
+      const d = docentes.find((x) => x.id === seleccionado);
+      if (!d) return;
+      const total = proyectadas(d);
+      if (excede(d)) {
+        resumen.classList.add('is-danger');
+        resumen.textContent = `${d.nombre} quedaría con ${total} h y su tope es ${d.maxHoras} h: el sistema rechaza la asignación por la regla H-04.`;
+        guardar.disabled = true;
+      } else if (d.dedicacion === null) {
+        resumen.classList.add('is-warning');
+        resumen.textContent = `${d.nombre} no tiene dedicación registrada en el período; no se puede verificar el tope H-04.`;
+      } else {
+        resumen.textContent = `${d.nombre} quedaría con ${total} h de ${d.minHoras}–${d.maxHoras} h permitidas.`;
+      }
+    }
+
+    lista.addEventListener('click', (e) => {
+      const item = e.target.closest('.docente-picker-item');
+      if (!item) return;
+      seleccionado = item.dataset.id;
+      lista.querySelectorAll('.docente-picker-item').forEach((el) => {
+        el.setAttribute('aria-selected', String(el.dataset.id === seleccionado));
+      });
+      actualizarResumen();
+    });
+
+    buscar.addEventListener('input', render);
+    buscar.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') e.preventDefault();
+    });
+
+    toggle.addEventListener('click', () => {
+      soloDisponibles = !soloDisponibles;
+      toggle.setAttribute('aria-pressed', String(soloDisponibles));
+      render();
+    });
+
+    document.addEventListener('click', (e) => {
+      const boton = e.target.closest('[data-asignar-docente]');
+      if (!boton) return;
+      fila = {
+        seccionId: boton.dataset.seccionId,
+        horas: parseInt(boton.dataset.horas, 10) || 0,
+        profesorId: boton.dataset.profesorId || '',
+      };
+      seleccionado = fila.profesorId;
+      form.action = `/periodos/<%= periodo.id %>/secciones/${fila.seccionId}/asignar-profesor`;
+      document.getElementById('asig-codigo').textContent = boton.dataset.codigo;
+      document.getElementById('asig-unidad').textContent = boton.dataset.unidad;
+      document.getElementById('asig-horas').textContent = fila.horas;
+      buscar.value = '';
+      render();
+      UIkit.modal('#modal-asignar-docente').show();
+    });
+
+    UIkit.util.on('#modal-asignar-docente', 'shown', () => buscar.focus());
+  })();
 </script>
 
 <!-- Modal Solver de Optimización Automática -->

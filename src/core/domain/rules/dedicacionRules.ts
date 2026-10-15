@@ -132,3 +132,48 @@ export function evaluarNormativaDocente(
     badgeClass: 'badge-success',
   };
 }
+
+export interface SeccionCargaInput {
+  horasSemanalesOferta?: number | null;
+  unidadCurricular: {
+    horasTeoricasSemanales: number;
+    horasPracticasSemanales: number;
+  };
+}
+
+/**
+ * Horas de docencia directa que aporta una asignación a la carga del docente.
+ * Las horas declaradas en la oferta del período prevalecen sobre HT + HP de la malla.
+ */
+export function horasDocenciaSeccion(seccion: SeccionCargaInput): number {
+  if (typeof seccion.horasSemanalesOferta === 'number' && seccion.horasSemanalesOferta > 0) {
+    return seccion.horasSemanalesOferta;
+  }
+  return seccion.unidadCurricular.horasTeoricasSemanales + seccion.unidadCurricular.horasPracticasSemanales;
+}
+
+export interface CargaDocentePeriodo {
+  /** null cuando el docente no tiene dedicación registrada en el período: H-04 no puede evaluarse. */
+  dedicacion: string | null;
+  horas: number;
+  asignaciones: number;
+  minHoras: number;
+  maxHoras: number;
+  disponibles: number;
+  estado: EstadoNormativoDocente | 'SIN_DEDICACION';
+}
+
+/** Carga lectiva de un docente en el período a partir de sus asignaciones (horas de oferta o HT + HP). */
+export function calcularCargaDocente(dedicacion: string | null, secciones: SeccionCargaInput[]): CargaDocentePeriodo {
+  const horas = secciones.reduce((acc, s) => acc + horasDocenciaSeccion(s), 0);
+  const evaluacion = evaluarNormativaDocente(dedicacion ?? '', horas);
+  return {
+    dedicacion,
+    horas,
+    asignaciones: secciones.length,
+    minHoras: evaluacion.minHoras,
+    maxHoras: evaluacion.maxHoras,
+    disponibles: Math.max(0, evaluacion.maxHoras - horas),
+    estado: dedicacion ? evaluacion.estado : 'SIN_DEDICACION',
+  };
+}

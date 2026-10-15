@@ -1,4 +1,4 @@
-import { TipoEspacio } from '../enums';
+import { TipoEspacio, TipoPrograma } from '../enums';
 
 export interface UnidadCurricularData {
   codigo: string;
@@ -178,6 +178,15 @@ export function obtenerTrayectoPorTramo(tramo: number): number | null {
 }
 
 /**
+ * RC-06 solo aplica a programas organizados por trayectos (PFG, PNF, PIU).
+ * PFA (posgrado por cohortes) e IDIOMAS no tienen malla por Trayecto/Tramo.
+ */
+export function programaRequiereTrayecto(tipoPrograma: string | null | undefined): boolean {
+  const tipo = (tipoPrograma || TipoPrograma.PFG).toUpperCase();
+  return tipo !== TipoPrograma.PFA && tipo !== TipoPrograma.IDIOMAS;
+}
+
+/**
  * RC-06: Valida correspondencia estricta y biunívoca entre Trayecto y Tramo.
  * Previene inconsistencias donde una UC de Trayecto I se registre con Tramo 5 o viceversa.
  */
@@ -221,5 +230,147 @@ export function validarCorrespondenciaTrayectoTramo(
     tramosPermitidos,
     trayectoCorrespondiente: trayectoCorrespondiente ?? undefined,
   };
+}
+
+/**
+ * RC-07: Validación de Prelación Curricular entre Unidades del Mismo PFG.
+ * - Una materia no puede ser prelación de sí misma.
+ * - Ambas materias deben pertenecer al mismo PFG.
+ * - La materia requisito debe pertenecer a un Trayecto/Tramo estrictamente anterior.
+ */
+export function validarReglaPrelacionCurricular(
+  unidadObjetivo: { id?: string; pfgId: string; trayecto: number | null; tramo: number | null; nombre?: string },
+  unidadRequisito: { id?: string; pfgId: string; trayecto: number | null; tramo: number | null; nombre?: string }
+): { valido: boolean; error?: string } {
+  if (unidadObjetivo.id && unidadRequisito.id && unidadObjetivo.id === unidadRequisito.id) {
+    return {
+      valido: false,
+      error: 'Violación RC-07: Una unidad curricular no puede establecerse como prelación de sí misma.',
+    };
+  }
+
+  if (unidadObjetivo.pfgId !== unidadRequisito.pfgId) {
+    return {
+      valido: false,
+      error: 'Violación RC-07: Ambas unidades curriculares deben pertenecer estrictamente al mismo PFG.',
+    };
+  }
+
+  if (
+    unidadObjetivo.trayecto === null || unidadObjetivo.tramo === null ||
+    unidadRequisito.trayecto === null || unidadRequisito.tramo === null
+  ) {
+    return {
+      valido: false,
+      error: 'Violación RC-07: Las prelaciones solo aplican a unidades curriculares ubicadas en Trayecto/Tramo de la malla.',
+    };
+  }
+
+  // Comprobar orden cronológico en la malla curricular:
+  // La prelación debe ocurrir antes: o trayecto menor, o mismo trayecto con tramo menor
+  const esAnterior =
+    unidadRequisito.trayecto < unidadObjetivo.trayecto ||
+    (unidadRequisito.trayecto === unidadObjetivo.trayecto && unidadRequisito.tramo < unidadObjetivo.tramo);
+
+  if (!esAnterior) {
+    return {
+      valido: false,
+      error: `Violación RC-07: La unidad requisito (Trayecto ${unidadRequisito.trayecto}, Tramo ${unidadRequisito.tramo}) debe cursarse en un Trayecto/Tramo estrictamente anterior a la unidad avanzada (Trayecto ${unidadObjetivo.trayecto}, Tramo ${unidadObjetivo.tramo}).`,
+    };
+  }
+
+  return { valido: true };
+}
+
+export type UbicacionMallaResuelta =
+  | { valido: true; trayecto: number | null; tramo: number | null }
+  | { valido: false; error: string };
+
+function enteroDeFormulario(valor: unknown): number | null | undefined {
+  if (valor === undefined || valor === null) return null;
+  const texto = String(valor).trim();
+  if (texto === '') return null;
+  if (!/^-?\d+$/.test(texto)) return undefined;
+  return parseInt(texto, 10);
+}
+
+/**
+ * Resuelve Trayecto/Tramo enviados desde un formulario según el tipo de programa.
+ * PFG, PNF y PIU exigen ambos (RC-06). PFA e IDIOMAS admiten ubicación vacía (null);
+ * si se indica alguno de los dos, se exigen ambos y se valida RC-06.
+ */
+export function resolverUbicacionMalla(
+  tipoPrograma: string | null | undefined,
+  trayecto: unknown,
+  tramo: unknown
+): UbicacionMallaResuelta {
+  const numTrayecto = enteroDeFormulario(trayecto);
+  const numTramo = enteroDeFormulario(tramo);
+
+  if (numTrayecto === undefined || numTramo === undefined) {
+    return { valido: false, error: 'Trayecto y Tramo deben ser valores numéricos enteros.' };
+  }
+
+  const requiere = programaRequiereTrayecto(tipoPrograma);
+
+  if (numTrayecto === null && numTramo === null) {
+    if (!requiere) return { valido: true, trayecto: null, tramo: null };
+    return {
+      valido: false,
+      error: 'Violación RC-06: Los programas organizados por trayectos (PFG, PNF, PIU) requieren Trayecto y Tramo.',
+    };
+  }
+
+  if (numTrayecto === null || numTramo === null) {
+    return {
+      valido: false,
+      error: requiere
+        ? 'Violación RC-06: Debe indicar Trayecto y Tramo de la unidad curricular.'
+        : 'Indique Trayecto y Tramo a la vez, o deje ambos vacíos para un programa sin malla por trayectos.',
+    };
+  }
+
+  const rc06 = validarCorrespondenciaTrayectoTramo(numTrayecto, numTramo);
+  if (!rc06.valido) return { valido: false, error: rc06.error! };
+
+  return { valido: true, trayecto: numTrayecto, tramo: numTramo };
+}
+
+export interface UnidadMalla {
+  id: string;
+  codigo: string;
+  pfgId: string;
+  trayecto: number | null;
+  tramo: number | null;
+}
+
+/**
+ * RC-07 aplicado a una lista de candidatas: separa las prelaciones admisibles de las rechazadas.
+ */
+export function filtrarPrelacionesValidas(
+  objetivo: UnidadMalla,
+  candidatas: UnidadMalla[]
+): { aceptadas: string[]; rechazadas: { id: string; codigo: string; error: string }[] } {
+  const aceptadas: string[] = [];
+  const rechazadas: { id: string; codigo: string; error: string }[] = [];
+  const vistas = new Set<string>();
+
+  for (const candidata of candidatas) {
+    if (vistas.has(candidata.id)) continue;
+    vistas.add(candidata.id);
+    const v = validarReglaPrelacionCurricular(objetivo, candidata);
+    if (v.valido) aceptadas.push(candidata.id);
+    else rechazadas.push({ id: candidata.id, codigo: candidata.codigo, error: v.error! });
+  }
+
+  return { aceptadas, rechazadas };
+}
+
+/**
+ * RC-07 inverso: unidades que dependen de `requisito` y dejarían de cumplir la prelación
+ * si `requisito` pasa a la ubicación indicada.
+ */
+export function dependientesInvalidadas(requisito: UnidadMalla, dependientes: UnidadMalla[]): UnidadMalla[] {
+  return dependientes.filter((d) => !validarReglaPrelacionCurricular(d, requisito).valido);
 }
 

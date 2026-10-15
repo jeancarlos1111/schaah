@@ -1,0 +1,34 @@
+<%
+  // prefijo: '' para el formulario de registro, 'edit-' para el de edición
+  const p = typeof prefijo !== 'undefined' ? prefijo : '';
+%>
+<div class="uk-width-1-1">
+  <div class="docente-form-section-title">Datos académicos de la oferta de carga horaria</div>
+</div>
+
+<div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+  <label class="label-clean">Profesión</label>
+  <input type="text" name="profesion" id="<%= p %>profesion" maxlength="200" placeholder="Ej. Licenciada en Educación" class="input-control-clean">
+</div>
+<div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+  <label class="label-clean">Estudios de 4to Nivel</label>
+  <input type="text" name="estudiosCuartoNivel" id="<%= p %>estudiosCuartoNivel" maxlength="300" placeholder="Especialización, maestría o doctorado" class="input-control-clean">
+</div>
+
+<div class="uk-width-1-3@m uk-width-1-1 form-group-clean">
+  <label class="label-clean">Año de Ingreso</label>
+  <input type="number" name="anioIngreso" id="<%= p %>anioIngreso" min="1970" max="2100" placeholder="Ej. 2008" class="input-control-clean">
+</div>
+<div class="uk-width-1-3@m uk-width-1-1 form-group-clean">
+  <label class="label-clean">Año de Concurso</label>
+  <input type="number" name="anioConcurso" id="<%= p %>anioConcurso" min="1970" max="2100" placeholder="Ej. 2012" class="input-control-clean">
+</div>
+<div class="uk-width-1-3@m uk-width-1-1 form-group-clean">
+  <label class="label-clean">Centro de Estudio</label>
+  <select name="centroEstudioId" id="<%= p %>centroEstudioId" class="table-filter-select uk-width-1-1">
+    <option value="">Sin adscripción</option>
+    <% centrosEstudio.forEach(function(c) { %>
+      <option value="<%= c.id %>" title="<%= c.nombre %>"><%= c.codigo %></option>
+    <% }); %>
+  </select>
+</div>

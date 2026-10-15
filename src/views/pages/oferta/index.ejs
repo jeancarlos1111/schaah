@@ -1,0 +1,385 @@
+<%
+  const puedeImportar = usuario && ['ADMINISTRADOR', 'DIRECTOR_ACADEMICO'].includes(usuario.rol);
+  const etiquetaTurno = { MATUTINO: 'Mañana', VESPERTINO: 'Tarde', NOCTURNO: 'Noche', FIN_DE_SEMANA: 'Fin de semana', UNICA: 'Única' };
+  const claseTurno = { MATUTINO: 'status-active', VESPERTINO: 'indicator-blue', NOCTURNO: 'indicator-teal', FIN_DE_SEMANA: 'indicator-amber', UNICA: 'indicator-gray' };
+
+  function makeQueryUrl(overrides) {
+    const params = new URLSearchParams({
+      page: overrides.page !== undefined ? overrides.page : pagination.page,
+      limit: overrides.limit !== undefined ? overrides.limit : pagination.limit,
+      q: overrides.q !== undefined ? overrides.q : (filters.q || ''),
+      pfgId: overrides.pfgId !== undefined ? overrides.pfgId : (filters.pfgId || ''),
+      sedeId: overrides.sedeId !== undefined ? overrides.sedeId : (filters.sedeId || ''),
+      turno: overrides.turno !== undefined ? overrides.turno : (filters.turno || ''),
+      estatus: overrides.estatus !== undefined ? overrides.estatus : (filters.estatus || ''),
+      sortBy: overrides.sortBy !== undefined ? overrides.sortBy : (filters.sortBy || 'codigoNormalizado'),
+      sortDir: overrides.sortDir !== undefined ? overrides.sortDir : (filters.sortDir || 'asc')
+    });
+    for (const [key, val] of [...params.entries()]) {
+      if (!val) params.delete(key);
+    }
+    return `/periodos/${periodo.id}/oferta?` + params.toString();
+  }
+
+  function getSortUrl(col) {
+    const nextDir = filters.sortBy === col && filters.sortDir === 'asc' ? 'desc' : 'asc';
+    return makeQueryUrl({ page: 1, sortBy: col, sortDir: nextDir });
+  }
+
+  function getSortHeaderClass(col) {
+    if (filters.sortBy !== col) return 'sortable';
+    return filters.sortDir === 'asc' ? 'sortable sort-asc' : 'sortable sort-desc';
+  }
+
+  const hayFiltros = filters.q || filters.pfgId || filters.sedeId || filters.turno || filters.estatus || filters.sortBy !== 'codigoNormalizado';
+%>
+
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <a href="/periodos" class="uk-link-reset uk-text-muted">Períodos</a>
+        <span class="breadcrumb-separator">/</span>
+        <a href="/periodos/<%= periodo.id %>/secciones" class="uk-link-reset uk-text-muted"><%= periodo.codigo %></a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Oferta de Carga Horaria</span>
+      </div>
+      <h1 class="page-title uk-margin-remove">Oferta de Carga Horaria (<%= periodo.codigo %>)</h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Secciones (cohortes) con sus unidades curriculares y docentes, importadas o exportadas con el formato institucional del consolidado UBV.
+      </p>
+    </div>
+    <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
+      <a href="/periodos/<%= periodo.id %>/secciones" class="btn-clean-secondary">
+        <span uk-icon="icon: list; ratio: 0.85"></span>
+        <span>Ver Asignaciones</span>
+      </a>
+      <a href="/periodos/<%= periodo.id %>/oferta/inconsistencias" class="btn-clean-secondary">
+        <span uk-icon="icon: warning; ratio: 0.85"></span>
+        <span>Inconsistencias</span>
+      </a>
+      <a href="/periodos/<%= periodo.id %>/oferta/exportar.xlsx" class="btn-clean-primary">
+        <span uk-icon="icon: download; ratio: 0.85"></span>
+        <span>Exportar Oferta (.xlsx)</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<% if (mensaje) { %>
+  <div class="alert-clean-success uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: check; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= mensaje %></span>
+  </div>
+<% } %>
+<% if (error) { %>
+  <div class="alert-clean-danger uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: warning; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= error %></span>
+  </div>
+<% } %>
+
+<% if (hayVistaPrevia) { %>
+  <div class="oferta-preview-banner uk-margin-bottom">
+    <span uk-icon="icon: info; ratio: 0.9"></span>
+    <span class="oferta-preview-banner-text">Tiene una importación analizada pendiente de confirmar.</span>
+    <a href="/periodos/<%= periodo.id %>/oferta/vista-previa" class="btn-clean-secondary">
+      <span uk-icon="icon: eye; ratio: 0.8"></span>
+      <span>Revisar vista previa</span>
+    </a>
+  </div>
+<% } %>
+
+<div class="uk-grid-small uk-child-width-1-2 uk-child-width-1-5@m uk-margin-medium-bottom" uk-grid>
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Secciones (Grupos)</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.totalGrupos %></span>
+        <span class="stat-unit">cohortes</span>
+      </div>
+      <span class="detail-label">Registradas en el período</span>
+    </div>
+  </div>
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Asignaciones</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.totalAsignaciones %></span>
+        <span class="stat-unit">UC + docente</span>
+      </div>
+      <span class="detail-label">Filas de la oferta</span>
+    </div>
+  </div>
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Por Asignar</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.asignacionesSinDocente %></span>
+        <span class="stat-unit">vacantes</span>
+      </div>
+      <span class="detail-label">Sin docente vinculado</span>
+    </div>
+  </div>
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Docentes con Carga</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.docentesConCarga %></span>
+        <span class="stat-unit">docentes</span>
+      </div>
+      <span class="detail-label">Con al menos una UC</span>
+    </div>
+  </div>
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Estudiantes</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= stats.totalEstudiantes %></span>
+        <span class="stat-unit">matrícula</span>
+      </div>
+      <span class="detail-label">Declarada por sección</span>
+    </div>
+  </div>
+</div>
+
+<div class="oferta-actions-grid uk-margin-medium-bottom">
+  <div class="oferta-card">
+    <div class="oferta-card-header">
+      <span class="oferta-card-icon oferta-card-icon-import" uk-icon="icon: upload; ratio: 1"></span>
+      <div>
+        <h3 class="oferta-card-title">Importar consolidado de oferta</h3>
+        <p class="oferta-card-text">
+          Libro .xlsx con la hoja de 29 columnas (PFG … OBSERVACIONES) y encabezado en la fila 10. Primero se analiza y se muestra una vista previa; nada se guarda hasta confirmar.
+        </p>
+      </div>
+    </div>
+    <% if (puedeImportar) { %>
+      <form action="/periodos/<%= periodo.id %>/oferta/importar" method="POST" enctype="multipart/form-data" class="oferta-upload-form">
+        <label class="oferta-file-field">
+          <input type="file" name="archivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required class="oferta-file-input" onchange="mostrarArchivoOferta(this)">
+          <span class="oferta-file-button">
+            <span uk-icon="icon: file-text; ratio: 0.85"></span>
+            <span>Seleccionar archivo</span>
+          </span>
+          <span class="oferta-file-name" id="oferta-file-name">Ningún archivo seleccionado</span>
+        </label>
+        <button type="submit" class="btn-clean-primary">
+          <span uk-icon="icon: search; ratio: 0.85"></span>
+          <span>Analizar archivo</span>
+        </button>
+      </form>
+    <% } else { %>
+      <p class="oferta-card-note">
+        <span uk-icon="icon: lock; ratio: 0.75"></span>
+        <span>Solo Administración y Dirección Académica pueden importar la oferta.</span>
+      </p>
+    <% } %>
+  </div>
+
+  <div class="oferta-card">
+    <div class="oferta-card-header">
+      <span class="oferta-card-icon oferta-card-icon-export" uk-icon="icon: download; ratio: 1"></span>
+      <div>
+        <h3 class="oferta-card-title">Exportar con formato institucional</h3>
+        <p class="oferta-card-text">
+          Genera el consolidado del período con las mismas 29 columnas, encabezado institucional (filas 4 a 8) y autofiltro, listo para enviar a la Coordinación Territorial.
+        </p>
+      </div>
+    </div>
+    <a href="/periodos/<%= periodo.id %>/oferta/exportar.xlsx" class="btn-clean-secondary">
+      <span uk-icon="icon: download; ratio: 0.85"></span>
+      <span>Descargar OFERTA_CARGA_HORARIA_<%= periodo.codigo %>.xlsx</span>
+    </a>
+  </div>
+</div>
+
+<div class="clean-panel data-table-wrapper">
+  <form action="/periodos/<%= periodo.id %>/oferta" method="GET" class="table-toolbar uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-2">
+    <input type="hidden" name="page" value="1" />
+    <input type="hidden" name="sortBy" value="<%= filters.sortBy %>" />
+    <input type="hidden" name="sortDir" value="<%= filters.sortDir %>" />
+
+    <div class="uk-flex uk-flex-between uk-flex-middle uk-width-1-1 uk-margin-small-bottom">
+      <div class="table-search-box oferta-search-box">
+        <span uk-icon="icon: search; ratio: 0.8" class="search-icon"></span>
+        <input type="text" name="q" value="<%= filters.q %>" class="search-input" placeholder="Buscar por código de sección o programa..." autocomplete="off" />
+      </div>
+      <div class="table-toolbar-right uk-flex uk-flex-middle gap-2">
+        <span class="uk-text-muted uk-text-small">Filas:</span>
+        <select name="limit" class="table-page-size-select" onchange="this.form.submit()">
+          <% [10, 25, 50, 100].forEach(function(n) { %>
+            <option value="<%= n %>" <%= pagination.limit === n ? 'selected' : '' %>><%= n %></option>
+          <% }); %>
+        </select>
+      </div>
+    </div>
+
+    <div class="table-filters-row uk-flex uk-flex-middle uk-flex-wrap gap-2 uk-width-1-1">
+      <select name="pfgId" class="table-filter-select" onchange="this.form.submit()">
+        <option value="">Todos los programas</option>
+        <% pfgs.forEach(function(p) { %>
+          <option value="<%= p.id %>" <%= filters.pfgId === p.id ? 'selected' : '' %>>[<%= p.codigo %>] <%= p.nombre %></option>
+        <% }); %>
+      </select>
+      <select name="sedeId" class="table-filter-select" onchange="this.form.submit()">
+        <option value="">Todas las sedes</option>
+        <% sedes.forEach(function(s) { %>
+          <option value="<%= s.id %>" <%= filters.sedeId === s.id ? 'selected' : '' %>><%= s.nombre %></option>
+        <% }); %>
+      </select>
+      <select name="turno" class="table-filter-select" onchange="this.form.submit()">
+        <option value="">Todos los turnos</option>
+        <% turnos.forEach(function(t) { %>
+          <option value="<%= t %>" <%= filters.turno === t ? 'selected' : '' %>><%= etiquetaTurno[t] || t %></option>
+        <% }); %>
+      </select>
+      <select name="estatus" class="table-filter-select" onchange="this.form.submit()">
+        <option value="">Todos los estatus</option>
+        <% estatusGrupo.forEach(function(e) { %>
+          <option value="<%= e %>" <%= filters.estatus === e ? 'selected' : '' %>><%= e %></option>
+        <% }); %>
+      </select>
+      <a href="/periodos/<%= periodo.id %>/oferta" class="btn-clean-ghost <%= hayFiltros ? '' : 'uk-hidden' %>" title="Restablecer filtros">
+        <span uk-icon="icon: refresh; ratio: 0.75"></span>
+        <span>Limpiar</span>
+      </a>
+    </div>
+  </form>
+
+  <div class="uk-overflow-auto uk-margin-small-top">
+    <table class="clean-table">
+      <thead>
+        <tr>
+          <th class="<%= getSortHeaderClass('codigoNormalizado') %>">
+            <a href="<%= getSortUrl('codigoNormalizado') %>" class="uk-link-reset">Sección</a>
+          </th>
+          <th>Programa</th>
+          <th class="<%= getSortHeaderClass('trayecto') %>">
+            <a href="<%= getSortUrl('trayecto') %>" class="uk-link-reset">Trayecto / Tramo</a>
+          </th>
+          <th class="<%= getSortHeaderClass('turno') %>">
+            <a href="<%= getSortUrl('turno') %>" class="uk-link-reset">Turno</a>
+          </th>
+          <th>Sede / Eje</th>
+          <th class="<%= getSortHeaderClass('estatus') %>">
+            <a href="<%= getSortUrl('estatus') %>" class="uk-link-reset">Estatus</a>
+          </th>
+          <th class="uk-text-center <%= getSortHeaderClass('cantidadEstudiantes') %>">
+            <a href="<%= getSortUrl('cantidadEstudiantes') %>" class="uk-link-reset">Estudiantes</a>
+          </th>
+          <th class="uk-text-center">UC / Vacantes</th>
+          <th class="table-actions-cell uk-text-right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (grupos.length === 0) { %>
+          <tr>
+            <td colspan="9" class="empty-state-cell">
+              <div class="empty-state-inner">
+                <span uk-icon="icon: album; ratio: 1.6" class="empty-state-icon"></span>
+                <span class="empty-state-title">No hay secciones registradas con estos filtros</span>
+                <span class="table-sub-info">Importe el consolidado de la oferta para poblar el período.</span>
+              </div>
+            </td>
+          </tr>
+        <% } %>
+        <% grupos.forEach(function(g) { %>
+          <tr>
+            <td>
+              <div class="grupo-codigo"><%= g.codigoNormalizado %></div>
+              <% if (g.codigo && g.codigo !== g.codigoNormalizado) { %>
+                <div class="table-sub-info">Oferta: <%= g.codigo %></div>
+              <% } %>
+            </td>
+            <td>
+              <div class="text-sm font-medium oferta-text-strong"><%= g.pfg.nombre %></div>
+              <div class="table-sub-info"><%= g.pfg.codigo %> &bull; <%= g.pfg.tipo %></div>
+            </td>
+            <td>
+              <% if (g.trayecto === null && g.tramo === null) { %>
+                <span class="table-sub-info">Sin malla por trayectos</span>
+              <% } else { %>
+                <span class="badge-trayecto">T<%= g.trayecto ?? '—' %> &bull; Tramo <%= g.tramo ?? '—' %></span>
+              <% } %>
+              <% if (g.malla) { %><div class="table-sub-info">Malla <%= g.malla.toLowerCase() %></div><% } %>
+            </td>
+            <td>
+              <span class="status-pill <%= claseTurno[g.turno] || 'indicator-gray' %>"><%= etiquetaTurno[g.turno] || g.turno %></span>
+            </td>
+            <td>
+              <div class="text-xs font-medium oferta-text-strong"><%= g.sede.nombre %></div>
+              <% if (g.ejeMunicipal) { %><div class="table-sub-info">Eje <%= g.ejeMunicipal %></div><% } %>
+            </td>
+            <td>
+              <% if (g.estatus) { %>
+                <span class="estatus-pill estatus-<%= g.estatus.toLowerCase() %>"><%= g.estatus %></span>
+              <% } else { %>
+                <span class="table-sub-info">—</span>
+              <% } %>
+            </td>
+            <td class="uk-text-center">
+              <span class="font-bold text-sm oferta-text-strong"><%= g.cantidadEstudiantes ?? '—' %></span>
+            </td>
+            <td class="uk-text-center">
+              <span class="font-bold text-sm oferta-text-strong"><%= g._count.secciones %></span>
+              <% if (g.vacantes > 0) { %>
+                <span class="oferta-chip oferta-chip-warning"><%= g.vacantes %> por asignar</span>
+              <% } %>
+            </td>
+            <td class="table-actions-cell uk-text-right">
+              <div class="table-actions-group">
+                <a class="btn-table-action" href="/periodos/<%= periodo.id %>/secciones?grupoId=<%= g.id %>" title="Ver unidades curriculares y docentes de la sección">
+                  <span uk-icon="icon: list; ratio: 0.75"></span>
+                  <span>Ver UC</span>
+                </a>
+                <a class="btn-table-action" href="/periodos/<%= periodo.id %>/horarios?tipo=GRUPO&id=<%= g.id %>" title="Ver el horario semanal de la sección">
+                  <span uk-icon="icon: calendar; ratio: 0.75"></span>
+                  <span>Horario</span>
+                </a>
+              </div>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-footer">
+    <div class="table-sub-info">
+      Mostrando <strong><%= pagination.start %></strong>–<strong><%= pagination.end %></strong> de <strong><%= pagination.total %></strong> secciones
+    </div>
+    <% if (pagination.totalPages > 1) { %>
+      <ul class="clean-pagination-list">
+        <li>
+          <a href="<%= pagination.hasPrevPage ? makeQueryUrl({ page: pagination.page - 1 }) : '#' %>" class="page-nav-btn <%= !pagination.hasPrevPage ? 'is-disabled' : '' %>">
+            <span uk-icon="icon: chevron-left; ratio: 0.75"></span>
+            <span>Anterior</span>
+          </a>
+        </li>
+        <% for (let i = 1; i <= pagination.totalPages; i++) { %>
+          <% if (i === 1 || i === pagination.totalPages || (i >= pagination.page - 1 && i <= pagination.page + 1)) { %>
+            <li><a href="<%= makeQueryUrl({ page: i }) %>" class="page-number-btn <%= i === pagination.page ? 'is-active' : '' %>"><%= i %></a></li>
+          <% } else if (i === pagination.page - 2 || i === pagination.page + 2) { %>
+            <li class="page-ellipsis">&hellip;</li>
+          <% } %>
+        <% } %>
+        <li>
+          <a href="<%= pagination.hasNextPage ? makeQueryUrl({ page: pagination.page + 1 }) : '#' %>" class="page-nav-btn <%= !pagination.hasNextPage ? 'is-disabled' : '' %>">
+            <span>Siguiente</span>
+            <span uk-icon="icon: chevron-right; ratio: 0.75"></span>
+          </a>
+        </li>
+      </ul>
+    <% } %>
+  </div>
+</div>
+
+<script>
+  function mostrarArchivoOferta(input) {
+    const etiqueta = document.getElementById('oferta-file-name');
+    etiqueta.textContent = input.files && input.files[0] ? input.files[0].name : 'Ningún archivo seleccionado';
+  }
+</script>

@@ -1,3 +1,4 @@
+<% const puedeGestionarEspacios = usuario && ['ADMINISTRADOR', 'DIRECTOR_ACADEMICO'].includes(usuario.rol); %>
 <!-- Header del Módulo de Espacios con Sub-navegación -->
 <div class="page-header uk-margin-medium-bottom">
   <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
@@ -12,6 +13,7 @@
         Administración de campus, aldeas universitarias municipalizadas, aulas, laboratorios y áreas de campo.
       </p>
     </div>
+    <% if (puedeGestionarEspacios) { %>
     <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
       <button class="btn-clean-secondary" uk-toggle="target: #modal-nueva-sede">
         <span uk-icon="icon: location; ratio: 0.85"></span>
@@ -22,6 +24,7 @@
         <span>Nuevo Espacio</span>
       </button>
     </div>
+    <% } %>
   </div>
 
   <!-- Pestañas de Navegación del Módulo -->
@@ -350,6 +353,9 @@
                   </td>
                   <td class="table-actions-cell uk-text-right">
                     <div class="table-actions-group">
+                      <% if (!puedeGestionarEspacios) { %>
+                        <span class="badge-self">Solo lectura</span>
+                      <% } else { %>
                       <!-- Editar Aula -->
                       <button 
                         type="button" 
@@ -368,6 +374,7 @@
                           <span><%= e.activo ? 'Desactivar' : 'Activar' %></span>
                         </button>
                       </form>
+                      <% } %>
                     </div>
                   </td>
                 </tr>
@@ -521,6 +528,9 @@
               </td>
               <td class="table-actions-cell uk-text-right">
                 <div class="table-actions-group">
+                  <% if (!puedeGestionarEspacios) { %>
+                    <span class="badge-self">Solo lectura</span>
+                  <% } else { %>
                   <button 
                     type="button" 
                     class="btn-table-action"
@@ -537,6 +547,7 @@
                       <span><%= s.activa ? 'Desactivar' : 'Activar' %></span>
                     </button>
                   </form>
+                  <% } %>
                 </div>
               </td>
             </tr>

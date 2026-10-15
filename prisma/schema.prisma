@@ -12,123 +12,159 @@ generator client {
 // ============================================================================
 
 model Rol {
-  id          String        @id @default(uuid())
-  codigo      String        @unique // ADMINISTRADOR, DIRECTOR_ACADEMICO, etc.
+  id          String   @id @default(uuid())
+  codigo      String   @unique // ADMINISTRADOR, DIRECTOR_ACADEMICO, etc.
   nombre      String
   descripcion String?
-  esSistema   Boolean       @default(false) @map("es_sistema") // Roles base protegidos
-  createdAt   DateTime      @default(now()) @map("created_at")
+  esSistema   Boolean  @default(false) @map("es_sistema") // Roles base protegidos
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  permisos    RolPermiso[]
-  usuarios    Usuario[]
+  permisos RolPermiso[]
+  usuarios Usuario[]
 
   @@map("roles")
 }
 
 model Permiso {
-  id          String        @id @default(uuid())
-  codigo      String        @unique // ej: usuarios.gestionar, horarios.editar
+  id          String  @id @default(uuid())
+  codigo      String  @unique // ej: usuarios.gestionar, horarios.editar
   nombre      String
-  modulo      String        // USUARIOS, ESPACIOS, HORARIOS, DOCENTES, REPORTES
+  modulo      String // USUARIOS, ESPACIOS, HORARIOS, DOCENTES, REPORTES
   descripcion String?
 
-  roles       RolPermiso[]
+  roles RolPermiso[]
 
   @@map("permisos")
 }
 
 model RolPermiso {
-  id        String   @id @default(uuid())
-  rolId     String   @map("rol_id")
-  rol       Rol      @relation(fields: [rolId], references: [id], onDelete: Cascade)
-  permisoId String   @map("permiso_id")
-  permiso   Permiso  @relation(fields: [permisoId], references: [id], onDelete: Cascade)
+  id        String  @id @default(uuid())
+  rolId     String  @map("rol_id")
+  rol       Rol     @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  permisoId String  @map("permiso_id")
+  permiso   Permiso @relation(fields: [permisoId], references: [id], onDelete: Cascade)
 
   @@unique([rolId, permisoId])
   @@map("rol_permisos")
 }
 
 model Usuario {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  nombres      String
-  apellidos    String
-  rol          String    @default("DOCENTE") // Código de rol para compatibilidad
-  rolRelacionId String?  @map("rol_relacion_id")
-  rolRelacion  Rol?      @relation(fields: [rolRelacionId], references: [id])
-  profesorId   String?   @unique @map("profesor_id")
-  profesor     Profesor? @relation(fields: [profesorId], references: [id])
-  activo       Boolean   @default(true)
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  nombres       String
+  apellidos     String
+  rol           String    @default("DOCENTE") // Código de rol para compatibilidad
+  rolRelacionId String?   @map("rol_relacion_id")
+  rolRelacion   Rol?      @relation(fields: [rolRelacionId], references: [id])
+  profesorId    String?   @unique @map("profesor_id")
+  profesor      Profesor? @relation(fields: [profesorId], references: [id])
+  activo        Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  programas UsuarioPrograma[]
 
   @@map("usuarios")
 }
 
-model Sede {
-  id                    String               @id @default(uuid())
-  codigo                String               @unique
-  nombre                String
-  ejeTerritorial        String               @map("eje_territorial")
-  direccion             String?
-  esAldeaMunicipalizada Boolean              @default(false) @map("es_aldea_municipalizada")
-  activa                Boolean              @default(true)
-  createdAt             DateTime             @default(now()) @map("created_at")
-  updatedAt             DateTime             @updatedAt @map("updated_at")
+// Programas que coordina un usuario COORDINADOR_PFG (alcance de listados y escrituras)
+model UsuarioPrograma {
+  id        String            @id @default(uuid())
+  usuarioId String            @map("usuario_id")
+  usuario   Usuario           @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  pfgId     String            @map("pfg_id")
+  pfg       ProgramaFormacion @relation(fields: [pfgId], references: [id], onDelete: Cascade)
+  createdAt DateTime          @default(now()) @map("created_at")
 
-  espacios              EspacioFisico[]
-  secciones             Seccion[]
-  dedicaciones          ProfesorDedicacion[]
+  @@unique([usuarioId, pfgId])
+  @@index([pfgId])
+  @@map("usuarios_programas")
+}
+
+model Sede {
+  id                    String   @id @default(uuid())
+  codigo                String   @unique
+  nombre                String
+  ejeTerritorial        String   @map("eje_territorial")
+  ejeMunicipal          String?  @map("eje_municipal")
+  direccion             String?
+  esAldeaMunicipalizada Boolean  @default(false) @map("es_aldea_municipalizada")
+  activa                Boolean  @default(true)
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  espacios     EspacioFisico[]
+  secciones    Seccion[]
+  grupos       GrupoSeccion[]
+  dedicaciones ProfesorDedicacion[]
 
   @@map("sedes")
 }
 
+model CentroEstudio {
+  id        String   @id @default(uuid())
+  codigo    String   @unique
+  nombre    String
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  profesores Profesor[]
+
+  @@map("centros_estudio")
+}
+
 model EspacioFisico {
-  id        String           @id @default(uuid())
-  sedeId    String           @map("sede_id")
-  sede      Sede             @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  sedeId    String   @map("sede_id")
+  sede      Sede     @relation(fields: [sedeId], references: [id], onDelete: Cascade)
   codigo    String
   nombre    String
-  tipo      String           @default("AULA_TEORICA")
+  tipo      String   @default("AULA_TEORICA")
   capacidad Int
   piso      String?
-  activo    Boolean          @default(true)
-  createdAt DateTime         @default(now()) @map("created_at")
-  updatedAt DateTime         @updatedAt @map("updated_at")
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  horarios  HorarioSeccion[]
+  horarios HorarioSeccion[]
 
   @@unique([sedeId, codigo])
   @@map("espacios_fisicos")
 }
 
 model ProgramaFormacion {
-  id               String               @id @default(uuid())
-  codigo           String               @unique
+  id               String   @id @default(uuid())
+  codigo           String   @unique
   nombre           String
-  areaConocimiento String               @map("area_conocimiento")
-  activo           Boolean              @default(true)
-  createdAt        DateTime             @default(now()) @map("created_at")
+  tipo             String   @default("PFG") // PFG, PNF, PFA, PIU, IDIOMAS
+  areaConocimiento String   @map("area_conocimiento")
+  activo           Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
 
   unidadesCurriculares UnidadCurricular[]
+  grupos               GrupoSeccion[]
+  coordinadores        UsuarioPrograma[]
 
   @@map("programas_formacion")
 }
 
 model PeriodoAcademico {
-  id          String                   @id @default(uuid())
-  codigo      String                   @unique
+  id          String   @id @default(uuid())
+  codigo      String   @unique
   nombre      String
-  fechaInicio DateTime                 @map("fecha_inicio")
-  fechaFin    DateTime                 @map("fecha_fin")
-  estado      String                   @default("BORRADOR")
-  createdAt   DateTime                 @default(now()) @map("created_at")
+  fechaInicio DateTime @map("fecha_inicio")
+  fechaFin    DateTime @map("fecha_fin")
+  estado      String   @default("BORRADOR")
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  dedicaciones     ProfesorDedicacion[]
-  disponibilidades ProfesorDisponibilidad[]
-  secciones        Seccion[]
-  auditorias       AuditoriaAjusteHorario[]
+  dedicaciones             ProfesorDedicacion[]
+  disponibilidades         ProfesorDisponibilidad[]
+  secciones                Seccion[]
+  grupos                   GrupoSeccion[]
+  auditorias               AuditoriaAjusteHorario[]
+  auditoriasDisponibilidad AuditoriaDisponibilidad[]
+  importaciones            ImportacionOferta[]
 
   @@map("periodos_academicos")
 }
@@ -139,40 +175,63 @@ model UnidadCurricular {
   pfg                            ProgramaFormacion @relation(fields: [pfgId], references: [id], onDelete: Restrict)
   codigo                         String
   nombre                         String
-  trayecto                       Int
-  tramo                          Int
+  trayecto                       Int? // Nulo en PFA e IDIOMAS (sin malla por trayectos)
+  tramo                          Int?
   creditos                       Int
   horasTeoricasSemanales         Int               @default(0) @map("horas_teoricas_semanales")
   horasPracticasSemanales        Int               @default(0) @map("horas_practicas_semanales")
   horasCampoComunitarioSemanales Int               @default(0) @map("horas_campo_comunitario_semanales")
   tipoEspacioRequerido           String            @default("AULA_TEORICA") @map("tipo_espacio_requerido")
   esProyectoComunitario          Boolean           @default(false) @map("es_proyecto_comunitario")
+  esElectiva                     Boolean           @default(false) @map("es_electiva")
+  codigoProvisional              Boolean           @default(false) @map("codigo_provisional") // Generado al importar una oferta sin código oficial
   activa                         Boolean           @default(true)
   createdAt                      DateTime          @default(now()) @map("created_at")
 
-  secciones                      Seccion[]
+  secciones             Seccion[]
+  prelacionesRequeridas UnidadCurricularPrelacion[] @relation("UnidadPrelada")
+  esPrelacionDe         UnidadCurricularPrelacion[] @relation("UnidadRequisito")
 
   @@unique([pfgId, codigo])
   @@map("unidades_curriculares")
 }
 
-model Profesor {
-  id          String                   @id @default(uuid())
-  cedula      String                   @unique
-  nombres     String
-  apellidos   String
-  email       String                   @unique
-  telefono    String?
-  condicion   String                   @default("ORDINARIO")
-  escalafon   String                   @default("INSTRUCTOR")
-  activo      Boolean                  @default(true)
-  createdAt   DateTime                 @default(now()) @map("created_at")
-  updatedAt   DateTime                 @updatedAt @map("updated_at")
+model UnidadCurricularPrelacion {
+  id                 String           @id @default(uuid())
+  unidadCurricularId String           @map("unidad_curricular_id")
+  unidadCurricular   UnidadCurricular @relation("UnidadPrelada", fields: [unidadCurricularId], references: [id], onDelete: Cascade)
+  preladaPorId       String           @map("prelada_por_id")
+  preladaPor         UnidadCurricular @relation("UnidadRequisito", fields: [preladaPorId], references: [id], onDelete: Cascade)
+  createdAt          DateTime         @default(now()) @map("created_at")
 
-  usuario          Usuario?
-  dedicaciones     ProfesorDedicacion[]
-  disponibilidades ProfesorDisponibilidad[]
-  secciones        Seccion[]
+  @@unique([unidadCurricularId, preladaPorId])
+  @@map("unidades_curriculares_prelaciones")
+}
+
+model Profesor {
+  id                  String         @id @default(uuid())
+  cedula              String         @unique
+  nombres             String
+  apellidos           String
+  email               String?        @unique
+  telefono            String?
+  condicion           String         @default("ORDINARIO")
+  escalafon           String         @default("INSTRUCTOR")
+  profesion           String?
+  estudiosCuartoNivel String?        @map("estudios_cuarto_nivel")
+  anioIngreso         Int?           @map("anio_ingreso")
+  anioConcurso        Int?           @map("anio_concurso")
+  centroEstudioId     String?        @map("centro_estudio_id")
+  centroEstudio       CentroEstudio? @relation(fields: [centroEstudioId], references: [id], onDelete: SetNull)
+  activo              Boolean        @default(true)
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+
+  usuario                  Usuario?
+  dedicaciones             ProfesorDedicacion[]
+  disponibilidades         ProfesorDisponibilidad[]
+  secciones                Seccion[]
+  auditoriasDisponibilidad AuditoriaDisponibilidad[]
 
   @@map("profesores")
 }
@@ -211,25 +270,78 @@ model ProfesorDisponibilidad {
   @@map("profesor_disponibilidades")
 }
 
-model Seccion {
-  id                 String           @id @default(uuid())
-  periodoId          String           @map("periodo_id")
-  periodo            PeriodoAcademico @relation(fields: [periodoId], references: [id], onDelete: Restrict)
-  unidadCurricularId String           @map("unidad_curricular_id")
-  unidadCurricular   UnidadCurricular @relation(fields: [unidadCurricularId], references: [id], onDelete: Restrict)
-  sedeId             String           @map("sede_id")
-  sede               Sede             @relation(fields: [sedeId], references: [id], onDelete: Restrict)
-  profesorId         String?          @map("profesor_id")
-  profesor           Profesor?        @relation(fields: [profesorId], references: [id], onDelete: SetNull)
-  codigoSeccion      String           @map("codigo_seccion")
-  turno              String           @default("MATUTINO")
-  cuposEstimados     Int              @map("cupos_estimados")
-  createdAt          DateTime         @default(now()) @map("created_at")
+// Grupo / cohorte de estudiantes (ej. "KV BO-RC 01 A-M") que cursa varias unidades curriculares
+model GrupoSeccion {
+  id                  String            @id @default(uuid())
+  periodoId           String            @map("periodo_id")
+  periodo             PeriodoAcademico  @relation(fields: [periodoId], references: [id], onDelete: Restrict)
+  pfgId               String            @map("pfg_id")
+  pfg                 ProgramaFormacion @relation(fields: [pfgId], references: [id], onDelete: Restrict)
+  sedeId              String            @map("sede_id")
+  sede                Sede              @relation(fields: [sedeId], references: [id], onDelete: Restrict)
+  codigo              String
+  codigoNormalizado   String            @map("codigo_normalizado")
+  trayecto            Int?
+  tramo               Int?
+  malla               String? // DIURNA, NOCTURNA
+  turno               String            @default("MATUTINO")
+  estatus             String? // APERTURA, CONTINUA, CIERRA, FINALIZA
+  cantidadEstudiantes Int?              @map("cantidad_estudiantes")
+  seccionesAsesoria   Int?              @map("secciones_asesoria")
+  nroEncuentros       Int?              @map("nro_encuentros")
+  ejeMunicipal        String?           @map("eje_municipal")
+  observaciones       String?
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
 
-  horarios           HorarioSeccion[]
-  auditorias         AuditoriaAjusteHorario[]
+  secciones Seccion[]
+
+  @@unique([periodoId, pfgId, codigoNormalizado])
+  @@map("grupos_seccion")
+}
+
+// Bitácora de cada consolidado de oferta aplicado; conserva lo que solo se conoce al leer el archivo
+model ImportacionOferta {
+  id                         String           @id @default(uuid())
+  periodoId                  String           @map("periodo_id")
+  periodo                    PeriodoAcademico @relation(fields: [periodoId], references: [id], onDelete: Cascade)
+  nombreArchivo              String           @map("nombre_archivo")
+  usuarioNombre              String           @map("usuario_nombre")
+  resumen                    String // JSON: resumen del plan + conteos aplicados
+  dedicacionesInconsistentes String           @default("[]") @map("dedicaciones_inconsistentes") // JSON
+  errores                    String           @default("[]") // JSON: filas descartadas
+  createdAt                  DateTime         @default(now()) @map("created_at")
+
+  @@index([periodoId, createdAt])
+  @@map("importaciones_oferta")
+}
+
+// Asignación de una unidad curricular con su docente dentro de un grupo
+model Seccion {
+  id                   String           @id @default(uuid())
+  periodoId            String           @map("periodo_id")
+  periodo              PeriodoAcademico @relation(fields: [periodoId], references: [id], onDelete: Restrict)
+  grupoId              String?          @map("grupo_id")
+  grupo                GrupoSeccion?    @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  unidadCurricularId   String           @map("unidad_curricular_id")
+  unidadCurricular     UnidadCurricular @relation(fields: [unidadCurricularId], references: [id], onDelete: Restrict)
+  sedeId               String           @map("sede_id")
+  sede                 Sede             @relation(fields: [sedeId], references: [id], onDelete: Restrict)
+  profesorId           String?          @map("profesor_id")
+  profesor             Profesor?        @relation(fields: [profesorId], references: [id], onDelete: SetNull)
+  codigoSeccion        String           @map("codigo_seccion")
+  turno                String           @default("MATUTINO")
+  cuposEstimados       Int              @map("cupos_estimados")
+  horasSemanalesOferta Int?             @map("horas_semanales_oferta")
+  aulaEspecializada    String?          @map("aula_especializada")
+  observaciones        String?
+  createdAt            DateTime         @default(now()) @map("created_at")
+
+  horarios   HorarioSeccion[]
+  auditorias AuditoriaAjusteHorario[]
 
   @@unique([periodoId, codigoSeccion])
+  @@index([grupoId])
   @@map("secciones")
 }
 
@@ -266,4 +378,23 @@ model AuditoriaAjusteHorario {
   fechaAjuste             DateTime         @default(now()) @map("fecha_ajuste")
 
   @@map("auditoria_ajustes_horarios")
+}
+
+// Historial auditable de cada cambio a la disponibilidad de un docente en un período
+model AuditoriaDisponibilidad {
+  id                 String           @id @default(uuid())
+  profesorId         String           @map("profesor_id")
+  profesor           Profesor         @relation(fields: [profesorId], references: [id], onDelete: Cascade)
+  periodoId          String           @map("periodo_id")
+  periodo            PeriodoAcademico @relation(fields: [periodoId], references: [id], onDelete: Cascade)
+  usuarioResponsable String           @map("usuario_responsable")
+  rolResponsable     String           @map("rol_responsable")
+  resumen            String
+  datosAnteriores    String?          @map("datos_anteriores")
+  datosNuevos        String?          @map("datos_nuevos")
+  motivo             String?
+  fecha              DateTime         @default(now())
+
+  @@index([profesorId, periodoId])
+  @@map("auditoria_disponibilidad")
 }

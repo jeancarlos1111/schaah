@@ -1,0 +1,180 @@
+<!-- Modal de Ayuda en Línea Institucional SAHAD UBV -->
+<div id="modal-ayuda" class="uk-flex-top" uk-modal>
+  <div class="uk-modal-dialog uk-modal-body uk-margin-auto-vertical bento-card clean-modal" style="max-width: 860px; border-radius: 12px; padding: 2rem;">
+    
+    <!-- Encabezado de la Ayuda -->
+    <div class="uk-flex uk-flex-between uk-flex-middle uk-margin-small-bottom" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 1rem;">
+      <div class="uk-flex uk-flex-middle" style="gap: 12px;">
+        <img src="/img/logo-ubv.png" alt="UBV" style="height: 42px; width: 42px; object-fit: contain; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.25);" />
+        <div>
+          <h2 class="uk-modal-title" style="font-size: 1.25rem; font-weight: 700; margin: 0; color: var(--text-white);">
+            Centro de Ayuda en Línea &bull; SAHAD UBV
+          </h2>
+          <span style="font-size: 0.82rem; color: var(--text-muted);">
+            Orientación operativa para planificación académica, mallas y asignación de horarios
+          </span>
+        </div>
+      </div>
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+    </div>
+
+    <!-- Pestañas de Ayuda -->
+    <ul class="uk-subnav uk-subnav-pill subtabs-clean uk-margin-small-top" uk-switcher="animation: uk-animation-fade">
+      <li class="uk-active"><a href="#"><span uk-icon="icon: grid; ratio: 0.8" class="uk-margin-xsmall-right"></span>Horarios y Matriz</a></li>
+      <li><a href="#"><span uk-icon="icon: git-branch; ratio: 0.8" class="uk-margin-xsmall-right"></span>Prelaciones y Mallas</a></li>
+      <li><a href="#"><span uk-icon="icon: users; ratio: 0.8" class="uk-margin-xsmall-right"></span>Dedicación Docente</a></li>
+      <li><a href="#"><span uk-icon="icon: file-text; ratio: 0.8" class="uk-margin-xsmall-right"></span>Manuales</a></li>
+    </ul>
+
+    <!-- Contenido de Pestañas -->
+    <ul class="uk-switcher uk-margin-small-top" style="max-height: 440px; overflow-y: auto; padding-right: 8px;">
+      
+      <!-- Tab 1: Horarios y Matriz -->
+      <li>
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--text-white); margin-bottom: 0.5rem;">
+          Uso de la Matriz Semanal de Horarios
+        </h4>
+        <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+          La matriz representa los días laborables de lunes a sábado organizados en bloques académicos oficiales de 45 y 90 minutos en formato civil de 12 horas (AM/PM).
+        </p>
+        
+        <div class="uk-grid-small uk-child-width-1-2@s uk-margin-small-top" uk-grid>
+          <div>
+            <div style="background: var(--surface-muted); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+              <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-white);">Filtro y Discriminación por P.F.G.</span>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; margin-bottom: 0;">
+                Permite aislar la matriz para visualizar exclusivamente las secciones y aulas asignadas al Programa de Formación de Grado seleccionado.
+              </p>
+            </div>
+          </div>
+          <div>
+            <div style="background: var(--surface-muted); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+              <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-white);">Ajuste Manual con Auditoría</span>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; margin-bottom: 0;">
+                Cada cambio de horario valida en tiempo real la disponibilidad docente, solapamiento de espacio y emite registro formal en el libro de auditoría.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 14px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; padding: 10px 14px;">
+          <span style="font-size: 0.82rem; color: #93c5fd; font-weight: 600;">Código de Colores de Bloques:</span>
+          <div class="uk-flex uk-flex-wrap uk-margin-xsmall-top" style="gap: 8px; font-size: 0.78rem;">
+            <span class="uk-badge" style="background: #2563eb; color: #fff; padding: 4px 8px;">Docencia Aula (Teoría/Práctica)</span>
+            <span class="uk-badge" style="background: #d97706; color: #fff; padding: 4px 8px;">Proyecto Comunitario (Campo)</span>
+            <span class="uk-badge" style="background: #dc2626; color: #fff; padding: 4px 8px;">Conflicto / Solapamiento</span>
+          </div>
+        </div>
+      </li>
+
+      <!-- Tab 2: Prelaciones y Mallas Curriculares -->
+      <li>
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--text-white); margin-bottom: 0.5rem;">
+          Reglas de Mallas y Verificación de Prelación
+        </h4>
+        <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+          Conforme a las normativas del CNU y el Documento Rector UBV, cada Unidad Curricular de un PFG, PNF o PIU pertenece estrictamente a un Trayecto y Tramo. Los programas PFA e IDIOMAS se organizan por cohortes y pueden registrar unidades sin trayecto.
+        </p>
+
+        <ul style="font-size: 0.83rem; color: var(--text-muted); padding-left: 20px; line-height: 1.6;">
+          <li><strong>Regla de Prelación Directa:</strong> Materias que preladas por una asignatura previa no deben solaparse en franja horaria dentro del mismo turno, permitiendo el avance de estudiantes regulares y repitientes.</li>
+          <li><strong>Correspondencia Trayecto-Tramo:</strong> Trayecto Inicial admite Tramos 0 y 1; Trayecto I solo Tramos 1 y 2; Trayecto II solo 3 y 4; Trayecto III solo 5 y 6; Trayecto IV solo 7 y 8; Trayecto V solo 9 y 10.</li>
+          <li><strong>Prelaciones (RC-07):</strong> Se eligen al crear o editar la unidad en Mallas; solo se admiten unidades del mismo programa ubicadas en un Trayecto/Tramo anterior. Editar sin tocar el selector conserva las prelaciones existentes.</li>
+          <li><strong>Cómputo Horario:</strong> Total de bloques de horario = Horas Teóricas ($H_T$) + Horas Prácticas ($H_P$). Las Horas de Proyecto Comunitario ($H_C$) se realizan en territorio sin requerimiento de aula física fija.</li>
+        </ul>
+      </li>
+
+      <!-- Tab 3: Dedicación Docente -->
+      <li>
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--text-white); margin-bottom: 0.5rem;">
+          Límites Laborales de Dedicación (CCU / Ley de Universidades)
+        </h4>
+        <div class="uk-overflow-auto uk-margin-small-top">
+          <table class="clean-table" style="font-size: 0.82rem; width: 100%;">
+            <thead>
+              <tr>
+                <th>Dedicación</th>
+                <th>Permanencia Semanal</th>
+                <th>Docencia Directa en Aula</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Dedicación Exclusiva (DE)</strong></td>
+                <td>36 a 40 horas</td>
+                <td><span class="uk-badge" style="background: rgba(34,197,94,0.15); color: #4ade80;">12 a 16 horas</span></td>
+              </tr>
+              <tr>
+                <td><strong>Tiempo Completo (TC)</strong></td>
+                <td>30 a 36 horas</td>
+                <td><span class="uk-badge" style="background: rgba(34,197,94,0.15); color: #4ade80;">8 a 12 horas</span></td>
+              </tr>
+              <tr>
+                <td><strong>Medio Tiempo (MT)</strong></td>
+                <td>18 a 20 horas</td>
+                <td><span class="uk-badge" style="background: rgba(234,179,8,0.15); color: #facc15;">4 a 8 horas</span></td>
+              </tr>
+              <tr>
+                <td><strong>Tiempo Convencional (TV)</strong></td>
+                <td>2 a 12 horas</td>
+                <td><span class="uk-badge" style="background: rgba(59,130,246,0.15); color: #60a5fa;">2 a 12 horas</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">
+          * El sistema SAHAD bloquea automáticamente la asignación de horas que excedan los límites legales fijados.
+        </p>
+      </li>
+
+      <!-- Tab 4: Manuales Oficiales -->
+      <li>
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--text-white); margin-bottom: 0.5rem;">
+          Documentación Completa y Manuales
+        </h4>
+        <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+          Descargue o consulte los manuales oficiales del Sistema Automatizado de Horarios (SAHAD):
+        </p>
+
+        <div class="uk-grid-small uk-child-width-1-2@s uk-margin-small-top" uk-grid>
+          <div>
+            <div style="background: var(--surface-muted); padding: 16px; border-radius: 8px; border: 1px solid var(--border-subtle); text-align: center;">
+              <span uk-icon="icon: user; ratio: 1.5" style="color: var(--brand-ubv);"></span>
+              <h5 style="margin: 8px 0 4px; font-weight: 700; color: var(--text-white); font-size: 0.92rem;">Manual de Usuario</h5>
+              <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px;">
+                Guía completa para directores, coordinadores y profesores sobre todas las funciones visuales y operativas.
+              </p>
+              <a href="/ayuda/manual-usuario" target="_blank" class="btn-clean-primary" style="font-size: 0.8rem; padding: 6px 14px; text-decoration: none;">
+                <span uk-icon="icon: file-text; ratio: 0.8"></span>
+                <span>Ver Manual de Usuario</span>
+              </a>
+            </div>
+          </div>
+          <div>
+            <div style="background: var(--surface-muted); padding: 16px; border-radius: 8px; border: 1px solid var(--border-subtle); text-align: center;">
+              <span uk-icon="icon: cog; ratio: 1.5" style="color: #60a5fa;"></span>
+              <h5 style="margin: 8px 0 4px; font-weight: 700; color: var(--text-white); font-size: 0.92rem;">Manual Técnico</h5>
+              <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px;">
+                Arquitectura de software, modelo de datos relacional, motor de optimización matemática y pruebas.
+              </p>
+              <a href="/ayuda/manual-tecnico" target="_blank" class="btn-clean-secondary" style="font-size: 0.8rem; padding: 6px 14px; text-decoration: none;">
+                <span uk-icon="icon: code; ratio: 0.8"></span>
+                <span>Ver Manual Técnico</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </li>
+
+    </ul>
+
+    <!-- Pie del Modal -->
+    <div class="uk-text-right uk-margin-medium-top" style="border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
+      <button class="btn-clean-secondary uk-modal-close" type="button">
+        <span uk-icon="icon: check; ratio: 0.8"></span>
+        <span>Cerrar</span>
+      </button>
+    </div>
+
+  </div>
+</div>

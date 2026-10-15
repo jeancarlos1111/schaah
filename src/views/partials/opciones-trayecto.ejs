@@ -1,0 +1,8 @@
+<% if (!requiereTrayecto) { %>
+  <option value="" <%= seleccionado === '' ? 'selected' : '' %> title="Programa por cohortes sin malla por trayectos">Sin trayecto</option>
+<% } %>
+<% trayectosMalla.forEach(function(t) { %>
+  <option value="<%= t %>" <%= seleccionado === t ? 'selected' : '' %>>
+    <%= t === 0 ? 'Trayecto Inicial' : 'Trayecto ' + ['', 'I', 'II', 'III', 'IV', 'V'][t] %>
+  </option>
+<% }); %>

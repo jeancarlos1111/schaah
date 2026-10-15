@@ -1,9 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { DedicacionDocente } from '../../src/core/domain/enums';
 import {
+  calcularCargaDocente,
   evaluarNormativaDocente,
   LIMITES_DEDICACION,
 } from '../../src/core/domain/rules/dedicacionRules';
+import { urlRetornoSecciones } from '../../src/modules/periodos/urlRetorno';
+
+const asignacion = (horasOferta: number | null, ht = 3, hp = 1) => ({
+  horasSemanalesOferta: horasOferta,
+  unidadCurricular: { horasTeoricasSemanales: ht, horasPracticasSemanales: hp },
+});
 
 describe('Reglas de Dominio: Dedicación Docente (H-04 y H-05)', () => {
   describe('Dedicación Exclusiva (DE: 12h - 16h docencia directa)', () => {
@@ -61,6 +68,51 @@ describe('Reglas de Dominio: Dedicación Docente (H-04 y H-05)', () => {
       expect(LIMITES_DEDICACION[DedicacionDocente.TIEMPO_COMPLETO].maxDocencia).toBe(12);
       expect(LIMITES_DEDICACION[DedicacionDocente.MEDIO_TIEMPO].minDocencia).toBe(4);
       expect(LIMITES_DEDICACION[DedicacionDocente.MEDIO_TIEMPO].maxDocencia).toBe(8);
+    });
+  });
+
+  describe('Carga del docente en el período (selector de asignación e inconsistencias)', () => {
+    it('suma horas de oferta o HT+HP y calcula las horas disponibles hasta el tope', () => {
+      const carga = calcularCargaDocente(DedicacionDocente.TIEMPO_COMPLETO, [asignacion(4), asignacion(null, 2, 1)]);
+      expect(carga).toMatchObject({ horas: 7, asignaciones: 2, minHoras: 8, maxHoras: 12, disponibles: 5, estado: 'DEFICIT' });
+    });
+
+    it('detecta la sobrecarga real de la oferta 2026-II (48 h con tope de 12 h) y no reporta horas disponibles negativas', () => {
+      const carga = calcularCargaDocente(DedicacionDocente.TIEMPO_COMPLETO, Array.from({ length: 12 }, () => asignacion(4)));
+      expect(carga).toMatchObject({ horas: 48, maxHoras: 12, disponibles: 0, estado: 'SOBRECARGA' });
+    });
+
+    it('marca SIN_DEDICACION cuando el docente no tiene dedicación registrada en el período', () => {
+      const carga = calcularCargaDocente(null, [asignacion(6)]);
+      expect(carga.estado).toBe('SIN_DEDICACION');
+      expect(carga.horas).toBe(6);
+      expect(carga.dedicacion).toBeNull();
+    });
+
+    it('un docente con dedicación y sin asignaciones queda SIN_ASIGNAR con todas sus horas disponibles', () => {
+      const carga = calcularCargaDocente(DedicacionDocente.MEDIO_TIEMPO, []);
+      expect(carga).toMatchObject({ horas: 0, asignaciones: 0, disponibles: 8, estado: 'SIN_ASIGNAR' });
+    });
+  });
+
+  describe('Retorno a la página de secciones tras asignar docente', () => {
+    const periodo = 'p-123';
+
+    it('conserva filtros y página, y reemplaza el mensaje anterior', () => {
+      const url = urlRetornoSecciones(periodo, '/periodos/p-123/secciones?page=3&grupoId=g1&msg=viejo', 'msg', 'Listo');
+      const destino = new URL(url, 'http://x');
+      expect(destino.pathname).toBe('/periodos/p-123/secciones');
+      expect(destino.searchParams.get('page')).toBe('3');
+      expect(destino.searchParams.get('grupoId')).toBe('g1');
+      expect(destino.searchParams.get('msg')).toBe('Listo');
+      expect(destino.searchParams.has('error')).toBe(false);
+    });
+
+    it('ignora destinos externos, de otro período o de otra ruta', () => {
+      for (const malicioso of ['https://evil.example/x', '//evil.example', '/periodos/otro/secciones', '/periodos/p-123/seccionesX', '/usuarios', undefined]) {
+        const url = urlRetornoSecciones(periodo, malicioso, 'error', 'Fallo');
+        expect(url).toBe('/periodos/p-123/secciones?error=Fallo');
+      }
     });
   });
 });

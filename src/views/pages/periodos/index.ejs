@@ -262,6 +262,15 @@
                     <span>Secciones (<%= p._count.secciones %>)</span>
                   </a>
 
+                  <a
+                    href="/periodos/<%= p.id %>/oferta"
+                    class="btn-table-action"
+                    title="Importar o exportar la oferta de carga horaria"
+                  >
+                    <span uk-icon="icon: file-text; ratio: 0.75"></span>
+                    <span>Oferta</span>
+                  </a>
+
                   <a 
                     href="/periodos/<%= p.id %>/horarios" 
                     class="btn-table-action" 

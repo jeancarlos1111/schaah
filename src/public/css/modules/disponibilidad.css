@@ -1,0 +1,131 @@
+/* ==========================================================================
+   SAHAD UBV - Disponibilidad Docente: Matriz, Motivo del Cambio e Historial
+   ========================================================================== */
+
+.disp-cell {
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease-in-out;
+  padding: 12px 6px !important;
+}
+
+.disp-cell:hover {
+  filter: brightness(0.95);
+  transform: scale(0.98);
+}
+
+.disp-cell.is-nodisp {
+  background-color: var(--surface-muted);
+  color: var(--text-faint);
+}
+
+.disp-cell.is-disp.prio-1 {
+  background-color: var(--accent-green-bg);
+  border: 1px solid rgba(63, 185, 80, 0.4);
+  color: var(--accent-green);
+  font-weight: 700;
+}
+
+.disp-cell.is-disp.prio-2 {
+  background-color: var(--accent-blue-bg);
+  border: 1px solid rgba(88, 166, 255, 0.4);
+  color: var(--brand-accent);
+  font-weight: 700;
+}
+
+.disp-cell.is-disp.prio-3 {
+  background-color: var(--accent-amber-bg);
+  border: 1px solid rgba(210, 153, 34, 0.4);
+  color: var(--accent-amber);
+  font-weight: 700;
+}
+
+.disp-bloque-celda {
+  background-color: var(--surface-muted);
+  width: 140px;
+}
+
+.disp-legend-box {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.disp-legend-box.is-prioridad-1 { background-color: var(--accent-green); }
+.disp-legend-box.is-prioridad-2 { background-color: var(--brand-accent); }
+.disp-legend-box.is-prioridad-3 { background-color: var(--accent-amber); }
+.disp-legend-box.is-indisponible {
+  background-color: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Motivo del cambio (obligatorio cuando el cambio lo hace un tercero) */
+.disp-motivo-panel {
+  border-left: 3px solid var(--accent-amber);
+}
+
+.disp-motivo-panel .form-group-clean {
+  margin: 0;
+}
+
+.disp-motivo-panel textarea.form-input-clean {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.disp-motivo-acciones {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+/* Historial de cambios auditado */
+.disp-historial-titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-white);
+  margin: 0 0 0.25rem;
+}
+
+.disp-historial-vacio {
+  padding: 1rem 0 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.disp-historial-fecha {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.disp-historial-detalle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.disp-historial-detalle .is-agregada { color: var(--accent-green); }
+.disp-historial-detalle .is-quitada { color: var(--accent-red); }
+.disp-historial-detalle .is-prioridad { color: var(--accent-amber); }
+
+.disp-historial-motivo {
+  font-size: 0.82rem;
+  color: var(--text-white);
+  max-width: 340px;
+  white-space: pre-line;
+}
+
+.disp-historial-motivo.is-propio {
+  color: var(--text-faint);
+  font-style: italic;
+}

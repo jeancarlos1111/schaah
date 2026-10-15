@@ -8,6 +8,9 @@ import {
   obtenerTramosPorTrayecto,
   obtenerTrayectoPorTramo,
   validarCorrespondenciaTrayectoTramo,
+  resolverUbicacionMalla,
+  filtrarPrelacionesValidas,
+  dependientesInvalidadas,
 } from '../../src/core/domain/rules/curriculoRules';
 import { TipoEspacio } from '../../src/core/domain/enums';
 
@@ -183,6 +186,97 @@ describe('Dominio Curricular (Spec 09) - Reglas RC-01 a RC-06', () => {
       expect(validarCorrespondenciaTrayectoTramo(9, 1).valido).toBe(false);
       expect(validarCorrespondenciaTrayectoTramo(NaN as any, 1).valido).toBe(false);
       expect(validarCorrespondenciaTrayectoTramo(1, NaN as any).valido).toBe(false);
+    });
+  });
+
+  describe('Ubicación en malla según tipo de programa (formularios de Mallas)', () => {
+    it('PFA e IDIOMAS admiten unidades sin trayecto ni tramo y las guardan como null', () => {
+      expect(resolverUbicacionMalla('PFA', '', '')).toEqual({ valido: true, trayecto: null, tramo: null });
+      expect(resolverUbicacionMalla('IDIOMAS', undefined, null)).toEqual({ valido: true, trayecto: null, tramo: null });
+    });
+
+    it('PFA con ubicación completa también se valida con RC-06', () => {
+      expect(resolverUbicacionMalla('PFA', '2', '3')).toEqual({ valido: true, trayecto: 2, tramo: 3 });
+      const res = resolverUbicacionMalla('PFA', '2', '1');
+      expect(res.valido).toBe(false);
+      if (!res.valido) expect(res.error).toContain('Violación RC-06');
+    });
+
+    it('rechaza indicar solo uno de los dos datos en un programa sin trayectos', () => {
+      const res = resolverUbicacionMalla('IDIOMAS', '1', '');
+      expect(res.valido).toBe(false);
+      if (!res.valido) expect(res.error).toContain('a la vez');
+    });
+
+    it('PFG, PNF y PIU exigen trayecto y tramo', () => {
+      for (const tipo of ['PFG', 'PNF', 'PIU', null]) {
+        const res = resolverUbicacionMalla(tipo, '', '');
+        expect(res.valido).toBe(false);
+        if (!res.valido) expect(res.error).toContain('requieren Trayecto y Tramo');
+      }
+      const parcial = resolverUbicacionMalla('PFG', '3', '');
+      expect(parcial.valido).toBe(false);
+      if (!parcial.valido) expect(parcial.error).toContain('Debe indicar Trayecto y Tramo');
+    });
+
+    it('acepta Trayecto Inicial (0) con Tramo 0 y Trayecto V con Tramo 10', () => {
+      expect(resolverUbicacionMalla('PIU', '0', '0')).toEqual({ valido: true, trayecto: 0, tramo: 0 });
+      expect(resolverUbicacionMalla('PFG', 5, 10)).toEqual({ valido: true, trayecto: 5, tramo: 10 });
+    });
+
+    it('rechaza valores no numéricos o con decimales', () => {
+      expect(resolverUbicacionMalla('PFG', 'II', '3').valido).toBe(false);
+      expect(resolverUbicacionMalla('PFG', '2', '3.5').valido).toBe(false);
+    });
+  });
+
+  describe('RC-07: filtrado de prelaciones candidatas', () => {
+    const objetivo = { id: 'uc-objetivo', codigo: 'INF-301', pfgId: 'pfg-inf', trayecto: 3, tramo: 5 };
+
+    it('acepta requisitos anteriores del mismo PFG y rechaza el resto con su motivo', () => {
+      const res = filtrarPrelacionesValidas(objetivo, [
+        { id: 'uc-a', codigo: 'INF-101', pfgId: 'pfg-inf', trayecto: 1, tramo: 1 },
+        { id: 'uc-b', codigo: 'INF-202', pfgId: 'pfg-inf', trayecto: 2, tramo: 4 },
+        { id: 'uc-c', codigo: 'AGR-101', pfgId: 'pfg-agro', trayecto: 1, tramo: 1 },
+        { id: 'uc-d', codigo: 'INF-305', pfgId: 'pfg-inf', trayecto: 3, tramo: 5 },
+        { id: 'uc-e', codigo: 'INF-X', pfgId: 'pfg-inf', trayecto: null, tramo: null },
+        { id: 'uc-objetivo', codigo: 'INF-301', pfgId: 'pfg-inf', trayecto: 3, tramo: 5 },
+      ]);
+
+      expect(res.aceptadas).toEqual(['uc-a', 'uc-b']);
+      expect(res.rechazadas.map((r) => r.codigo)).toEqual(['AGR-101', 'INF-305', 'INF-X', 'INF-301']);
+      expect(res.rechazadas[0].error).toContain('mismo PFG');
+      expect(res.rechazadas[1].error).toContain('estrictamente anterior');
+      expect(res.rechazadas[2].error).toContain('Trayecto/Tramo de la malla');
+      expect(res.rechazadas[3].error).toContain('sí misma');
+    });
+
+    it('ignora candidatas repetidas', () => {
+      const requisito = { id: 'uc-a', codigo: 'INF-101', pfgId: 'pfg-inf', trayecto: 1, tramo: 1 };
+      expect(filtrarPrelacionesValidas(objetivo, [requisito, requisito]).aceptadas).toEqual(['uc-a']);
+    });
+
+    it('detecta las unidades dependientes que quedarían inválidas al mover el requisito', () => {
+      const requisitoMovido = { id: 'uc-a', codigo: 'INF-101', pfgId: 'pfg-inf', trayecto: 3, tramo: 6 };
+      const dependientes = [
+        { id: 'uc-b', codigo: 'INF-202', pfgId: 'pfg-inf', trayecto: 2, tramo: 4 },
+        { id: 'uc-c', codigo: 'INF-401', pfgId: 'pfg-inf', trayecto: 4, tramo: 7 },
+        { id: 'uc-d', codigo: 'INF-306', pfgId: 'pfg-inf', trayecto: 3, tramo: 6 },
+      ];
+      expect(dependientesInvalidadas(requisitoMovido, dependientes).map((d) => d.codigo)).toEqual([
+        'INF-202',
+        'INF-306',
+      ]);
+      expect(dependientesInvalidadas({ ...requisitoMovido, trayecto: 1, tramo: 1 }, dependientes)).toEqual([]);
+    });
+
+    it('rechaza todas las prelaciones si la unidad objetivo no tiene ubicación en malla', () => {
+      const sinMalla = { ...objetivo, trayecto: null, tramo: null };
+      const res = filtrarPrelacionesValidas(sinMalla, [
+        { id: 'uc-a', codigo: 'INF-101', pfgId: 'pfg-inf', trayecto: 1, tramo: 1 },
+      ]);
+      expect(res.aceptadas).toEqual([]);
+      expect(res.rechazadas).toHaveLength(1);
     });
   });
 });

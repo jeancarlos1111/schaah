@@ -69,6 +69,15 @@ export function minutesToTime24(minutes: number): string {
 }
 
 /**
+ * Fecha y hora local en formato civil venezolano: 'dd/mm/aaaa hh:mm AM/PM'
+ */
+export function formatearFechaHora12(fecha: Date): string {
+  const dos = (n: number) => n.toString().padStart(2, '0');
+  const dia = `${dos(fecha.getDate())}/${dos(fecha.getMonth() + 1)}/${fecha.getFullYear()}`;
+  return `${dia} ${to12HourFormat(`${dos(fecha.getHours())}:${dos(fecha.getMinutes())}`)}`;
+}
+
+/**
  * Determina si dos intervalos de tiempo se solapan en el mismo día
  */
 export function rangosSeSolapan(
@@ -178,3 +187,22 @@ export const BLOQUES_HORARIOS_OFICIALES: BloqueHorarioOficial[] = [
     label: 'Bloque 8 (07:05 PM - 08:35 PM)',
   },
 ];
+
+export const DIAS_LECTIVOS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+
+/**
+ * Índices de BLOQUES_HORARIOS_OFICIALES admisibles para un turno.
+ * Turno ÚNICA, FIN_DE_SEMANA o sin turno admiten toda la jornada.
+ */
+export function indicesBloquesPorTurno(turno: string | null | undefined): number[] {
+  const mismosTurno = BLOQUES_HORARIOS_OFICIALES
+    .map((b, idx) => ({ turno: b.turno, idx }))
+    .filter((b) => b.turno === turno)
+    .map((b) => b.idx);
+  return mismosTurno.length > 0 ? mismosTurno : BLOQUES_HORARIOS_OFICIALES.map((_, idx) => idx);
+}
+
+/** Días admisibles para un turno: FIN_DE_SEMANA solo sábado; el resto, lunes a sábado. */
+export function diasPorTurno(turno: string | null | undefined): string[] {
+  return turno === Turno.FIN_DE_SEMANA ? ['SABADO'] : DIAS_LECTIVOS;
+}

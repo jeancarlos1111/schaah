@@ -114,6 +114,26 @@
   color: var(--text-white);
 }
 
+.btn-table-action.text-danger {
+  color: var(--accent-red);
+}
+
+.btn-table-action.text-danger:hover {
+  color: var(--accent-red);
+  background-color: var(--accent-red-bg);
+  border-color: var(--accent-red);
+}
+
+.btn-table-action.text-success {
+  color: var(--accent-green);
+}
+
+.btn-table-action.text-success:hover {
+  color: var(--accent-green);
+  background-color: var(--accent-green-bg);
+  border-color: var(--accent-green);
+}
+
 /* Celda y Grupo de Acciones (Horizontal Estricto) */
 .table-actions-cell,
 th.table-actions-cell,
@@ -290,6 +310,56 @@ td.table-actions-cell {
   color: var(--text-body) !important;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
   padding: 1.5rem !important;
+}
+
+/* Tablas de referencia de la página de Normativa */
+.normativa-tabla {
+  margin-top: 0.75rem;
+}
+
+.normativa-tabla td {
+  vertical-align: middle;
+}
+
+.normativa-tabla td:first-child {
+  white-space: nowrap;
+}
+
+.alert-clean-warning {
+  background-color: var(--accent-amber-bg);
+  border: 1px solid rgba(210, 153, 34, 0.3);
+  color: var(--accent-amber);
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+/* Alerta con lista de mensajes debajo del título (p. ej. violaciones duras del solver) */
+.alert-clean-lista {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.solver-infactible-lista {
+  width: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.modal-clean-box .uk-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 0 0;
+  background-color: transparent;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .modal-clean-title,

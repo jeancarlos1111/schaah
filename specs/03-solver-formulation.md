@@ -60,9 +60,11 @@ $$\sum_{s \in \mathcal{S}} \sum_{\tau = 0}^{\text{TamBloque}(s) - 1} X_{s, e, t 
 Un docente no puede tener dos clases simultáneas:
 $$V_{p, t} = \sum_{s \in \mathcal{S}_p} \sum_{e \in \mathcal{E}} \sum_{\tau = 0}^{\text{TamBloque}(s) - 1} X_{s, e, t - \tau} \le 1 \quad \forall p \in \mathcal{P}, \forall t \in \mathcal{T}$$
 
-### H-03: Exclusión de Sección / Mismo Trayecto
-Una sección de estudiantes no puede tener dos materias solapadas:
-$$\sum_{e \in \mathcal{E}} \sum_{\tau = 0}^{\text{TamBloque}(s) - 1} X_{s, e, t - \tau} \le 1 \quad \forall s \in \mathcal{S}, \forall t \in \mathcal{T}$$
+### H-03: Exclusión de Cohorte Estudiantil
+Sea $\mathcal{G}$ el conjunto de cohortes del período y $\mathcal{S}_g \subseteq \mathcal{S}$ las asignaciones (unidad curricular + docente) de la cohorte $g$. Una asignación sin grupo forma su propia cohorte unitaria (`claveCohorte`: `G:<grupoId>` o `S:<seccionId>`). Los estudiantes de una cohorte no pueden tener dos materias solapadas:
+$$\sum_{s \in \mathcal{S}_g} \sum_{e \in \mathcal{E}} \sum_{\tau = 0}^{\text{TamBloque}(s) - 1} X_{s, e, t - \tau} \le 1 \quad \forall g \in \mathcal{G}, \forall t \in \mathcal{T}$$
+
+La carga de cada asignación $\mathcal{L}_s$ usa las horas semanales de la oferta del período cuando existen y, en su defecto, $H_T + H_P$ de la unidad curricular.
 
 ### H-04 & H-05: Límites Legales de Carga Docente Directa
 Sea $H_{doc}(p)$ la carga docente asignada al profesor $p$ en horas académicas:
@@ -73,8 +75,24 @@ $$\text{MinDocencia}(p) \le H_{doc}(p) \le \text{MaxDocencia}(p) \quad \forall p
 Si el slot $t \notin \mathcal{T}_{disp}(p)$:
 $$V_{p, t} = 0 \quad \forall p \in \mathcal{P}, \forall t \notin \mathcal{T}_{disp}(p)$$
 
+Si $\mathcal{T}_{disp}(p) = \varnothing$ (el docente no declaró disponibilidad en el período), sus asignaciones no tienen variables candidatas y la igualdad de integridad no puede cumplirse: el modelo es infactible para esas asignaciones.
+
+### Verificación de integridad en el evaluador
+Ambos motores pasan su propuesta por `evaluarSolucion`, que comprueba la igualdad de integridad (cada asignación pendiente recibe $\mathcal{L}_s / \text{TamBloque}(s)$ bloques). Si falta alguno registra una violación dura y el resultado es `INFEASIBLE`, de modo que un motor no puede omitir asignaciones y reportar `OPTIMAL`:
+- `H-06` si el docente no declaró disponibilidad o declaró menos franjas que los bloques requeridos (el mensaje nombra la sección y el docente).
+- `INTEGRIDAD` si faltan bloques por otra causa (aulas, cohorte u ocupación existente).
+
+Con resultado `INFEASIBLE` la interfaz lista las violaciones y no ofrece aplicar la propuesta.
+
 ### H-07 & H-08: Compatibilidad de Aforo y Tipo de Aula
 $$X_{s, e, t} = 0 \quad \text{si } \mathcal{A}_e < \mathcal{C}_s \lor \text{Tipo}(e) \neq \mathcal{M}_s$$
+
+Para las asignaciones de proyecto comunitario ($s \in \mathcal{S}_{PC}$) el único candidato de espacio es "sin aula" ($e = \varnothing$): no reservan espacio físico, pero sí ocupan el bloque del docente (H-01, H-06, H-09) y de la cohorte (H-03). Se guardan con `tipo_bloque = PROYECTO_COMUNITARIO`:
+$$X_{s, e, t} = 0 \quad \forall s \in \mathcal{S}_{PC}, \forall e \neq \varnothing$$
+El evaluador (`evaluator.ts`) trata como violación dura H-08 un bloque de proyecto con aula y uno regular sin aula.
+
+### Alcance por programa (Spec 06)
+Cuando ejecuta un coordinador, $\mathcal{S}$ contiene solo las asignaciones pendientes de sus programas. Los bloques ya guardados de cualquier programa entran como ocupación fija de docentes, aulas y cohortes (también en la semilla voraz del motor genético), y `aplicarPropuesta` rechaza completa una propuesta con asignaciones fuera del alcance o de otro período.
 
 ### H-09: Anti-Teletransportación Territorial
 Sean $Sede(e_1) \neq Sede(e_2)$ y tiempo de traslado $\Delta k_{traslado} \ge 2$ slots (90 min). Si el profesor $p$ dicta en $e_1$ en $(d, k_1)$, no puede dictar en $e_2$ en $(d, k_2)$ si:

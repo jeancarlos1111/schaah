@@ -1,0 +1,263 @@
+<%
+  function makeQueryUrl(overrides) {
+    const params = new URLSearchParams({
+      tipo: overrides.tipo !== undefined ? overrides.tipo : tipo,
+      page: overrides.page !== undefined ? overrides.page : pagination.page,
+      limit: overrides.limit !== undefined ? overrides.limit : pagination.limit,
+      q: overrides.q !== undefined ? overrides.q : (filters.q || ''),
+      sortBy: overrides.sortBy !== undefined ? overrides.sortBy : (filters.sortBy || ''),
+      sortDir: overrides.sortDir !== undefined ? overrides.sortDir : (filters.sortDir || 'asc')
+    });
+    for (const [key, val] of [...params.entries()]) {
+      if (!val) params.delete(key);
+    }
+    return `/periodos/${periodo.id}/oferta/inconsistencias?` + params.toString();
+  }
+
+  function getSortUrl(col) {
+    const nextDir = filters.sortBy === col && filters.sortDir === 'asc' ? 'desc' : 'asc';
+    return makeQueryUrl({ page: 1, sortBy: col, sortDir: nextDir });
+  }
+
+  function getSortHeaderClass(col) {
+    if (filters.sortBy !== col) return 'sortable';
+    return filters.sortDir === 'asc' ? 'sortable sort-asc' : 'sortable sort-desc';
+  }
+
+  const esDocente = ['sobrecargas', 'deficit', 'sin-dedicacion', 'dedicacion-inconsistente'].includes(tipo);
+  const totalGeneral = tipos.reduce(function (acc, t) { return acc + totales[t]; }, 0);
+  const urlSecciones = '/periodos/' + periodo.id + '/secciones';
+  function formatoFecha(fecha) {
+    return new Date(fecha).toLocaleString('es-VE', { dateStyle: 'medium', timeStyle: 'short', hour12: true });
+  }
+%>
+
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <a href="/periodos" class="uk-link-reset uk-text-muted">Períodos</a>
+        <span class="breadcrumb-separator">/</span>
+        <a href="/periodos/<%= periodo.id %>/oferta" class="uk-link-reset uk-text-muted"><%= periodo.codigo %> &bull; Oferta</a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Inconsistencias</span>
+      </div>
+      <h1 class="page-title uk-margin-remove">Inconsistencias de la Oferta (<%= periodo.codigo %>)</h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Lo que la coordinación debe corregir: carga docente fuera de norma, asignaciones sin docente, códigos provisionales y datos contradictorios del archivo importado.
+      </p>
+    </div>
+    <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
+      <a href="/periodos/<%= periodo.id %>/oferta" class="btn-clean-secondary">
+        <span uk-icon="icon: arrow-left; ratio: 0.85"></span>
+        <span>Volver a la Oferta</span>
+      </a>
+      <a href="/periodos/<%= periodo.id %>/oferta/inconsistencias.xlsx" class="btn-clean-primary">
+        <span uk-icon="icon: download; ratio: 0.85"></span>
+        <span>Exportar Reporte (.xlsx)</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<% if (mensaje) { %>
+  <div class="alert-clean-success uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: check; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= mensaje %></span>
+  </div>
+<% } %>
+<% if (error) { %>
+  <div class="alert-clean-danger uk-margin-bottom" uk-alert>
+    <a class="uk-alert-close" uk-close></a>
+    <span uk-icon="icon: warning; ratio: 0.85" class="uk-margin-xsmall-right"></span>
+    <span><%= error %></span>
+  </div>
+<% } %>
+
+<div class="inconsistencia-origen uk-margin-bottom">
+  <span uk-icon="icon: history; ratio: 0.85"></span>
+  <% if (ultimaImportacion) { %>
+    <span>
+      Última importación: <strong><%= ultimaImportacion.nombreArchivo %></strong>
+      (<%= formatoFecha(ultimaImportacion.fecha) %>, <%= ultimaImportacion.usuarioNombre %>).
+      La dedicación contradictoria proviene de ese archivo; las demás categorías se calculan en vivo con los datos actuales del período.
+    </span>
+  <% } else { %>
+    <span>No hay importaciones registradas en este período; la dedicación contradictoria solo se detecta al importar un consolidado.</span>
+  <% } %>
+</div>
+
+<nav class="inconsistencia-tabs uk-margin-medium-bottom" aria-label="Tipos de inconsistencia">
+  <% tipos.forEach(function(t) { const i = info[t]; %>
+    <a href="<%= makeQueryUrl({ tipo: t, page: 1, q: '', sortBy: '', sortDir: 'asc' }) %>"
+       class="inconsistencia-tab inconsistencia-<%= totales[t] > 0 ? i.severidad : 'ok' %> <%= t === tipo ? 'is-active' : '' %>"
+       <%= t === tipo ? 'aria-current="page"' : '' %>>
+      <span class="inconsistencia-tab-icon" uk-icon="icon: <%= totales[t] > 0 ? i.icono : 'check' %>; ratio: 0.85"></span>
+      <span class="inconsistencia-tab-body">
+        <span class="inconsistencia-tab-title"><%= i.titulo %></span>
+        <span class="inconsistencia-tab-count"><%= totales[t] %></span>
+      </span>
+    </a>
+  <% }); %>
+</nav>
+
+<div class="clean-panel data-table-wrapper">
+  <div class="inconsistencia-panel-header">
+    <h3 class="panel-title uk-margin-remove"><%= info[tipo].titulo %></h3>
+    <p class="panel-subtitle uk-margin-remove"><%= info[tipo].descripcion %></p>
+  </div>
+
+  <form action="/periodos/<%= periodo.id %>/oferta/inconsistencias" method="GET" class="table-toolbar uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-2">
+    <input type="hidden" name="tipo" value="<%= tipo %>" />
+    <input type="hidden" name="page" value="1" />
+    <input type="hidden" name="sortBy" value="<%= filters.sortBy %>" />
+    <input type="hidden" name="sortDir" value="<%= filters.sortDir %>" />
+    <div class="uk-flex uk-flex-between uk-flex-middle uk-width-1-1">
+      <div class="table-search-box oferta-search-box">
+        <span uk-icon="icon: search; ratio: 0.8" class="search-icon"></span>
+        <input type="text" name="q" value="<%= filters.q %>" class="search-input" placeholder="Buscar en esta categoría..." autocomplete="off" />
+      </div>
+      <div class="table-toolbar-right uk-flex uk-flex-middle gap-2">
+        <% if (filters.q || filters.sortBy) { %>
+          <a href="<%= makeQueryUrl({ page: 1, q: '', sortBy: '', sortDir: 'asc' }) %>" class="btn-clean-ghost" title="Restablecer búsqueda y orden">
+            <span uk-icon="icon: refresh; ratio: 0.75"></span>
+            <span>Limpiar</span>
+          </a>
+        <% } %>
+        <span class="uk-text-muted uk-text-small">Filas:</span>
+        <select name="limit" class="table-page-size-select" onchange="this.form.submit()">
+          <% [10, 25, 50, 100].forEach(function(n) { %>
+            <option value="<%= n %>" <%= pagination.limit === n ? 'selected' : '' %>><%= n %></option>
+          <% }); %>
+        </select>
+      </div>
+    </div>
+  </form>
+
+  <div class="uk-overflow-auto uk-margin-small-top">
+    <table class="clean-table">
+      <thead>
+        <tr>
+          <% columnas.forEach(function(c) { %>
+            <th class="<%= getSortHeaderClass(c.clave) %> <%= c.numerica ? 'uk-text-center' : '' %>">
+              <a href="<%= getSortUrl(c.clave) %>" class="uk-link-reset"><%= c.titulo %></a>
+            </th>
+          <% }); %>
+          <th class="table-actions-cell uk-text-right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (filas.length === 0) { %>
+          <tr>
+            <td colspan="<%= columnas.length + 1 %>" class="empty-state-cell">
+              <div class="empty-state-inner">
+                <span uk-icon="icon: check; ratio: 1.6" class="empty-state-icon"></span>
+                <span class="empty-state-title">
+                  <%= filters.q ? 'Ninguna fila coincide con la búsqueda' : 'Sin inconsistencias en esta categoría' %>
+                </span>
+                <% if (!filters.q && totalGeneral === 0) { %>
+                  <span class="table-sub-info">La oferta del período no tiene observaciones pendientes.</span>
+                <% } %>
+              </div>
+            </td>
+          </tr>
+        <% } %>
+        <% filas.forEach(function(f) { %>
+          <tr>
+            <% columnas.forEach(function(c) { const v = f[c.clave]; %>
+              <td class="<%= c.numerica ? 'uk-text-center' : '' %>">
+                <% if (c.clave === 'exceso') { %>
+                  <span class="oferta-chip oferta-chip-danger">+<%= v %> h</span>
+                <% } else if (c.clave === 'faltante') { %>
+                  <span class="oferta-chip oferta-chip-warning">−<%= v %> h</span>
+                <% } else if (c.clave === 'nombre' && esDocente) { %>
+                  <span class="font-medium text-sm oferta-text-strong"><%= v %></span>
+                <% } else if (c.clave === 'codigo' && tipo === 'codigos-provisionales') { %>
+                  <span class="grupo-codigo"><%= v %></span>
+                <% } else if (v === null || v === undefined || v === '') { %>
+                  <span class="table-sub-info">—</span>
+                <% } else { %>
+                  <span class="text-sm"><%= v %></span>
+                <% } %>
+              </td>
+            <% }); %>
+            <td class="table-actions-cell uk-text-right">
+              <div class="table-actions-group">
+                <% if (tipo === 'sobrecargas' || tipo === 'deficit' || tipo === 'sin-dedicacion') { %>
+                  <a class="btn-table-action" href="<%= urlSecciones %>?q=<%= encodeURIComponent(f.cedula) %>" title="Ver y reasignar las UC de este docente">
+                    <span uk-icon="icon: list; ratio: 0.75"></span>
+                    <span>Ver asignaciones</span>
+                  </a>
+                  <a class="btn-table-action" href="/periodos/<%= periodo.id %>/horarios?tipo=DOCENTE&id=<%= f.id %>" title="Ver el horario del docente">
+                    <span uk-icon="icon: calendar; ratio: 0.75"></span>
+                    <span>Horario</span>
+                  </a>
+                <% } else if (tipo === 'dedicacion-inconsistente') { %>
+                  <a class="btn-table-action" href="/docentes?q=<%= encodeURIComponent(f.cedula) %>" title="Revisar la dedicación del docente">
+                    <span uk-icon="icon: user; ratio: 0.75"></span>
+                    <span>Ver docente</span>
+                  </a>
+                <% } else if (tipo === 'vacantes') { %>
+                  <a class="btn-table-action" href="<%= urlSecciones %>?q=<%= encodeURIComponent(f.codigoSeccion) %>" title="Asignar un docente a esta unidad curricular">
+                    <span uk-icon="icon: user; ratio: 0.75"></span>
+                    <span>Asignar docente</span>
+                  </a>
+                  <% if (f.grupoId) { %>
+                    <a class="btn-table-action" href="<%= urlSecciones %>?grupoId=<%= f.grupoId %>" title="Ver todas las UC de la sección">
+                      <span uk-icon="icon: users; ratio: 0.75"></span>
+                      <span>Ver sección</span>
+                    </a>
+                  <% } %>
+                <% } else if (tipo === 'codigos-provisionales') { %>
+                  <% if (puedeEditarCodigos) { %>
+                    <form action="/periodos/<%= periodo.id %>/oferta/unidades/<%= f.id %>/codigo" method="POST" class="inconsistencia-codigo-form">
+                      <input type="text" name="codigo" value="<%= f.codigo %>" required maxlength="30" pattern="[A-Za-z0-9][A-Za-z0-9.\-_]{1,29}" class="input-control-clean inconsistencia-codigo-input" aria-label="Código oficial de <%= f.nombre %>" />
+                      <button type="submit" class="btn-table-action text-success" title="Guardar como código oficial">
+                        <span uk-icon="icon: check; ratio: 0.75"></span>
+                        <span>Guardar código</span>
+                      </button>
+                    </form>
+                  <% } %>
+                  <a class="btn-table-action" href="<%= urlSecciones %>?q=<%= encodeURIComponent(f.codigo) %>" title="Ver las asignaciones de esta unidad curricular">
+                    <span uk-icon="icon: list; ratio: 0.75"></span>
+                    <span>Asignaciones</span>
+                  </a>
+                <% } %>
+              </div>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-footer">
+    <div class="table-sub-info">
+      Mostrando <strong><%= pagination.start %></strong>–<strong><%= pagination.end %></strong> de <strong><%= pagination.total %></strong> registros
+    </div>
+    <% if (pagination.totalPages > 1) { %>
+      <ul class="clean-pagination-list">
+        <li>
+          <a href="<%= pagination.hasPrevPage ? makeQueryUrl({ page: pagination.page - 1 }) : '#' %>" class="page-nav-btn <%= !pagination.hasPrevPage ? 'is-disabled' : '' %>">
+            <span uk-icon="icon: chevron-left; ratio: 0.75"></span>
+            <span>Anterior</span>
+          </a>
+        </li>
+        <% for (let i = 1; i <= pagination.totalPages; i++) { %>
+          <% if (i === 1 || i === pagination.totalPages || (i >= pagination.page - 1 && i <= pagination.page + 1)) { %>
+            <li><a href="<%= makeQueryUrl({ page: i }) %>" class="page-number-btn <%= i === pagination.page ? 'is-active' : '' %>"><%= i %></a></li>
+          <% } else if (i === pagination.page - 2 || i === pagination.page + 2) { %>
+            <li class="page-ellipsis">&hellip;</li>
+          <% } %>
+        <% } %>
+        <li>
+          <a href="<%= pagination.hasNextPage ? makeQueryUrl({ page: pagination.page + 1 }) : '#' %>" class="page-nav-btn <%= !pagination.hasNextPage ? 'is-disabled' : '' %>">
+            <span>Siguiente</span>
+            <span uk-icon="icon: chevron-right; ratio: 0.75"></span>
+          </a>
+        </li>
+      </ul>
+    <% } %>
+  </div>
+</div>

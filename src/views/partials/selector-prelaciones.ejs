@@ -1,0 +1,13 @@
+<div class="form-group-clean prelacion-picker">
+  <input type="hidden" name="prelacionesEnviadas" value="1">
+  <div class="prelacion-picker-header">
+    <label class="label-clean" for="<%= prefijo %>-prel-buscar" style="margin: 0;">Prelaciones (deben cursarse antes)</label>
+    <span class="prelacion-picker-counter" id="<%= prefijo %>-prel-contador">0 seleccionadas</span>
+  </div>
+  <div class="table-search-box prelacion-picker-search">
+    <span class="search-icon" uk-icon="icon: search; ratio: 0.8"></span>
+    <input id="<%= prefijo %>-prel-buscar" type="search" class="search-input" placeholder="Buscar por código o nombre..." autocomplete="off" oninput="sincronizarPrelaciones('<%= prefijo %>')">
+  </div>
+  <div class="prelacion-picker-list" id="<%= prefijo %>-prel-lista" role="group" aria-label="Unidades curriculares que prelan"></div>
+  <p class="prelacion-picker-hint">Solo se listan unidades de este programa ubicadas en un Trayecto/Tramo anterior (RC-07).</p>
+</div>

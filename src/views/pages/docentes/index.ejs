@@ -271,7 +271,10 @@
               </td>
               <td>
                 <div class="table-user-name"><%= p.apellidos %>, <%= p.nombres %></div>
-                <div class="table-sub-info"><%= p.email %> <%= p.telefono ? '• ' + p.telefono : '' %></div>
+                <div class="table-sub-info"><%= p.email || 'Sin correo registrado' %> <%= p.telefono ? '• ' + p.telefono : '' %></div>
+                <% if (p.profesion || p.centroEstudio) { %>
+                  <div class="table-sub-info"><%= [p.profesion, p.centroEstudio ? p.centroEstudio.codigo : null].filter(Boolean).join(' • ') %></div>
+                <% } %>
               </td>
               <td>
                 <% if (p.dedicacionActiva) { %>
@@ -336,6 +339,7 @@
               </td>
               <td class="table-actions-cell">
                 <div class="table-actions-group">
+                  <% if (!locals.disponibilidadEditable || disponibilidadEditable.includes(p.id)) { %>
                   <a 
                     href="/docentes/<%= p.id %>/disponibilidad" 
                     class="btn-table-action" 
@@ -344,6 +348,7 @@
                     <span uk-icon="icon: clock; ratio: 0.75"></span>
                     <span>Disponibilidad</span>
                   </a>
+                  <% } %>
                   <button 
                     class="btn-table-action" 
                     title="Editar Profesor"
@@ -446,8 +451,8 @@
           </div>
 
           <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
-            <label class="label-clean">Correo Institucional *</label>
-            <input type="email" name="email" placeholder="profesor@ubv.edu.ve" required class="input-control-clean">
+            <label class="label-clean">Correo Institucional</label>
+            <input type="email" name="email" placeholder="profesor@ubv.edu.ve (opcional)" class="input-control-clean">
           </div>
           <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
             <label class="label-clean">Teléfono Móvil</label>
@@ -459,6 +464,7 @@
             <select name="condicion" class="table-filter-select uk-width-1-1">
               <option value="ORDINARIO">Ordinario</option>
               <option value="CONTRATADO">Contratado</option>
+              <option value="POR_CONTRATAR">Por Contratar</option>
               <option value="JUBILADO_ACTIVO">Jubilado Activo</option>
               <option value="COMISION_SERVICIO">Comisión de Servicio</option>
             </select>
@@ -466,7 +472,8 @@
           <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
             <label class="label-clean">Escalafón Docente</label>
             <select name="escalafon" class="table-filter-select uk-width-1-1">
-              <option value="INSTRUCTOR">Instructor</option>
+              <option value="AUXILIAR_DOCENTE">Auxiliar Docente</option>
+              <option value="INSTRUCTOR" selected>Instructor</option>
               <option value="ASISTENTE">Asistente</option>
               <option value="AGREGADO">Agregado</option>
               <option value="ASOCIADO">Asociado</option>
@@ -474,6 +481,8 @@
               <option value="CONTRATADO">Contratado</option>
             </select>
           </div>
+
+          <%- include('../../partials/docente-campos-oferta', { prefijo: '' }) %>
 
           <div class="uk-width-1-1 uk-margin-small-top">
             <div class="module-title">Régimen Contractual para Período <%= periodoActivo.codigo %></div>
@@ -538,8 +547,8 @@
           </div>
 
           <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
-            <label class="label-clean">Correo Institucional *</label>
-            <input type="email" name="email" id="edit-email" required class="input-control-clean">
+            <label class="label-clean">Correo Institucional</label>
+            <input type="email" name="email" id="edit-email" placeholder="Opcional" class="input-control-clean">
           </div>
           <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
             <label class="label-clean">Teléfono Móvil</label>
@@ -551,6 +560,7 @@
             <select name="condicion" id="edit-condicion" class="table-filter-select uk-width-1-1">
               <option value="ORDINARIO">Ordinario</option>
               <option value="CONTRATADO">Contratado</option>
+              <option value="POR_CONTRATAR">Por Contratar</option>
               <option value="JUBILADO_ACTIVO">Jubilado Activo</option>
               <option value="COMISION_SERVICIO">Comisión de Servicio</option>
             </select>
@@ -558,6 +568,7 @@
           <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
             <label class="label-clean">Escalafón Docente</label>
             <select name="escalafon" id="edit-escalafon" class="table-filter-select uk-width-1-1">
+              <option value="AUXILIAR_DOCENTE">Auxiliar Docente</option>
               <option value="INSTRUCTOR">Instructor</option>
               <option value="ASISTENTE">Asistente</option>
               <option value="AGREGADO">Agregado</option>
@@ -566,6 +577,8 @@
               <option value="CONTRATADO">Contratado</option>
             </select>
           </div>
+
+          <%- include('../../partials/docente-campos-oferta', { prefijo: 'edit-' }) %>
 
           <div class="uk-width-1-1 uk-margin-small-top">
             <div class="module-title">Régimen Contractual para Período <%= periodoActivo.codigo %></div>
@@ -610,10 +623,15 @@
     document.getElementById('edit-cedula').value = profesor.cedula;
     document.getElementById('edit-nombres').value = profesor.nombres;
     document.getElementById('edit-apellidos').value = profesor.apellidos;
-    document.getElementById('edit-email').value = profesor.email;
+    document.getElementById('edit-email').value = profesor.email || '';
     document.getElementById('edit-telefono').value = profesor.telefono || '';
     document.getElementById('edit-condicion').value = profesor.condicion;
     document.getElementById('edit-escalafon').value = profesor.escalafon;
+    document.getElementById('edit-profesion').value = profesor.profesion || '';
+    document.getElementById('edit-estudiosCuartoNivel').value = profesor.estudiosCuartoNivel || '';
+    document.getElementById('edit-anioIngreso').value = profesor.anioIngreso || '';
+    document.getElementById('edit-anioConcurso').value = profesor.anioConcurso || '';
+    document.getElementById('edit-centroEstudioId').value = profesor.centroEstudioId || '';
 
     if (profesor.dedicacionActiva) {
       document.getElementById('edit-dedicacion').value = profesor.dedicacionActiva.dedicacion;

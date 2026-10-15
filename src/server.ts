@@ -12,8 +12,13 @@ import periodoRoutes from './modules/periodos/periodoRoutes';
 import horarioRoutes from './modules/horarios/horarioRoutes';
 import solverRoutes from './modules/solver/solverRoutes';
 import curriculoRoutes from './modules/curriculo/curriculoRoutes';
+import ofertaRoutes from './modules/oferta/ofertaRoutes';
+import ayudaRoutes from './modules/ayuda/ayudaRoutes';
+import normativaRoutes from './modules/normativa/normativaRoutes';
+import { tablero } from './modules/tablero/TableroController';
 import { attachUserToLocals, requireAuth } from './modules/auth/middlewares/authMiddleware';
-import prisma, { enableSqliteWal } from './core/database/prisma';
+import { cargarAlcancePfg } from './modules/auth/middlewares/alcancePfg';
+import { enableSqliteWal } from './core/database/prisma';
 
 dotenv.config();
 
@@ -45,6 +50,7 @@ app.use(
 
 // Inyección de usuario de sesión en todas las plantillas
 app.use(attachUserToLocals);
+app.use(cargarAlcancePfg);
 
 // Configuración de Motor EJS con Layouts Automáticos
 app.set('views', path.join(__dirname, 'views'));
@@ -66,62 +72,14 @@ app.use(periodoRoutes);
 app.use(horarioRoutes);
 app.use(solverRoutes);
 app.use(curriculoRoutes);
+app.use(ofertaRoutes);
+
+// Documentación y Manuales Oficiales
+app.use(ayudaRoutes);
+app.use(normativaRoutes);
 
 // Dashboard Principal (Protegido)
-app.get('/', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const [
-      docentesTotales,
-      docentesExclusivos,
-      seccionesTotales,
-      seccionesAsignadas,
-      espaciosTotales,
-      sedesActivas,
-    ] = await Promise.all([
-      prisma.profesor.count({ where: { activo: true } }),
-      prisma.profesorDedicacion.count({ where: { dedicacion: 'DEDICACION_EXCLUSIVA' } }),
-      prisma.seccion.count(),
-      prisma.seccion.count({ where: { profesorId: { not: null } } }),
-      prisma.espacioFisico.count({ where: { activo: true } }),
-      prisma.sede.count({ where: { activa: true } }),
-    ]);
-
-    const porcentajeAsignado = seccionesTotales > 0
-      ? Math.round((seccionesAsignadas / seccionesTotales) * 1000) / 10
-      : 0;
-
-    res.render('pages/dashboard', {
-      title: 'Tablero de Control',
-      periodoActivo: '2026-I (Semestral)',
-      metricas: {
-        docentesTotales,
-        docentesExclusivos,
-        seccionesTotales,
-        seccionesAsignadas,
-        porcentajeAsignado,
-        espaciosTotales,
-        sedesActivas,
-        alertasSobrecarga: 0,
-      },
-    });
-  } catch (err) {
-    console.error('[DASHBOARD-ERROR]', err);
-    res.render('pages/dashboard', {
-      title: 'Tablero de Control',
-      periodoActivo: '2026-I (Semestral)',
-      metricas: {
-        docentesTotales: 0,
-        docentesExclusivos: 0,
-        seccionesTotales: 0,
-        seccionesAsignadas: 0,
-        porcentajeAsignado: 0,
-        espaciosTotales: 0,
-        sedesActivas: 0,
-        alertasSobrecarga: 0,
-      },
-    });
-  }
-});
+app.get('/', requireAuth, tablero);
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({

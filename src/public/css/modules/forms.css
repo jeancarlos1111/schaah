@@ -108,6 +108,19 @@
   align-items: center;
 }
 
+/* Selector de período en la cabecera de la matriz de disponibilidad */
+.disp-periodo-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.disp-periodo-form .label-clean {
+  margin: 0;
+  white-space: nowrap;
+}
+
 .label-hint {
   font-size: 0.72rem;
   color: var(--text-faint);

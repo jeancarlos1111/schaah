@@ -1,5 +1,7 @@
+import { PrismaClient } from '@prisma/client';
 import prisma from '../../core/database/prisma';
 import { GeneticSolverEngine } from './geneticEngine';
+import { bloquesRequeridosPorHoras, horasSemanalesSeccion } from '../../core/domain/rules/diagnosticoFactibilidad';
 import {
   BloqueOcupadoExistente,
   DocenteSolverData,
@@ -10,40 +12,59 @@ import {
   SolverResult,
 } from './types';
 
+/**
+ * Alcance de una corrida del solver (Spec 06): `pfgIds` limita las secciones a programar a
+ * esos programas; los horarios ya guardados de cualquier programa siguen ocupando
+ * docentes, aulas y cohortes. `db` permite inyectar otra conexión (pruebas).
+ */
+export interface ContextoSolver {
+  pfgIds?: string[];
+  db?: PrismaClient;
+}
+
+export class AsignacionFueraDeAlcanceError extends Error {}
+
 export class SolverService {
   /**
    * Prepara los datos del período y ejecuta la optimización
    */
   static async optimizarPeriodo(
     periodoId: string,
-    options?: SolverOptions
+    options?: SolverOptions,
+    contexto: ContextoSolver = {}
   ): Promise<SolverResult> {
+    const db = contexto.db ?? prisma;
     // 1. Obtener secciones pendientes del período (aquellas que no tienen horarios asignados)
-    const seccionesPendientesRaw = await prisma.seccion.findMany({
+    const seccionesPendientesRaw = await db.seccion.findMany({
       where: {
         periodoId,
         horarios: { none: {} },
+        ...(contexto.pfgIds ? { unidadCurricular: { pfgId: { in: contexto.pfgIds } } } : {}),
       },
       include: {
         unidadCurricular: true,
         profesor: true,
         sede: true,
+        grupo: { select: { codigoNormalizado: true } },
       },
     });
 
     // 2. Obtener horarios ya existentes en este período (restricciones fijas)
-    const horariosExistentesRaw = await prisma.horarioSeccion.findMany({
+    const horariosExistentesRaw = await db.horarioSeccion.findMany({
       where: {
         seccion: { periodoId },
       },
       include: {
-        seccion: true,
+        seccion: { include: { grupo: { select: { codigoNormalizado: true } } } },
       },
     });
 
     const horariosExistentes: BloqueOcupadoExistente[] = horariosExistentesRaw.map((h) => ({
       id: h.id,
       seccionId: h.seccionId,
+      codigoSeccion: h.seccion.codigoSeccion,
+      grupoId: h.seccion.grupoId,
+      grupoCodigo: h.seccion.grupo?.codigoNormalizado ?? null,
       profesorId: h.seccion.profesorId,
       espacioFisicoId: h.espacioFisicoId,
       sedeId: h.seccion.sedeId,
@@ -55,15 +76,13 @@ export class SolverService {
     // 3. Mapear secciones a SeccionSolverData
     const seccionesPendientes: SeccionSolverData[] = seccionesPendientesRaw.map((s) => {
       const uc = s.unidadCurricular;
-      const totalHoras =
-        uc.horasTeoricasSemanales +
-        uc.horasPracticasSemanales +
-        uc.horasCampoComunitarioSemanales;
-      // Cada bloque oficial es de 90 min (2 horas académicas)
-      const bloquesRequeridos = Math.max(1, Math.round(totalHoras / 2));
+      const totalHoras = horasSemanalesSeccion(s.horasSemanalesOferta, uc);
+      const bloquesRequeridos = bloquesRequeridosPorHoras(totalHoras);
 
       return {
         id: s.id,
+        grupoId: s.grupoId,
+        grupoCodigo: s.grupo?.codigoNormalizado ?? null,
         codigoSeccion: s.codigoSeccion,
         unidadCurricularId: s.unidadCurricularId,
         nombreMateria: uc.nombre,
@@ -80,7 +99,7 @@ export class SolverService {
     });
 
     // 4. Obtener profesores y sus disponibilidades
-    const profesoresRaw = await prisma.profesor.findMany({
+    const profesoresRaw = await db.profesor.findMany({
       where: { activo: true },
       include: {
         disponibilidades: {
@@ -114,7 +133,7 @@ export class SolverService {
     }
 
     // 5. Obtener espacios físicos activos
-    const espaciosRaw = await prisma.espacioFisico.findMany({
+    const espaciosRaw = await db.espacioFisico.findMany({
       where: { activo: true },
     });
 
@@ -128,12 +147,15 @@ export class SolverService {
       activa: e.activo,
     }));
 
+    const sedesRaw = await db.sede.findMany({ select: { id: true, nombre: true } });
+
     const input: SolverInput = {
       periodoId,
       seccionesPendientes,
       docentes: docentesMap,
       espacios,
       horariosExistentes,
+      nombresSedes: new Map(sedesRaw.map((s) => [s.id, s.nombre])),
     };
 
     // 6. Instanciar y ejecutar el motor seleccionado (CP-SAT WASM por defecto)
@@ -160,13 +182,30 @@ export class SolverService {
   static async aplicarPropuesta(
     periodoId: string,
     usuarioResponsable: string,
-    resultado: SolverResult
+    resultado: Pick<SolverResult, 'asignaciones'>,
+    contexto: ContextoSolver = {}
   ): Promise<{ aplicados: number }> {
+    const db = contexto.db ?? prisma;
     if (resultado.asignaciones.length === 0) {
       return { aplicados: 0 };
     }
 
-    await prisma.$transaction(async (tx) => {
+    // Cada bloque debe ser de una sección del período y, si hay alcance, de los programas permitidos
+    const seccionIds = [...new Set(resultado.asignaciones.map((a) => a.seccionId))];
+    const permitidas = await db.seccion.count({
+      where: {
+        id: { in: seccionIds },
+        periodoId,
+        ...(contexto.pfgIds ? { unidadCurricular: { pfgId: { in: contexto.pfgIds } } } : {}),
+      },
+    });
+    if (permitidas !== seccionIds.length) {
+      throw new AsignacionFueraDeAlcanceError(
+        'La propuesta incluye secciones que no pertenecen a este período o a los programas que usted coordina.'
+      );
+    }
+
+    await db.$transaction(async (tx) => {
       for (const asig of resultado.asignaciones) {
         // 1. Crear el registro en HorarioSeccion
         const nuevoHorario = await tx.horarioSeccion.create({

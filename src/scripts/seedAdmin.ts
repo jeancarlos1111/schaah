@@ -156,8 +156,8 @@ async function main() {
     },
   });
 
-  // Coordinador
-  await prisma.usuario.upsert({
+  // Coordinador (alcance: PFG Informática para la Gestión Social)
+  const coordinador = await prisma.usuario.upsert({
     where: { email: 'coord.informatica@ubv.edu.ve' },
     update: { rolRelacionId: rolCoord?.id },
     create: {
@@ -168,6 +168,20 @@ async function main() {
       rol: RolUsuario.COORDINADOR_PFG,
       rolRelacionId: rolCoord?.id,
     },
+  });
+  const pfgInformatica = await prisma.programaFormacion.upsert({
+    where: { codigo: 'PFG-INFO' },
+    update: {},
+    create: {
+      codigo: 'PFG-INFO',
+      nombre: 'Informática para la Gestión Social',
+      areaConocimiento: 'Tecnología y Ciencias Aplicadas',
+    },
+  });
+  await prisma.usuarioPrograma.upsert({
+    where: { usuarioId_pfgId: { usuarioId: coordinador.id, pfgId: pfgInformatica.id } },
+    update: {},
+    create: { usuarioId: coordinador.id, pfgId: pfgInformatica.id },
   });
 
   // Docente

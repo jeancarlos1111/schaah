@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import prisma from '../../../core/database/prisma';
-import { DiaSemana, TipoBloqueAcademico } from '../../../core/domain/enums';
+import { DiaSemana, RolUsuario, TipoBloqueAcademico } from '../../../core/domain/enums';
+import { pendientesDeVista } from '../pendientesVista';
+import { buscarPeriodoVigente } from '../../periodos/periodoVigente';
 import {
   BLOQUES_HORARIOS_OFICIALES,
   to12HourFormat,
@@ -13,6 +15,129 @@ import {
   DisponibilidadDocenteItem,
   validarAsignacionHoraria,
 } from '../../../core/domain/rules/validadorHorarioService';
+import {
+  filtroPfg,
+  filtroPfgEfectivo,
+  puedeGestionarPfg,
+  puedeProgramarHorarios,
+} from '../../../core/domain/rules/alcancePfgRules';
+import { alcanceDe, denegarPfg } from '../../auth/middlewares/alcancePfg';
+import { profesorPropioId } from '../../docentes/profesorPropio';
+
+export const MENSAJE_SOLO_SU_HORARIO = 'Solo puede consultar su propio horario.';
+
+function cargarSeccionHorario(periodoId: string, seccionId: string) {
+  return prisma.seccion.findFirst({
+    where: { id: seccionId, periodoId },
+    include: {
+      unidadCurricular: { include: { prelacionesRequeridas: true } },
+      profesor: true,
+      sede: true,
+    },
+  });
+}
+
+type SeccionHorario = NonNullable<Awaited<ReturnType<typeof cargarSeccionHorario>>>;
+
+interface DatosPropuestaHoraria {
+  horarioId?: string;
+  dia: string;
+  horaInicio: string;
+  horaFin: string;
+  espacioFisicoId?: string | null;
+}
+
+/**
+ * Evalúa las restricciones duras (H-01, H-02, H-03, H-06, H-07, H-08, H-09) de colocar un
+ * bloque de la sección contra todos los horarios del período (de cualquier programa).
+ */
+async function evaluarPropuestaHoraria(periodoId: string, seccion: SeccionHorario, datos: DatosPropuestaHoraria) {
+  const { horarioId, dia, horaInicio, horaFin, espacioFisicoId } = datos;
+
+  const espacioPropuesto =
+    espacioFisicoId && espacioFisicoId.trim() !== ''
+      ? await prisma.espacioFisico.findUnique({ where: { id: espacioFisicoId }, include: { sede: true } })
+      : null;
+
+  const sedeEfectivaId = espacioPropuesto ? espacioPropuesto.sedeId : seccion.sedeId;
+  const sedeEfectivaNombre = espacioPropuesto ? espacioPropuesto.sede.nombre : seccion.sede.nombre;
+
+  const horariosDB = await prisma.horarioSeccion.findMany({
+    where: { seccion: { periodoId } },
+    include: {
+      seccion: {
+        include: {
+          profesor: true,
+          unidadCurricular: true,
+          sede: true,
+          grupo: { select: { codigoNormalizado: true } },
+        },
+      },
+      espacioFisico: {
+        include: { sede: true },
+      },
+    },
+  });
+
+  const bloquesExistentes: BloqueHorarioExistente[] = horariosDB.map((h) => ({
+    id: h.id,
+    seccionId: h.seccionId,
+    grupoId: h.seccion.grupoId,
+    grupoCodigo: h.seccion.grupo?.codigoNormalizado ?? null,
+    profesorId: h.seccion.profesorId,
+    profesorNombre: h.seccion.profesor
+      ? `${h.seccion.profesor.nombres} ${h.seccion.profesor.apellidos}`
+      : null,
+    espacioFisicoId: h.espacioFisicoId,
+    espacioFisicoNombre: h.espacioFisico ? h.espacioFisico.nombre : null,
+    dia: h.dia,
+    horaInicio: h.horaInicio,
+    horaFin: h.horaFin,
+    codigoSeccion: h.seccion.codigoSeccion,
+    unidadCurricularId: h.seccion.unidadCurricularId,
+    unidadCurricularNombre: h.seccion.unidadCurricular.nombre,
+    pfgId: h.seccion.unidadCurricular.pfgId,
+    turno: h.seccion.turno,
+    sedeId: h.espacioFisico ? h.espacioFisico.sedeId : h.seccion.sedeId,
+    sedeNombre: h.espacioFisico ? h.espacioFisico.sede.nombre : h.seccion.sede.nombre,
+  }));
+
+  let disponibilidades: DisponibilidadDocenteItem[] = [];
+  if (seccion.profesorId) {
+    const dispDB = await prisma.profesorDisponibilidad.findMany({
+      where: { profesorId: seccion.profesorId, periodoId },
+    });
+    disponibilidades = dispDB.map((d) => ({
+      profesorId: d.profesorId,
+      dia: d.dia,
+      horaInicio: d.horaInicio,
+      horaFin: d.horaFin,
+      disponible: d.disponible,
+      prioridadPreferencia: d.prioridadPreferencia,
+    }));
+  }
+
+  const propuesta = {
+    horarioIdExcluir: horarioId || undefined,
+    seccionId: seccion.id,
+    grupoId: seccion.grupoId,
+    profesorId: seccion.profesorId,
+    espacioFisicoId: espacioPropuesto ? espacioPropuesto.id : null,
+    dia,
+    horaInicio,
+    horaFin,
+    sedeId: sedeEfectivaId,
+    sedeNombre: sedeEfectivaNombre,
+    esProyectoComunitario: seccion.unidadCurricular.esProyectoComunitario,
+    unidadCurricularId: seccion.unidadCurricularId,
+    unidadCurricularNombre: seccion.unidadCurricular.nombre,
+    pfgId: seccion.unidadCurricular.pfgId,
+    turno: seccion.turno,
+    prelacionIds: seccion.unidadCurricular.prelacionesRequeridas.map((p) => p.preladaPorId),
+  };
+
+  return { propuesta, resultado: validarAsignacionHoraria(propuesta, bloquesExistentes, disponibilidades) };
+}
 
 export class HorariosController {
   /**
@@ -20,16 +145,18 @@ export class HorariosController {
    */
   static async redirigirPeriodoActivo(req: Request, res: Response) {
     try {
-      const periodo = await prisma.periodoAcademico.findFirst({
-        where: { estado: { in: ['ACTIVO', 'PLANIFICACION', 'BORRADOR'] } },
-        orderBy: { createdAt: 'desc' },
-      });
+      const periodo = await buscarPeriodoVigente();
 
       if (!periodo) {
-        return res.redirect('/periodos?error=' + encodeURIComponent('No hay períodos académicos registrados.'));
+        const destino = puedeProgramarHorarios(req.session?.usuario?.rol) ? '/periodos' : '/';
+        return res.redirect(`${destino}?error=` + encodeURIComponent('No hay períodos académicos abiertos.'));
       }
 
-      return res.redirect(`/periodos/${periodo.id}/horarios`);
+      const avisos = ['msg', 'error']
+        .filter((k) => typeof req.query[k] === 'string' && req.query[k])
+        .map((k) => `${k}=${encodeURIComponent(req.query[k] as string)}`)
+        .join('&');
+      return res.redirect(`/periodos/${periodo.id}/horarios${avisos ? `?${avisos}` : ''}`);
     } catch (err) {
       console.error('[HORARIOS-REDIRECT-ERROR]', err);
       return res.redirect('/periodos');
@@ -37,13 +164,19 @@ export class HorariosController {
   }
 
   /**
-   * Matriz Semanal de Horarios (Perspectiva Docente, Aula o Sección)
+   * Matriz Semanal de Horarios (Perspectiva Docente, Aula o Sección con discriminación por PFG)
    */
   static async matriz(req: Request, res: Response) {
     try {
       const { id: periodoId } = req.params;
       const filtroTipo = (req.query.tipo as string) || 'DOCENTE'; // 'DOCENTE', 'AULA', 'SECCION'
       const filtroId = (req.query.id as string) || '';
+      // Spec 06: el coordinador elige y programa solo secciones de sus programas; los bloques
+      // de otros programas se muestran como ocupados (solo lectura) porque consumen docentes y aulas.
+      const alcance = alcanceDe(req);
+      const pfgSolicitado = (req.query.pfgId as string) || '';
+      const filtroPfgId = pfgSolicitado && puedeGestionarPfg(alcance, pfgSolicitado) ? pfgSolicitado : '';
+      const pfgSecciones = filtroPfgEfectivo(alcance, filtroPfgId);
 
       const periodo = await prisma.periodoAcademico.findUnique({
         where: { id: periodoId },
@@ -53,10 +186,40 @@ export class HorariosController {
         return res.redirect('/periodos?error=' + encodeURIComponent('Período académico no encontrado.'));
       }
 
-      // Catálogos para el selector de perspectiva
-      const [profesores, espacios, seccionesPeriodo, todosHorarios] = await Promise.all([
+      const usuario = req.session?.usuario;
+      const soloLectura = !puedeProgramarHorarios(usuario?.rol);
+      // Spec 06: el docente consulta únicamente su propio horario (sin otras perspectivas ni docentes).
+      const soloSuHorario = usuario?.rol === RolUsuario.DOCENTE;
+      let profesorPropio: string | null = null;
+      if (soloSuHorario) {
+        profesorPropio = await profesorPropioId(usuario);
+        if (!profesorPropio) {
+          return res.status(403).render('pages/error', {
+            title: 'Cuenta sin docente vinculado',
+            error:
+              'Su cuenta no está vinculada a una ficha docente, por lo que no hay un horario que mostrar. Solicite a la Administración que la vincule.',
+          });
+        }
+        if (filtroTipo !== 'DOCENTE' || filtroId !== profesorPropio || pfgSolicitado) {
+          const pidioOtro = filtroTipo !== 'DOCENTE' || (filtroId !== '' && filtroId !== profesorPropio);
+          const aviso = pidioOtro
+            ? `&error=${encodeURIComponent(MENSAJE_SOLO_SU_HORARIO)}`
+            : ['msg', 'error']
+                .filter((k) => typeof req.query[k] === 'string' && req.query[k])
+                .map((k) => `&${k}=${encodeURIComponent(req.query[k] as string)}`)
+                .join('');
+          return res.redirect(`/periodos/${periodoId}/horarios?tipo=DOCENTE&id=${profesorPropio}${aviso}`);
+        }
+      }
+
+      // Catálogos para el selector de perspectiva y filtrado
+      const [pfgs, profesores, espacios, seccionesPeriodo, todosHorarios, grupos] = await Promise.all([
+        prisma.programaFormacion.findMany({
+          where: { activo: true, id: filtroPfg(alcance) },
+          orderBy: { nombre: 'asc' },
+        }),
         prisma.profesor.findMany({
-          where: { activo: true },
+          where: { activo: true, ...(profesorPropio ? { id: profesorPropio } : {}) },
           orderBy: [{ apellidos: 'asc' }, { nombres: 'asc' }],
         }),
         prisma.espacioFisico.findMany({
@@ -65,9 +228,12 @@ export class HorariosController {
           orderBy: [{ sede: { nombre: 'asc' } }, { nombre: 'asc' }],
         }),
         prisma.seccion.findMany({
-          where: { periodoId },
+          where: {
+            periodoId,
+            ...(pfgSecciones ? { unidadCurricular: { pfgId: pfgSecciones } } : {}),
+          },
           include: {
-            unidadCurricular: { include: { pfg: true } },
+            unidadCurricular: { include: { pfg: true, prelacionesRequeridas: true } },
             profesor: true,
             sede: true,
             horarios: true,
@@ -75,11 +241,16 @@ export class HorariosController {
           orderBy: { codigoSeccion: 'asc' },
         }),
         prisma.horarioSeccion.findMany({
-          where: { seccion: { periodoId } },
+          where: {
+            seccion: {
+              periodoId,
+              ...(filtroPfgId ? { unidadCurricular: { pfgId: filtroPfgId } } : {}),
+            },
+          },
           include: {
             seccion: {
               include: {
-                unidadCurricular: true,
+                unidadCurricular: { include: { pfg: true, prelacionesRequeridas: true } },
                 profesor: true,
                 sede: true,
               },
@@ -88,6 +259,11 @@ export class HorariosController {
               include: { sede: true },
             },
           },
+        }),
+        prisma.grupoSeccion.findMany({
+          where: { periodoId, ...(pfgSecciones ? { pfgId: pfgSecciones } : {}) },
+          include: { pfg: { select: { codigo: true } } },
+          orderBy: { codigoNormalizado: 'asc' },
         }),
       ]);
 
@@ -103,20 +279,27 @@ export class HorariosController {
         } else if (filtroTipo === 'AULA') {
           horariosVisibles = todosHorarios.filter((h) => h.espacioFisicoId === filtroId);
           const esp = espacios.find((e) => e.id === filtroId);
-          if (esp) entidadSeleccionadaNombre = `Aula ${esp.nombre} (${esp.sede.nombre})`;
+          if (esp) entidadSeleccionadaNombre = `${esp.nombre} (${esp.sede.nombre})`;
         } else if (filtroTipo === 'SECCION') {
           horariosVisibles = todosHorarios.filter((h) => h.seccionId === filtroId);
           const sec = seccionesPeriodo.find((s) => s.id === filtroId);
           if (sec) entidadSeleccionadaNombre = `Sección ${sec.codigoSeccion} (${sec.unidadCurricular.nombre})`;
+        } else if (filtroTipo === 'GRUPO') {
+          horariosVisibles = todosHorarios.filter((h) => h.seccion.grupoId === filtroId);
+          const grupo = grupos.find((g) => g.id === filtroId);
+          if (grupo) entidadSeleccionadaNombre = `Sección ${grupo.codigoNormalizado} (${grupo.pfg.codigo}) - todas sus UC`;
         }
       } else {
         // Por defecto seleccionar el primer docente, aula o sección si existe
+        const queryPfg = filtroPfgId ? `&pfgId=${filtroPfgId}` : '';
         if (filtroTipo === 'DOCENTE' && profesores.length > 0) {
-          return res.redirect(`/periodos/${periodoId}/horarios?tipo=DOCENTE&id=${profesores[0].id}`);
+          return res.redirect(`/periodos/${periodoId}/horarios?tipo=DOCENTE&id=${profesores[0].id}${queryPfg}`);
         } else if (filtroTipo === 'AULA' && espacios.length > 0) {
-          return res.redirect(`/periodos/${periodoId}/horarios?tipo=AULA&id=${espacios[0].id}`);
+          return res.redirect(`/periodos/${periodoId}/horarios?tipo=AULA&id=${espacios[0].id}${queryPfg}`);
         } else if (filtroTipo === 'SECCION' && seccionesPeriodo.length > 0) {
-          return res.redirect(`/periodos/${periodoId}/horarios?tipo=SECCION&id=${seccionesPeriodo[0].id}`);
+          return res.redirect(`/periodos/${periodoId}/horarios?tipo=SECCION&id=${seccionesPeriodo[0].id}${queryPfg}`);
+        } else if (filtroTipo === 'GRUPO' && grupos.length > 0) {
+          return res.redirect(`/periodos/${periodoId}/horarios?tipo=GRUPO&id=${grupos[0].id}${queryPfg}`);
         }
       }
 
@@ -142,6 +325,8 @@ export class HorariosController {
             seccionId: h.seccionId,
             codigoSeccion: h.seccion.codigoSeccion,
             unidadNombre: h.seccion.unidadCurricular.nombre,
+            pfgCodigo: h.seccion.unidadCurricular.pfg?.codigo || 'UBV',
+            pfgNombre: h.seccion.unidadCurricular.pfg?.nombre || '',
             profesorNombre: h.seccion.profesor
               ? `${h.seccion.profesor.nombres} ${h.seccion.profesor.apellidos}`
               : 'Sin Docente',
@@ -154,23 +339,29 @@ export class HorariosController {
             horaFin: h.horaFin,
             horaInicio12: to12HourFormat(h.horaInicio),
             horaFin12: to12HourFormat(h.horaFin),
+            editable: !soloLectura && puedeGestionarPfg(alcance, h.seccion.unidadCurricular.pfgId),
           };
         }
       });
 
       // Secciones pendientes de asignación (o que tienen 0 horarios asignados)
-      const seccionesPendientes = seccionesPeriodo.filter((s) => s.horarios.length === 0);
+      const seccionesPendientes = pendientesDeVista(seccionesPeriodo, filtroTipo, filtroId, espacios);
 
       res.render('pages/horarios/matriz', {
         title: `Horario Semanal - ${periodo.codigo}`,
         periodo,
         filtroTipo,
         filtroId,
+        filtroPfgId,
+        pfgs,
         entidadSeleccionadaNombre,
         profesores,
         espacios,
         secciones: seccionesPeriodo,
+        grupos,
         seccionesPendientes,
+        soloLectura,
+        soloSuHorario,
         dias: diasSemana,
         franjas: BLOQUES_HORARIOS_OFICIALES,
         matrizMap,
@@ -179,7 +370,8 @@ export class HorariosController {
       });
     } catch (err) {
       console.error('[HORARIOS-MATRIZ-ERROR]', err);
-      res.redirect('/periodos?error=' + encodeURIComponent('Error al cargar la matriz de horarios.'));
+      const destino = req.session?.usuario?.rol === RolUsuario.DOCENTE ? '/' : '/periodos';
+      res.redirect(`${destino}?error=` + encodeURIComponent('Error al cargar la matriz de horarios.'));
     }
   }
 
@@ -205,103 +397,26 @@ export class HorariosController {
         });
       }
 
-      const seccion = await prisma.seccion.findUnique({
-        where: { id: seccionId },
-        include: {
-          unidadCurricular: true,
-          profesor: true,
-          sede: true,
-        },
-      });
+      const seccion = await cargarSeccionHorario(periodoId, seccionId);
 
       if (!seccion) {
         return res.status(404).json({
           esValido: false,
-          mensaje: 'Sección no encontrada.',
+          mensaje: 'Sección no encontrada en este período.',
         });
       }
 
-      // Espacio físico propuesto (o null)
-      let espacioPropuesto: any = null;
-      if (espacioFisicoId && espacioFisicoId.trim() !== '') {
-        espacioPropuesto = await prisma.espacioFisico.findUnique({
-          where: { id: espacioFisicoId },
-          include: { sede: true },
-        });
+      if (!puedeGestionarPfg(alcanceDe(req), seccion.unidadCurricular.pfgId)) {
+        return denegarPfg(req, res);
       }
 
-      // Sede efectiva de la clase propuesta
-      const sedeEfectivaId = espacioPropuesto ? espacioPropuesto.sedeId : seccion.sedeId;
-      const sedeEfectivaNombre = espacioPropuesto ? espacioPropuesto.sede.nombre : seccion.sede.nombre;
-
-      // Cargar todos los horarios del período para cotejo de conflictos
-      const horariosDB = await prisma.horarioSeccion.findMany({
-        where: { seccion: { periodoId } },
-        include: {
-          seccion: {
-            include: {
-              profesor: true,
-              unidadCurricular: true,
-              sede: true,
-            },
-          },
-          espacioFisico: {
-            include: { sede: true },
-          },
-        },
-      });
-
-      const bloquesExistentes: BloqueHorarioExistente[] = horariosDB.map((h) => ({
-        id: h.id,
-        seccionId: h.seccionId,
-        profesorId: h.seccion.profesorId,
-        profesorNombre: h.seccion.profesor
-          ? `${h.seccion.profesor.nombres} ${h.seccion.profesor.apellidos}`
-          : null,
-        espacioFisicoId: h.espacioFisicoId,
-        espacioFisicoNombre: h.espacioFisico ? h.espacioFisico.nombre : null,
-        dia: h.dia,
-        horaInicio: h.horaInicio,
-        horaFin: h.horaFin,
-        codigoSeccion: h.seccion.codigoSeccion,
-        unidadCurricularNombre: h.seccion.unidadCurricular.nombre,
-        sedeId: h.espacioFisico ? h.espacioFisico.sedeId : h.seccion.sedeId,
-        sedeNombre: h.espacioFisico ? h.espacioFisico.sede.nombre : h.seccion.sede.nombre,
-      }));
-
-      // Disponibilidad del docente
-      let disponibilidades: DisponibilidadDocenteItem[] = [];
-      if (seccion.profesorId) {
-        const dispDB = await prisma.profesorDisponibilidad.findMany({
-          where: {
-            profesorId: seccion.profesorId,
-            periodoId,
-          },
-        });
-        disponibilidades = dispDB.map((d) => ({
-          profesorId: d.profesorId,
-          dia: d.dia,
-          horaInicio: d.horaInicio,
-          horaFin: d.horaFin,
-          disponible: d.disponible,
-          prioridadPreferencia: d.prioridadPreferencia,
-        }));
-      }
-
-      const propuesta = {
-        horarioIdExcluir: horarioId || undefined,
-        seccionId,
-        profesorId: seccion.profesorId,
-        espacioFisicoId: espacioPropuesto ? espacioPropuesto.id : null,
+      const { propuesta, resultado } = await evaluarPropuestaHoraria(periodoId, seccion, {
+        horarioId,
         dia,
         horaInicio,
         horaFin,
-        sedeId: sedeEfectivaId,
-        sedeNombre: sedeEfectivaNombre,
-        esProyectoComunitario: seccion.unidadCurricular.esProyectoComunitario,
-      };
-
-      const resultado = validarAsignacionHoraria(propuesta, bloquesExistentes, disponibilidades);
+        espacioFisicoId,
+      });
 
       // Si la petición es de HTMX, renderizar partial
       if (req.headers['hx-request']) {
@@ -341,15 +456,20 @@ export class HorariosController {
         justificacion,
       } = req.body;
 
-      const usuarioResponsable = (req.session as any)?.usuario?.email || 'sistema_admin';
+      const usuarioResponsable = req.session?.usuario?.email || 'sistema_admin';
 
-      const seccion = await prisma.seccion.findUnique({
-        where: { id: seccionId },
-        include: { unidadCurricular: true, profesor: true, sede: true },
-      });
+      if (!seccionId || !dia || !horaInicio || !horaFin) {
+        return res.status(400).json({ success: false, error: 'Parámetros incompletos para guardar el horario.' });
+      }
+
+      const seccion = await cargarSeccionHorario(periodoId, seccionId);
 
       if (!seccion) {
-        return res.status(404).json({ success: false, error: 'Sección no encontrada.' });
+        return res.status(404).json({ success: false, error: 'Sección no encontrada en este período.' });
+      }
+
+      if (!puedeGestionarPfg(alcanceDe(req), seccion.unidadCurricular.pfgId)) {
+        return denegarPfg(req, res);
       }
 
       // Evaluar si es proyecto comunitario
@@ -358,15 +478,36 @@ export class HorariosController {
         : TipoBloqueAcademico.DOCENCIA_AULA;
 
       const aulaAsignar = seccion.unidadCurricular.esProyectoComunitario ? null : (espacioFisicoId || null);
+      const esMovimiento = typeof horarioId === 'string' && horarioId.trim() !== '';
+
+      const horarioAnterior = esMovimiento
+        ? await prisma.horarioSeccion.findFirst({ where: { id: horarioId, seccionId } })
+        : null;
+      if (esMovimiento && !horarioAnterior) {
+        return res.status(404).json({ success: false, error: 'El bloque indicado no pertenece a esta sección.' });
+      }
+
+      // Restricciones duras evaluadas también en el servidor: el cliente no puede omitirlas
+      const { resultado } = await evaluarPropuestaHoraria(periodoId, seccion, {
+        horarioId: esMovimiento ? horarioId : undefined,
+        dia,
+        horaInicio,
+        horaFin,
+        espacioFisicoId: aulaAsignar,
+      });
+      if (!resultado.esValido) {
+        return res.status(409).json({
+          success: false,
+          error: resultado.mensajeResumen,
+          conflictos: resultado.conflictos,
+        });
+      }
 
       let horarioGuardado: any = null;
       let datosAnterioresStr: string | null = null;
 
-      if (horarioId && horarioId.trim() !== '') {
+      if (esMovimiento) {
         // Movimiento de bloque existente
-        const horarioAnterior = await prisma.horarioSeccion.findUnique({
-          where: { id: horarioId },
-        });
         datosAnterioresStr = JSON.stringify(horarioAnterior);
 
         horarioGuardado = await prisma.horarioSeccion.update({
@@ -442,15 +583,19 @@ export class HorariosController {
     try {
       const { id: periodoId } = req.params;
       const { horarioId, justificacion } = req.body;
-      const usuarioResponsable = (req.session as any)?.usuario?.email || 'sistema_admin';
+      const usuarioResponsable = req.session?.usuario?.email || 'sistema_admin';
 
-      const horario = await prisma.horarioSeccion.findUnique({
-        where: { id: horarioId },
-        include: { seccion: true },
+      const horario = await prisma.horarioSeccion.findFirst({
+        where: { id: horarioId, seccion: { periodoId } },
+        include: { seccion: { include: { unidadCurricular: { select: { pfgId: true } } } } },
       });
 
       if (!horario) {
-        return res.status(404).json({ success: false, error: 'Bloque de horario no encontrado.' });
+        return res.status(404).json({ success: false, error: 'Bloque de horario no encontrado en este período.' });
+      }
+
+      if (!puedeGestionarPfg(alcanceDe(req), horario.seccion.unidadCurricular.pfgId)) {
+        return denegarPfg(req, res);
       }
 
       await prisma.auditoriaAjusteHorario.create({

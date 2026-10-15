@@ -5,8 +5,51 @@ import {
   validarDistribucionHoras,
   validarEspacioRequerido,
   calcularBloquesLectivos,
-  validarCorrespondenciaTrayectoTramo,
+  resolverUbicacionMalla,
+  filtrarPrelacionesValidas,
+  dependientesInvalidadas,
+  programaRequiereTrayecto,
+  UnidadMalla,
 } from '../../../core/domain/rules/curriculoRules';
+import { normalizarTipoPrograma } from '../../../core/domain/rules/ofertaNormalizacion';
+import { filtroPfg, pfgVisible, puedeGestionarPfg } from '../../../core/domain/rules/alcancePfgRules';
+import { alcanceDe, denegarPfg } from '../../auth/middlewares/alcancePfg';
+
+const TRAYECTOS_MALLA = [0, 1, 2, 3, 4, 5];
+const TRAMOS_MALLA = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+function textoRequerido(valor: unknown): valor is string {
+  return typeof valor === 'string' && valor.trim() !== '';
+}
+
+/** `null` cuando el formulario no incluye el selector de prelaciones (se conservan las existentes). */
+function idsPrelacionFormulario(body: Record<string, unknown>): string[] | null {
+  if (body.prelacionesEnviadas !== '1') return null;
+  const valor = body.prelaciones;
+  const lista = Array.isArray(valor) ? valor : valor ? [valor] : [];
+  return lista.filter((v): v is string => typeof v === 'string' && v !== '');
+}
+
+async function cargarUnidadesMalla(ids: string[]): Promise<UnidadMalla[]> {
+  if (ids.length === 0) return [];
+  return prisma.unidadCurricular.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, codigo: true, pfgId: true, trayecto: true, tramo: true },
+  });
+}
+
+function avisoPrelacionesDescartadas(rechazadas: { codigo: string }[]): string {
+  if (rechazadas.length === 0) return '';
+  return ` Se descartaron ${rechazadas.length} prelación(es) que no cumplen RC-07: ${rechazadas
+    .map((r) => r.codigo)
+    .join(', ')}.`;
+}
+
+function filtroEntero(valor: unknown, permitidos: number[]): number | undefined {
+  if (typeof valor !== 'string' || !/^\d+$/.test(valor.trim())) return undefined;
+  const numero = parseInt(valor, 10);
+  return permitidos.includes(numero) ? numero : undefined;
+}
 
 export class CurriculoController {
   /**
@@ -20,8 +63,9 @@ export class CurriculoController {
 
       const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
       const pfgIdQuery = typeof req.query.pfg === 'string' ? req.query.pfg.trim() : '';
-      const trayectoQuery = req.query.trayecto ? parseInt(req.query.trayecto as string, 10) : undefined;
-      const tramoQuery = req.query.tramo ? parseInt(req.query.tramo as string, 10) : undefined;
+      const trayectoQuery: number | null | undefined =
+        req.query.trayecto === 'ninguno' ? null : filtroEntero(req.query.trayecto, TRAYECTOS_MALLA);
+      const tramoQuery = filtroEntero(req.query.tramo, TRAMOS_MALLA);
       const tipoEspacioQuery = typeof req.query.tipoEspacio === 'string' ? req.query.tipoEspacio.trim() : '';
 
       const sortBy = typeof req.query.sortBy === 'string' ? req.query.sortBy.trim() : 'trayecto';
@@ -30,8 +74,10 @@ export class CurriculoController {
       const validSortColumns = ['codigo', 'nombre', 'trayecto', 'tramo', 'creditos', 'activa'];
       const activeSortBy = validSortColumns.includes(sortBy) ? sortBy : 'trayecto';
 
-      // Cargar todos los Programas de Formación con conteo de UCs
+      // Programas de Formación visibles para el usuario (Spec 06: el coordinador solo ve los suyos)
+      const alcance = alcanceDe(req);
       const pfgs = await prisma.programaFormacion.findMany({
+        where: { id: filtroPfg(alcance) },
         orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
         include: {
           _count: {
@@ -40,11 +86,9 @@ export class CurriculoController {
         },
       });
 
-      // Seleccionar PFG activo (el solicitado o el primero)
-      let pfgSeleccionado = pfgs.find((p) => p.id === pfgIdQuery);
-      if (!pfgSeleccionado && pfgs.length > 0) {
-        pfgSeleccionado = pfgs[0];
-      }
+      // Seleccionar PFG activo (el solicitado si está permitido o el primero)
+      const pfgVisibleId = pfgVisible(alcance, pfgIdQuery, pfgs.map((p) => p.id));
+      const pfgSeleccionado = pfgs.find((p) => p.id === pfgVisibleId);
 
       let unidades: any[] = [];
       let totalFiltrados = 0;
@@ -54,6 +98,16 @@ export class CurriculoController {
         totalHorasLectivas: 0,
         totalProyectos: 0,
       };
+
+      let todasDelPfg: any[] = [];
+      let catalogoPrelaciones: {
+        id: string;
+        codigo: string;
+        nombre: string;
+        trayecto: number | null;
+        tramo: number | null;
+        activa: boolean;
+      }[] = [];
 
       if (pfgSeleccionado) {
         // Filtros para unidades
@@ -68,11 +122,11 @@ export class CurriculoController {
           ];
         }
 
-        if (trayectoQuery && !isNaN(trayectoQuery)) {
+        if (trayectoQuery !== undefined) {
           whereUnidades.trayecto = trayectoQuery;
         }
 
-        if (tramoQuery && !isNaN(tramoQuery)) {
+        if (tramoQuery !== undefined) {
           whereUnidades.tramo = tramoQuery;
         }
 
@@ -90,7 +144,7 @@ export class CurriculoController {
           orderBy.push({ [activeSortBy]: sortDir });
         }
 
-        const [conteo, resultadoUnidades, todasDelPfg] = await Promise.all([
+        const [conteo, resultadoUnidades, todas, catalogo] = await Promise.all([
           prisma.unidadCurricular.count({ where: whereUnidades }),
           prisma.unidadCurricular.findMany({
             where: whereUnidades,
@@ -101,15 +155,26 @@ export class CurriculoController {
               _count: {
                 select: { secciones: true },
               },
+              prelacionesRequeridas: {
+                include: { preladaPor: true },
+              },
             },
           }),
           prisma.unidadCurricular.findMany({
             where: { pfgId: pfgSeleccionado.id, activa: true },
+            orderBy: [{ trayecto: 'asc' }, { tramo: 'asc' }, { codigo: 'asc' }],
+          }),
+          prisma.unidadCurricular.findMany({
+            where: { pfgId: pfgSeleccionado.id },
+            orderBy: [{ trayecto: 'asc' }, { tramo: 'asc' }, { codigo: 'asc' }],
+            select: { id: true, codigo: true, nombre: true, trayecto: true, tramo: true, activa: true },
           }),
         ]);
 
         totalFiltrados = conteo;
         unidades = resultadoUnidades;
+        todasDelPfg = todas;
+        catalogoPrelaciones = catalogo;
 
         // Métricas Bento desacopladas del filtro actual (DoD 3 de Spec 07)
         metricas = todasDelPfg.reduce(
@@ -146,6 +211,11 @@ export class CurriculoController {
         pfgs,
         pfgSeleccionado,
         unidades,
+        todasDelPfg,
+        catalogoPrelaciones,
+        requiereTrayecto: programaRequiereTrayecto(pfgSeleccionado?.tipo),
+        trayectosMalla: TRAYECTOS_MALLA,
+        tramosMalla: TRAMOS_MALLA,
         pagination,
         stats: {
           totalUnidades: metricas.totalUnidades,
@@ -158,8 +228,8 @@ export class CurriculoController {
         filters: {
           q,
           pfg: pfgSeleccionado?.id || '',
-          trayecto: trayectoQuery ? String(trayectoQuery) : '',
-          tramo: tramoQuery ? String(tramoQuery) : '',
+          trayecto: trayectoQuery === undefined ? '' : trayectoQuery === null ? 'ninguno' : String(trayectoQuery),
+          tramo: tramoQuery === undefined ? '' : String(tramoQuery),
           tipoEspacio: tipoEspacioQuery,
           sortBy: activeSortBy,
           sortDir,
@@ -208,6 +278,7 @@ export class CurriculoController {
         data: {
           codigo: codigoLimpio,
           nombre: nombre.trim(),
+          tipo: normalizarTipoPrograma(req.body.tipo),
           areaConocimiento: areaConocimiento.trim(),
           activo: true,
         },
@@ -261,6 +332,7 @@ export class CurriculoController {
         data: {
           codigo: codigoLimpio,
           nombre: nombre.trim(),
+          tipo: normalizarTipoPrograma(req.body.tipo),
           areaConocimiento: areaConocimiento.trim(),
         },
       });
@@ -332,9 +404,17 @@ export class CurriculoController {
         esProyectoComunitario,
       } = req.body;
 
-      if (!pfgId || !codigo || !nombre) {
+      const pfg = typeof pfgId === 'string' && pfgId
+        ? await prisma.programaFormacion.findUnique({ where: { id: pfgId } })
+        : null;
+
+      if (pfg && !puedeGestionarPfg(alcanceDe(req), pfg.id)) {
+        return denegarPfg(req, res);
+      }
+
+      if (!pfg || !textoRequerido(codigo) || !textoRequerido(nombre)) {
         return res.redirect(
-          `/curriculo?pfg=${pfgId || ''}&error=` +
+          `/curriculo?pfg=${pfg?.id || ''}&error=` +
             encodeURIComponent('PFG, código y nombre son campos obligatorios.')
         );
       }
@@ -360,13 +440,11 @@ export class CurriculoController {
         );
       }
 
-      // RC-06: Validación de correspondencia estricta Trayecto-Tramo
-      const numTrayecto = parseInt(trayecto, 10);
-      const numTramo = parseInt(tramo, 10);
-      const ttVal = validarCorrespondenciaTrayectoTramo(numTrayecto, numTramo);
-      if (!ttVal.valido) {
+      // RC-06: Ubicación en malla según el tipo de programa
+      const ubicacion = resolverUbicacionMalla(pfg.tipo, trayecto, tramo);
+      if (!ubicacion.valido) {
         return res.redirect(
-          `/curriculo?pfg=${pfgId}&error=` + encodeURIComponent(ttVal.error!)
+          `/curriculo?pfg=${pfgId}&error=` + encodeURIComponent(ubicacion.error)
         );
       }
 
@@ -389,13 +467,20 @@ export class CurriculoController {
         );
       }
 
+      // RC-07: Prelaciones seleccionadas (la nueva UC aún no tiene id; se usa uno provisional)
+      const candidatas = await cargarUnidadesMalla(idsPrelacionFormulario(req.body) ?? []);
+      const { aceptadas, rechazadas } = filtrarPrelacionesValidas(
+        { id: '', codigo: codigoLimpio, pfgId, trayecto: ubicacion.trayecto, tramo: ubicacion.tramo },
+        candidatas
+      );
+
       await prisma.unidadCurricular.create({
         data: {
           pfgId,
           codigo: codigoLimpio,
           nombre: nombre.trim(),
-          trayecto: parseInt(trayecto, 10) || 1,
-          tramo: parseInt(tramo, 10) || 1,
+          trayecto: ubicacion.trayecto,
+          tramo: ubicacion.tramo,
           creditos: parseInt(creditos, 10) || 3,
           horasTeoricasSemanales: ht,
           horasPracticasSemanales: hp,
@@ -403,12 +488,17 @@ export class CurriculoController {
           tipoEspacioRequerido: espVal.tipoEspacioAjustado,
           esProyectoComunitario: esProyecto,
           activa: true,
+          prelacionesRequeridas: {
+            create: aceptadas.map((preladaPorId) => ({ preladaPorId })),
+          },
         },
       });
 
       return res.redirect(
         `/curriculo?pfg=${pfgId}&msg=` +
-          encodeURIComponent(`Unidad Curricular ${codigoLimpio} registrada con éxito.`)
+          encodeURIComponent(
+            `Unidad Curricular ${codigoLimpio} registrada con éxito.` + avisoPrelacionesDescartadas(rechazadas)
+          )
       );
     } catch (err: any) {
       console.error('[CREAR-UNIDAD-ERROR]', err);
@@ -426,7 +516,6 @@ export class CurriculoController {
     const { id } = req.params;
     try {
       const {
-        pfgId,
         codigo,
         nombre,
         trayecto,
@@ -438,6 +527,29 @@ export class CurriculoController {
         tipoEspacioRequerido,
         esProyectoComunitario,
       } = req.body;
+
+      const actual = await prisma.unidadCurricular.findUnique({
+        where: { id },
+        include: {
+          pfg: { select: { tipo: true } },
+          prelacionesRequeridas: { select: { preladaPorId: true } },
+        },
+      });
+
+      if (!actual) {
+        return res.redirect(`/curriculo?error=` + encodeURIComponent('Unidad Curricular no encontrada.'));
+      }
+
+      const pfgId = actual.pfgId;
+      if (!puedeGestionarPfg(alcanceDe(req), pfgId)) {
+        return denegarPfg(req, res);
+      }
+
+      if (!textoRequerido(codigo) || !textoRequerido(nombre)) {
+        return res.redirect(
+          `/curriculo?pfg=${pfgId}&error=` + encodeURIComponent('Código y nombre son campos obligatorios.')
+        );
+      }
 
       const ht = parseInt(horasTeoricasSemanales, 10) || 0;
       const hp = parseInt(horasPracticasSemanales, 10) || 0;
@@ -458,13 +570,11 @@ export class CurriculoController {
         );
       }
 
-      // RC-06: Validación de correspondencia estricta Trayecto-Tramo
-      const numTrayecto = parseInt(trayecto, 10);
-      const numTramo = parseInt(tramo, 10);
-      const ttVal = validarCorrespondenciaTrayectoTramo(numTrayecto, numTramo);
-      if (!ttVal.valido) {
+      // RC-06: Ubicación en malla según el tipo de programa
+      const ubicacion = resolverUbicacionMalla(actual.pfg.tipo, trayecto, tramo);
+      if (!ubicacion.valido) {
         return res.redirect(
-          `/curriculo?pfg=${pfgId}&error=` + encodeURIComponent(ttVal.error!)
+          `/curriculo?pfg=${pfgId}&error=` + encodeURIComponent(ubicacion.error)
         );
       }
 
@@ -486,25 +596,72 @@ export class CurriculoController {
         );
       }
 
-      await prisma.unidadCurricular.update({
-        where: { id },
-        data: {
-          codigo: codigoLimpio,
-          nombre: nombre.trim(),
-          trayecto: parseInt(trayecto, 10) || 1,
-          tramo: parseInt(tramo, 10) || 1,
-          creditos: parseInt(creditos, 10) || 3,
-          horasTeoricasSemanales: ht,
-          horasPracticasSemanales: hp,
-          horasCampoComunitarioSemanales: hc,
-          tipoEspacioRequerido: espVal.tipoEspacioAjustado,
-          esProyectoComunitario: esProyecto,
-        },
+      const unidadEditada = {
+        id,
+        codigo: codigoLimpio,
+        pfgId,
+        trayecto: ubicacion.trayecto,
+        tramo: ubicacion.tramo,
+      };
+
+      // RC-07 inverso: no mover la UC si deja inválidas las prelaciones de otras unidades
+      const dependientes = await prisma.unidadCurricularPrelacion.findMany({
+        where: { preladaPorId: id },
+        select: { unidadCurricular: { select: { id: true, codigo: true, pfgId: true, trayecto: true, tramo: true } } },
       });
+      const afectadas = dependientesInvalidadas(unidadEditada, dependientes.map((d) => d.unidadCurricular));
+      if (afectadas.length > 0) {
+        return res.redirect(
+          `/curriculo?pfg=${pfgId}&error=` +
+            encodeURIComponent(
+              `Violación RC-07: ${codigoLimpio} es prelación de ${afectadas.map((a) => a.codigo).join(', ')}; ` +
+                'con la nueva ubicación dejaría de cursarse antes. Quite esas prelaciones o elija otro Trayecto/Tramo.'
+            )
+        );
+      }
+
+      // Sin el marcador del selector se revalidan las prelaciones existentes en lugar de borrarlas.
+      const idsCandidatas =
+        idsPrelacionFormulario(req.body) ?? actual.prelacionesRequeridas.map((p) => p.preladaPorId);
+      const { aceptadas, rechazadas } = filtrarPrelacionesValidas(
+        unidadEditada,
+        await cargarUnidadesMalla(idsCandidatas)
+      );
+
+      await prisma.$transaction([
+        prisma.unidadCurricular.update({
+          where: { id },
+          data: {
+            codigo: codigoLimpio,
+            ...(actual.codigo !== codigoLimpio ? { codigoProvisional: false } : {}),
+            nombre: nombre.trim(),
+            trayecto: ubicacion.trayecto,
+            tramo: ubicacion.tramo,
+            creditos: parseInt(creditos, 10) || 3,
+            horasTeoricasSemanales: ht,
+            horasPracticasSemanales: hp,
+            horasCampoComunitarioSemanales: hc,
+            tipoEspacioRequerido: espVal.tipoEspacioAjustado,
+            esProyectoComunitario: esProyecto,
+          },
+        }),
+        prisma.unidadCurricularPrelacion.deleteMany({
+          where: { unidadCurricularId: id, preladaPorId: { notIn: aceptadas } },
+        }),
+        ...aceptadas.map((preladaPorId) =>
+          prisma.unidadCurricularPrelacion.upsert({
+            where: { unidadCurricularId_preladaPorId: { unidadCurricularId: id, preladaPorId } },
+            create: { unidadCurricularId: id, preladaPorId },
+            update: {},
+          })
+        ),
+      ]);
 
       return res.redirect(
         `/curriculo?pfg=${pfgId}&msg=` +
-          encodeURIComponent(`Unidad Curricular ${codigoLimpio} actualizada exitosamente.`)
+          encodeURIComponent(
+            `Unidad Curricular ${codigoLimpio} actualizada exitosamente.` + avisoPrelacionesDescartadas(rechazadas)
+          )
       );
     } catch (err: any) {
       console.error('[EDITAR-UNIDAD-ERROR]', err);
@@ -529,6 +686,10 @@ export class CurriculoController {
         return res.redirect(
           `/curriculo?error=` + encodeURIComponent('Unidad Curricular no encontrada.')
         );
+      }
+
+      if (!puedeGestionarPfg(alcanceDe(req), actual.pfgId)) {
+        return denegarPfg(req, res);
       }
 
       const nuevoEstado = !actual.activa;
@@ -557,6 +718,9 @@ export class CurriculoController {
    */
   static async apiUnidades(req: Request, res: Response) {
     const { id: pfgId } = req.params;
+    if (!puedeGestionarPfg(alcanceDe(req), pfgId)) {
+      return res.status(403).json({ ok: false, error: 'Acceso denegado: el programa no está entre los que usted coordina.' });
+    }
     try {
       const unidades = await prisma.unidadCurricular.findMany({
         where: {

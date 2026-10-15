@@ -1,0 +1,176 @@
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <a href="/" class="uk-link-reset uk-text-muted">Tablero</a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Normativa y Reportes</span>
+      </div>
+      <h1 class="page-title uk-margin-remove">Normativa y Reportes</h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Reglas que el sistema aplica a los horarios, límites de carga por dedicación y planillas oficiales
+        <% if (periodo) { %>del período <strong><%= periodo.codigo %></strong><% } %>.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="clean-panel uk-margin-medium-bottom" id="normativa-reportes">
+  <div class="clean-panel-header">
+    <div>
+      <h2 class="panel-title uk-margin-remove">Reportes y exportaciones</h2>
+      <p class="panel-subtitle uk-margin-remove">Planillas y archivos disponibles para su rol.</p>
+    </div>
+  </div>
+  <div class="uk-overflow-auto">
+    <table class="clean-table normativa-tabla">
+      <thead>
+        <tr>
+          <th>Reporte</th>
+          <th>Contenido</th>
+          <th class="uk-text-right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% reportes.forEach(function(r) { %>
+          <tr>
+            <td class="table-user-name font-semibold"><%= r.titulo %></td>
+            <td class="table-sub-info"><%= r.descripcion %></td>
+            <td class="table-actions-cell">
+              <div class="table-actions-group">
+                <a href="<%= r.href %>" class="btn-table-action">
+                  <span uk-icon="icon: <%= r.icono %>; ratio: 0.75"></span>
+                  <span><%= r.accion %></span>
+                </a>
+              </div>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="clean-panel uk-margin-medium-bottom" id="normativa-duras">
+  <div class="clean-panel-header">
+    <div>
+      <h2 class="panel-title uk-margin-remove">Restricciones duras</h2>
+      <p class="panel-subtitle uk-margin-remove">Se cumplen siempre: un horario que viole una de ellas no se guarda.</p>
+    </div>
+  </div>
+  <div class="uk-overflow-auto">
+    <table class="clean-table normativa-tabla">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Regla</th>
+          <th>Qué exige</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% restriccionesDuras.forEach(function(r) { %>
+          <tr>
+            <td><span class="email-code"><%= r.codigo %></span></td>
+            <td class="table-user-name font-semibold"><%= r.nombre %></td>
+            <td class="table-sub-info"><%= r.descripcion %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="clean-panel uk-margin-medium-bottom" id="normativa-blandas">
+  <div class="clean-panel-header">
+    <div>
+      <h2 class="panel-title uk-margin-remove">Restricciones blandas</h2>
+      <p class="panel-subtitle uk-margin-remove">Preferencias que el optimizador procura cumplir; el peso indica su importancia relativa.</p>
+    </div>
+  </div>
+  <div class="uk-overflow-auto">
+    <table class="clean-table normativa-tabla">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Preferencia</th>
+          <th>Qué procura</th>
+          <th class="uk-text-right">Peso</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% restriccionesBlandas.forEach(function(r) { %>
+          <tr>
+            <td><span class="email-code"><%= r.codigo %></span></td>
+            <td class="table-user-name font-semibold"><%= r.nombre %></td>
+            <td class="table-sub-info"><%= r.descripcion %></td>
+            <td class="uk-text-right font-semibold"><%= r.peso %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="clean-panel uk-margin-medium-bottom" id="normativa-dedicacion">
+  <div class="clean-panel-header">
+    <div>
+      <h2 class="panel-title uk-margin-remove">Límites por dedicación</h2>
+      <p class="panel-subtitle uk-margin-remove">Horas semanales mínimas y máximas; la docencia directa se controla con las reglas H-04 y H-05.</p>
+    </div>
+  </div>
+  <div class="uk-overflow-auto">
+    <table class="clean-table normativa-tabla">
+      <thead>
+        <tr>
+          <th>Dedicación</th>
+          <th>Docencia directa</th>
+          <th>Permanencia</th>
+          <th>Proyecto comunitario</th>
+          <th>Investigación y gestión</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% dedicaciones.forEach(function(d) { %>
+          <tr>
+            <td class="table-user-name font-semibold"><%= d.nombre %></td>
+            <td class="font-semibold"><%= d.docencia %></td>
+            <td class="table-sub-info"><%= d.permanencia %></td>
+            <td class="table-sub-info"><%= d.proyecto %></td>
+            <td class="table-sub-info"><%= d.investigacion %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="clean-panel uk-margin-medium-bottom" id="normativa-bloques">
+  <div class="clean-panel-header">
+    <div>
+      <h2 class="panel-title uk-margin-remove">Bloques académicos oficiales</h2>
+      <p class="panel-subtitle uk-margin-remove">Franjas de 90 minutos, de lunes a sábado, en formato civil de 12 horas.</p>
+    </div>
+  </div>
+  <div class="uk-overflow-auto">
+    <table class="clean-table normativa-tabla">
+      <thead>
+        <tr>
+          <th>Bloque</th>
+          <th>Horario</th>
+          <th>Turno</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% bloques.forEach(function(b) { %>
+          <tr>
+            <td class="font-semibold">Bloque <%= b.numero %></td>
+            <td><%= b.horaInicio12 %> – <%= b.horaFin12 %></td>
+            <td>
+              <span class="turno-legend-badge <%= b.turno === 'MATUTINO' ? 'matutino' : (b.turno === 'VESPERTINO' ? 'vespertino' : 'nocturno') %>"><%= b.turno %></span>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>

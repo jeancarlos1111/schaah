@@ -2,6 +2,17 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../../../core/database/prisma';
 import { RolUsuario } from '../../../core/domain/enums';
+import { resolverProgramasCoordinador } from '../../../core/domain/rules/alcancePfgRules';
+
+/** Valida contra la base los programas elegidos para un coordinador (Spec 06). */
+async function programasCoordinador(rol: string, valor: unknown): Promise<{ pfgIds: string[] } | { error: string }> {
+  const resuelto = resolverProgramasCoordinador(rol, valor);
+  if (!resuelto.valido) return { error: resuelto.error };
+  if (resuelto.pfgIds.length === 0) return { pfgIds: [] };
+  const existentes = await prisma.programaFormacion.count({ where: { id: { in: resuelto.pfgIds } } });
+  if (existentes !== resuelto.pfgIds.length) return { error: 'Alguno de los programas seleccionados no existe.' };
+  return { pfgIds: resuelto.pfgIds };
+}
 
 export class UsuariosController {
   async index(req: Request, res: Response) {
@@ -47,12 +58,16 @@ export class UsuariosController {
         totalAdmins,
         totalCoordinadores,
         totalDocentes,
-        profesoresSinUsuario
+        profesoresSinUsuario,
+        programas,
       ] = await Promise.all([
         prisma.usuario.count({ where }),
         prisma.usuario.findMany({
           where,
-          include: { profesor: true },
+          include: {
+            profesor: true,
+            programas: { include: { pfg: { select: { id: true, codigo: true, nombre: true } } } },
+          },
           orderBy: { [activeSortBy]: sortDir },
           skip,
           take: limit,
@@ -67,6 +82,11 @@ export class UsuariosController {
             activo: true,
           },
           orderBy: { apellidos: 'asc' },
+        }),
+        prisma.programaFormacion.findMany({
+          where: { activo: true },
+          select: { id: true, codigo: true, nombre: true, tipo: true },
+          orderBy: { codigo: 'asc' },
         }),
       ]);
 
@@ -104,6 +124,7 @@ export class UsuariosController {
         filters,
         stats,
         profesoresSinUsuario,
+        programas,
         rolesDisponibles: Object.values(RolUsuario),
         error: req.query.error || null,
         success: req.query.success || null,
@@ -133,6 +154,11 @@ export class UsuariosController {
         return res.redirect('/usuarios?error=El+correo+institucional+ya+está+registrado');
       }
 
+      const programasElegidos = await programasCoordinador(rol, req.body.programas);
+      if ('error' in programasElegidos) {
+        return res.redirect(`/usuarios?error=${encodeURIComponent(programasElegidos.error)}`);
+      }
+
       const passwordHash = await bcrypt.hash(password, 10);
 
       await prisma.usuario.create({
@@ -143,6 +169,7 @@ export class UsuariosController {
           apellidos: apellidos.trim(),
           rol: rol as RolUsuario,
           profesorId: profesorId && profesorId !== '' ? profesorId : null,
+          programas: { create: programasElegidos.pfgIds.map((pfgId) => ({ pfgId })) },
         },
       });
 
@@ -176,14 +203,29 @@ export class UsuariosController {
         return res.redirect('/usuarios?error=No+puede+revocar+su+propio+rol+de+administrador');
       }
 
-      await prisma.usuario.update({
-        where: { id },
-        data: {
-          nombres: nombres.trim(),
-          apellidos: apellidos.trim(),
-          rol: rol as RolUsuario,
-        },
-      });
+      const programasElegidos = await programasCoordinador(rol, req.body.programas);
+      if ('error' in programasElegidos) {
+        return res.redirect(`/usuarios?error=${encodeURIComponent(programasElegidos.error)}`);
+      }
+
+      await prisma.$transaction([
+        prisma.usuario.update({
+          where: { id },
+          data: {
+            nombres: nombres.trim(),
+            apellidos: apellidos.trim(),
+            rol: rol as RolUsuario,
+          },
+        }),
+        prisma.usuarioPrograma.deleteMany({ where: { usuarioId: id, pfgId: { notIn: programasElegidos.pfgIds } } }),
+        ...programasElegidos.pfgIds.map((pfgId) =>
+          prisma.usuarioPrograma.upsert({
+            where: { usuarioId_pfgId: { usuarioId: id, pfgId } },
+            update: {},
+            create: { usuarioId: id, pfgId },
+          }),
+        ),
+      ]);
 
       // Si el usuario editado es la sesión actual, actualizar datos en sesión
       if (req.session.usuario && req.session.usuario.id === id) {

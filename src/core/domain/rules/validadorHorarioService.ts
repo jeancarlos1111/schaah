@@ -5,6 +5,7 @@ import {
   validarH01NoSolapamientoDocente,
   validarH02NoSolapamientoAula,
   validarH03NoSolapamientoSeccion,
+  validarH07NoSolapamientoPrelacion,
   validarH08AdecuacionEspacio,
 } from './horarioConflictRules';
 import { PropuestaConSede, validarH09AntiteletransportacionSede } from './trasladoSedeRules';
@@ -50,15 +51,19 @@ export function validarAsignacionHoraria(
   const evalH03 = validarH03NoSolapamientoSeccion(propuesta, bloquesExistentes);
   if (!evalH03.valido) conflictos.push(evalH03);
 
-  // 4. Evaluar H-08 (Adecuación de Espacio / Proyecto Comunitario)
+  // 4. Evaluar H-07 (No Solapamiento de Prelaciones Curriculares)
+  const evalH07 = validarH07NoSolapamientoPrelacion(propuesta, bloquesExistentes);
+  if (!evalH07.valido) conflictos.push(evalH07);
+
+  // 5. Evaluar H-08 (Adecuación de Espacio / Proyecto Comunitario)
   const evalH08 = validarH08AdecuacionEspacio(propuesta);
   if (!evalH08.valido) conflictos.push(evalH08);
 
-  // 5. Evaluar H-09 (Antiteletransportación de Sede)
+  // 6. Evaluar H-09 (Antiteletransportación de Sede)
   const evalH09 = validarH09AntiteletransportacionSede(propuesta, bloquesExistentes);
   if (!evalH09.valido) conflictos.push(evalH09);
 
-  // 6. Evaluar H-06 (Disponibilidad Docente Respetada)
+  // 7. Evaluar H-06 (Disponibilidad Docente Respetada)
   if (propuesta.profesorId && disponibilidadesDocente.length > 0) {
     const disp = disponibilidadesDocente.find(
       (d) =>

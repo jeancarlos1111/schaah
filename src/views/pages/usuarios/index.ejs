@@ -321,6 +321,16 @@
                 </td>
                 <td>
                   <span class="user-role-tag role-<%= u.rol.toLowerCase() %>"><%= u.rol %></span>
+                  <% if (u.rol === 'COORDINADOR_PFG') { %>
+                    <div class="user-programas">
+                      <% if (u.programas.length === 0) { %>
+                        <span class="user-programa-tag is-missing" uk-tooltip="Sin programas asignados: no ve ni modifica datos">Sin programas</span>
+                      <% } %>
+                      <% u.programas.forEach(function(vp) { %>
+                        <span class="user-programa-tag" uk-tooltip="<%= vp.pfg.nombre %>"><%= vp.pfg.codigo %></span>
+                      <% }); %>
+                    </div>
+                  <% } %>
                 </td>
                 <td>
                   <% if (u.activo) { %>
@@ -338,7 +348,8 @@
                     <button 
                       type="button" 
                       class="btn-table-action" 
-                      onclick="abrirModalEditar('<%= u.id %>', '<%= u.nombres %>', '<%= u.apellidos %>', '<%= u.email %>', '<%= u.rol %>')"
+                      data-programas="<%= u.programas.map(function(vp) { return vp.pfgId; }).join(',') %>"
+                      onclick="abrirModalEditar('<%= u.id %>', '<%= u.nombres %>', '<%= u.apellidos %>', '<%= u.email %>', '<%= u.rol %>', this.dataset.programas)"
                       uk-tooltip="Editar datos y rol"
                     >
                       <span uk-icon="icon: pencil; ratio: 0.75"></span>
@@ -502,12 +513,14 @@
 
       <div class="form-group-clean uk-margin-small-top">
         <label class="label-clean" for="rol">Rol de Acceso (RBAC)</label>
-        <select class="input-control-clean" id="rol" name="rol" required>
+        <select class="input-control-clean" id="rol" name="rol" required onchange="sincronizarProgramasRol('nuevo')">
           <% rolesDisponibles.forEach(function(r) { %>
             <option value="<%= r %>"><%= r %></option>
           <% }); %>
         </select>
       </div>
+
+      <%- include('../../partials/selector-programas', { prefijo: 'nuevo', programas: programas }) %>
 
       <% if (profesoresSinUsuario && profesoresSinUsuario.length > 0) { %>
         <div class="form-group-clean uk-margin-small-top">
@@ -558,12 +571,14 @@
 
       <div class="form-group-clean uk-margin-small-top">
         <label class="label-clean" for="edit-rol">Rol de Acceso Asignado</label>
-        <select class="input-control-clean" id="edit-rol" name="rol" required>
+        <select class="input-control-clean" id="edit-rol" name="rol" required onchange="sincronizarProgramasRol('edit')">
           <% rolesDisponibles.forEach(function(r) { %>
             <option value="<%= r %>"><%= r %></option>
           <% }); %>
         </select>
       </div>
+
+      <%- include('../../partials/selector-programas', { prefijo: 'edit', programas: programas }) %>
 
       <div class="uk-margin-medium-top uk-text-right">
         <button class="btn-clean-secondary uk-modal-close uk-margin-small-right" type="button">Cancelar</button>
@@ -611,7 +626,45 @@
 
 <!-- Scripts de Interacción de la Vista -->
 <script>
-  function abrirModalEditar(id, nombres, apellidos, email, rol) {
+  const SELECTOR_ROL = { nuevo: 'rol', edit: 'edit-rol' };
+
+  function casillasProgramas(prefix) {
+    return Array.from(document.querySelectorAll('#' + prefix + '-prog-lista input[name="programas"]'));
+  }
+
+  function actualizarProgramas(prefix) {
+    const casillas = casillasProgramas(prefix);
+    let marcadas = 0;
+    casillas.forEach(function(c) {
+      c.closest('.programa-picker-item').classList.toggle('is-checked', c.checked);
+      if (c.checked) marcadas++;
+    });
+    const contador = document.getElementById(prefix + '-prog-contador');
+    contador.textContent = marcadas === 1 ? '1 seleccionado' : marcadas + ' seleccionados';
+    contador.classList.toggle('is-empty', marcadas === 0);
+  }
+
+  function filtrarProgramas(prefix) {
+    const texto = document.getElementById(prefix + '-prog-buscar').value.trim().toLowerCase();
+    let visibles = 0;
+    casillasProgramas(prefix).forEach(function(c) {
+      const item = c.closest('.programa-picker-item');
+      const coincide = !texto || item.dataset.busqueda.indexOf(texto) !== -1;
+      item.hidden = !coincide;
+      if (coincide) visibles++;
+    });
+    document.getElementById(prefix + '-prog-vacio').hidden = visibles > 0;
+  }
+
+  /** Muestra el selector solo para COORDINADOR_PFG; con otro rol las casillas no se envían. */
+  function sincronizarProgramasRol(prefix) {
+    const esCoordinador = document.getElementById(SELECTOR_ROL[prefix]).value === 'COORDINADOR_PFG';
+    document.getElementById(prefix + '-programas').hidden = !esCoordinador;
+    casillasProgramas(prefix).forEach(function(c) { c.disabled = !esCoordinador; });
+    actualizarProgramas(prefix);
+  }
+
+  function abrirModalEditar(id, nombres, apellidos, email, rol, programas) {
     const form = document.getElementById('form-editar-usuario');
     form.action = '/usuarios/' + id + '/editar';
 
@@ -620,8 +673,27 @@
     document.getElementById('edit-apellidos').value = apellidos;
     document.getElementById('edit-rol').value = rol;
 
+    const asignados = (programas || '').split(',').filter(Boolean);
+    casillasProgramas('edit').forEach(function(c) { c.checked = asignados.indexOf(c.value) !== -1; });
+    document.getElementById('edit-prog-buscar').value = '';
+    filtrarProgramas('edit');
+    sincronizarProgramasRol('edit');
+
     UIkit.modal('#modal-editar-usuario').show();
   }
+
+  document.addEventListener('submit', function(e) {
+    const prefix = e.target && e.target.id === 'form-editar-usuario' ? 'edit'
+      : (e.target && e.target.getAttribute('action') === '/usuarios' ? 'nuevo' : null);
+    if (!prefix) return;
+    if (document.getElementById(SELECTOR_ROL[prefix]).value !== 'COORDINADOR_PFG') return;
+    if (!casillasProgramas(prefix).some(function(c) { return c.checked; })) {
+      e.preventDefault();
+      UIkit.notification({ message: 'Seleccione al menos un programa para el coordinador.', status: 'danger', pos: 'top-center' });
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', function() { sincronizarProgramasRol('nuevo'); });
 
   function abrirModalReset(id, email) {
     const form = document.getElementById('form-reset-password');

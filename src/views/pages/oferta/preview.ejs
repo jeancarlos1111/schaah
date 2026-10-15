@@ -1,0 +1,263 @@
+<%
+  const r = plan.resumen;
+  const etiquetaDedicacion = {
+    DEDICACION_EXCLUSIVA: 'Dedicación Exclusiva',
+    TIEMPO_COMPLETO: 'Tiempo Completo',
+    MEDIO_TIEMPO: 'Medio Tiempo',
+    TIEMPO_CONVENCIONAL: 'Tiempo Convencional',
+  };
+%>
+
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <a href="/periodos" class="uk-link-reset uk-text-muted">Períodos</a>
+        <span class="breadcrumb-separator">/</span>
+        <a href="/periodos/<%= periodo.id %>/oferta" class="uk-link-reset uk-text-muted"><%= periodo.codigo %> - Oferta</a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Vista previa de importación</span>
+      </div>
+      <h1 class="page-title uk-margin-remove">Vista previa: <%= previa.nombreArchivo %></h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Hoja «<%= previa.libro.hoja %>» &bull; encabezado en la fila <%= previa.libro.filaEncabezado %>
+        <% if (previa.libro.meta.titulo) { %> &bull; <%= previa.libro.meta.titulo %><% } %>.
+        Aún no se ha guardado ningún dato.
+      </p>
+    </div>
+  </div>
+  <% if (previa.libro.meta.lineas.length > 0) { %>
+    <div class="oferta-meta-list uk-margin-small-top">
+      <% previa.libro.meta.lineas.forEach(function(linea) { %>
+        <span class="oferta-chip oferta-chip-muted"><%= linea %></span>
+      <% }); %>
+    </div>
+  <% } %>
+</div>
+
+<div class="uk-grid-small uk-child-width-1-2 uk-child-width-1-4@m uk-margin-medium-bottom" uk-grid>
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Filas leídas</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= r.filasLeidas %></span>
+        <span class="stat-unit">filas</span>
+      </div>
+      <span class="detail-label"><%= r.filasValidas %> válidas &bull; <%= r.filasConError %> descartadas</span>
+    </div>
+  </div>
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Secciones (Cohortes)</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= plan.grupos.length %></span>
+        <span class="stat-unit">grupos</span>
+      </div>
+      <span class="detail-label"><%= r.gruposNuevos %> nuevas &bull; <%= r.gruposExistentes %> a actualizar</span>
+    </div>
+  </div>
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Asignaciones UC</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= plan.asignaciones.length %></span>
+        <span class="stat-unit">UC + docente</span>
+      </div>
+      <span class="detail-label"><%= r.asignacionesNuevas %> nuevas &bull; <%= r.asignacionesSinDocente %> por asignar</span>
+    </div>
+  </div>
+  <div>
+    <div class="clean-stat-card">
+      <span class="stat-category">Docentes</span>
+      <div class="stat-value-row">
+        <span class="stat-number"><%= plan.docentes.length %></span>
+        <span class="stat-unit">docentes</span>
+      </div>
+      <span class="detail-label"><%= r.docentesNuevos %> nuevos &bull; <%= r.docentesExistentes %> a actualizar</span>
+    </div>
+  </div>
+</div>
+
+<div class="oferta-preview-grid uk-margin-medium-bottom">
+  <div class="clean-panel">
+    <div class="clean-panel-header">
+      <h3 class="panel-title">Altas de catálogo</h3>
+    </div>
+    <ul class="oferta-summary-list">
+      <li>
+        <span class="oferta-summary-label">Programas nuevos</span>
+        <span class="oferta-summary-value"><%= programasNuevos.length %></span>
+      </li>
+      <% if (programasNuevos.length > 0) { %>
+        <li class="oferta-summary-chips">
+          <% programasNuevos.forEach(function(p) { %>
+            <span class="oferta-chip oferta-chip-new" title="<%= p.nombre %>"><%= p.codigo %> &bull; <%= p.tipo %></span>
+          <% }); %>
+        </li>
+      <% } %>
+      <li>
+        <span class="oferta-summary-label">Unidades curriculares nuevas</span>
+        <span class="oferta-summary-value"><%= unidadesNuevas %></span>
+      </li>
+      <li>
+        <span class="oferta-summary-label">UC sin código en la oferta (código generado)</span>
+        <span class="oferta-summary-value"><%= unidadesCodigoGenerado %></span>
+      </li>
+      <li>
+        <span class="oferta-summary-label">Sedes / aldeas nuevas</span>
+        <span class="oferta-summary-value"><%= plan.sedesNuevas.length %></span>
+      </li>
+      <% if (plan.sedesNuevas.length > 0) { %>
+        <li class="oferta-summary-chips">
+          <% plan.sedesNuevas.forEach(function(s) { %>
+            <span class="oferta-chip oferta-chip-new"><%= s %></span>
+          <% }); %>
+        </li>
+      <% } %>
+      <li>
+        <span class="oferta-summary-label">Centros de estudio referidos</span>
+        <span class="oferta-summary-value"><%= plan.centros.length %></span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="clean-panel">
+    <div class="clean-panel-header">
+      <h3 class="panel-title">Horarios indicados en observaciones</h3>
+      <p class="panel-subtitle">Referencia para la programación; no se crean bloques automáticamente.</p>
+    </div>
+    <% if (plan.horariosObservados.length === 0) { %>
+      <p class="table-sub-info">La oferta no trae horarios en la columna de observaciones.</p>
+    <% } else { %>
+      <ul class="oferta-issue-list is-scroll">
+        <% plan.horariosObservados.forEach(function(h) { %>
+          <li class="oferta-issue-item">
+            <span class="oferta-issue-fila">Fila <%= h.fila %></span>
+            <span class="oferta-issue-msg">
+              <strong><%= h.grupo %></strong> &bull; <%= h.unidad %>:
+              <%= h.dia %> <%= h.horaInicio12 %> – <%= h.horaFin12 %>
+            </span>
+          </li>
+        <% }); %>
+      </ul>
+    <% } %>
+  </div>
+</div>
+
+<% if (plan.sobrecargas.length > 0) { %>
+  <div class="clean-panel uk-margin-medium-bottom oferta-panel-danger">
+    <div class="clean-panel-header">
+      <h3 class="panel-title">
+        <span uk-icon="icon: warning; ratio: 0.9"></span>
+        Sobrecarga docente según la oferta (H-04): <%= plan.sobrecargas.length %>
+      </h3>
+      <p class="panel-subtitle">Se importarán igualmente; deben corregirse antes de aprobar el horario.</p>
+    </div>
+    <div class="uk-overflow-auto">
+      <table class="clean-table">
+        <thead>
+          <tr>
+            <th>Docente</th>
+            <th>Dedicación</th>
+            <th class="uk-text-center">Horas ofertadas</th>
+            <th class="uk-text-center">Tope</th>
+            <th>Detalle</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% plan.sobrecargas.forEach(function(s) { %>
+            <tr>
+              <td>
+                <div class="text-sm font-medium oferta-text-strong"><%= s.nombre %></div>
+                <div class="table-sub-info"><%= s.cedula %></div>
+              </td>
+              <td><span class="text-sm"><%= etiquetaDedicacion[s.dedicacion] || s.dedicacion %></span></td>
+              <td class="uk-text-center"><span class="font-bold text-red"><%= s.horas %>h</span></td>
+              <td class="uk-text-center"><span class="text-sm"><%= s.maxHoras %>h</span></td>
+              <td><span class="table-sub-info"><%= s.mensaje %></span></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% } %>
+
+<% if (plan.dedicacionesInconsistentes.length > 0) { %>
+  <div class="clean-panel uk-margin-medium-bottom oferta-panel-warning">
+    <div class="clean-panel-header">
+      <h3 class="panel-title">Dedicación declarada de forma distinta en varias filas: <%= plan.dedicacionesInconsistentes.length %></h3>
+      <p class="panel-subtitle">Se registra la dedicación más frecuente para el período.</p>
+    </div>
+    <ul class="oferta-issue-list is-scroll">
+      <% plan.dedicacionesInconsistentes.forEach(function(d) { %>
+        <li class="oferta-issue-item">
+          <span class="oferta-issue-fila"><%= d.cedula %></span>
+          <span class="oferta-issue-msg">
+            <strong><%= d.nombre %></strong>:
+            <%= d.valores.map(function(v) { return etiquetaDedicacion[v] || v; }).join(' / ') %>
+            &rarr; se aplica <strong><%= etiquetaDedicacion[d.aplicada] || d.aplicada %></strong>
+          </span>
+        </li>
+      <% }); %>
+    </ul>
+  </div>
+<% } %>
+
+<% if (plan.errores.length > 0) { %>
+  <div class="clean-panel uk-margin-medium-bottom oferta-panel-danger">
+    <div class="clean-panel-header">
+      <h3 class="panel-title">Filas descartadas: <%= plan.errores.length %></h3>
+      <p class="panel-subtitle">Estas filas no se importarán. Corrija el archivo y vuelva a cargarlo si deben incluirse.</p>
+    </div>
+    <ul class="oferta-issue-list is-scroll">
+      <% plan.errores.forEach(function(e) { %>
+        <li class="oferta-issue-item">
+          <span class="oferta-issue-fila">Fila <%= e.fila %></span>
+          <span class="oferta-issue-msg"><%= e.mensaje %></span>
+        </li>
+      <% }); %>
+    </ul>
+  </div>
+<% } %>
+
+<% if (plan.avisos.length > 0) { %>
+  <div class="clean-panel uk-margin-medium-bottom">
+    <div class="clean-panel-header">
+      <h3 class="panel-title">Correcciones y avisos de normalización: <%= plan.avisos.length %></h3>
+      <p class="panel-subtitle">Ajustes automáticos aplicados a datos capturados de forma inconsistente.</p>
+    </div>
+    <ul class="oferta-issue-list is-scroll">
+      <% avisosVisibles.forEach(function(a) { %>
+        <li class="oferta-issue-item">
+          <span class="oferta-issue-fila">Fila <%= a.fila %></span>
+          <span class="oferta-issue-msg"><%= a.mensaje %></span>
+        </li>
+      <% }); %>
+    </ul>
+    <% if (avisosOcultos > 0) { %>
+      <p class="table-sub-info uk-margin-small-top">… y <%= avisosOcultos %> avisos más del mismo tipo.</p>
+    <% } %>
+  </div>
+<% } %>
+
+<div class="oferta-confirm-bar">
+  <div class="oferta-confirm-text">
+    <span uk-icon="icon: database; ratio: 0.9"></span>
+    <span>Al confirmar se registran <%= r.gruposNuevos %> secciones y <%= r.asignacionesNuevas %> asignaciones nuevas, y se actualizan las existentes, en una sola transacción.</span>
+  </div>
+  <div class="uk-flex gap-2">
+    <form action="/periodos/<%= periodo.id %>/oferta/cancelar" method="POST">
+      <button type="submit" class="btn-clean-secondary">
+        <span uk-icon="icon: close; ratio: 0.8"></span>
+        <span>Descartar</span>
+      </button>
+    </form>
+    <form action="/periodos/<%= periodo.id %>/oferta/confirmar" method="POST" onsubmit="this.querySelector('button').disabled = true;">
+      <button type="submit" class="btn-clean-primary">
+        <span uk-icon="icon: check; ratio: 0.8"></span>
+        <span>Confirmar importación</span>
+      </button>
+    </form>
+  </div>
+</div>

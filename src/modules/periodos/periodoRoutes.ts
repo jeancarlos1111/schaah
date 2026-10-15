@@ -29,6 +29,12 @@ router.post(
   PeriodosController.crearSeccion
 );
 router.post(
+  '/periodos/:id/grupos',
+  requireAuth,
+  requireRole([RolUsuario.ADMINISTRADOR, RolUsuario.DIRECTOR_ACADEMICO, RolUsuario.COORDINADOR_PFG]),
+  PeriodosController.crearGrupo
+);
+router.post(
   '/periodos/:id/secciones/:seccionId/asignar-profesor',
   requireAuth,
   requireRole([RolUsuario.ADMINISTRADOR, RolUsuario.DIRECTOR_ACADEMICO, RolUsuario.COORDINADOR_PFG]),

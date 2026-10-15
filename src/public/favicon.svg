@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="UBV SAHAD Favicon">
+  <defs>
+    <linearGradient id="favRed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E53935" />
+      <stop offset="100%" stop-color="#B71C1C" />
+    </linearGradient>
+    <linearGradient id="favGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD54F" />
+      <stop offset="100%" stop-color="#FF9800" />
+    </linearGradient>
+    <linearGradient id="favBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E88E5" />
+      <stop offset="100%" stop-color="#0D47A1" />
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B" />
+      <stop offset="100%" stop-color="#0F172A" />
+    </linearGradient>
+  </defs>
+
+  <!-- Fondo estilizado para que resalte en cualquier pestaña de navegador -->
+  <rect width="64" height="64" rx="14" fill="url(#bgGrad)" />
+  <rect width="62" height="62" x="1" y="1" rx="13" fill="none" stroke="#334155" stroke-width="1.5" />
+
+  <!-- Símbolo Institucional UBV Centrado -->
+  <g transform="translate(8, 8)">
+    <!-- Base Libro Abierto -->
+    <path d="M 4 38 C 14 34, 22 36, 24 42 C 26 36, 34 34, 44 38 L 44 43 C 34 39, 26 41, 24 46 C 22 41, 14 39, 4 43 Z" fill="url(#favBlue)" />
+    
+    <!-- Alas / Hojas de Conocimiento Izquierda -->
+    <path d="M 6 34 C 12 26, 18 20, 23 16 C 21 24, 19 30, 8 36 Z" fill="url(#favGold)" />
+    
+    <!-- Alas / Hojas de Conocimiento Derecha -->
+    <path d="M 42 34 C 36 26, 30 20, 25 16 C 27 24, 29 30, 40 36 Z" fill="url(#favGold)" />
+    
+    <!-- Llama Central Libertadora -->
+    <path d="M 24 6 C 28 14, 32 20, 27 28 C 25 24, 24 22, 24 22 C 24 22, 23 24, 21 28 C 16 20, 20 14, 24 6 Z" fill="url(#favRed)" />
+    <path d="M 24 13 C 26 17, 28 21, 26 26 C 24.5 24, 24 23, 24 23 C 24 23, 23.5 24, 22 26 C 20 21, 22 17, 24 13 Z" fill="url(#favGold)" opacity="0.95" />
+
+    <!-- Estrella de Cinco Puntas -->
+    <polygon points="24,1 25.8,4.8 30,5.4 27,8.2 27.7,12.3 24,10.3 20.3,12.3 21,8.2 18,5.4 22.2,4.8" fill="url(#favGold)" />
+  </g>
+</svg>

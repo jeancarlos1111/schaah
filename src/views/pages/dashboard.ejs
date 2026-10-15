@@ -5,7 +5,7 @@
       <div class="header-breadcrumbs uk-margin-xsmall-bottom">
         <span>Planificación Académica</span>
         <span class="breadcrumb-separator">/</span>
-        <span class="active-crumb">Período <%= periodoActivo %></span>
+        <span class="active-crumb"><%= periodo ? periodo.nombre : 'Sin período abierto' %></span>
       </div>
       <h1 class="page-title uk-margin-remove">Tablero de Control Académico</h1>
       <p class="page-subtitle uk-margin-xsmall-top">
@@ -17,7 +17,7 @@
         <span uk-icon="icon: refresh; ratio: 0.8" class="uk-margin-xsmall-right"></span> Actualizar
       </button>
       <a href="/horarios" class="btn-clean-primary uk-margin-small-left">
-        <span uk-icon="icon: grid; ratio: 0.85" class="uk-margin-xsmall-right"></span> Matriz de Horarios
+        <span uk-icon="icon: grid; ratio: 0.85" class="uk-margin-xsmall-right"></span> <%= esDocente ? 'Mi Horario' : 'Matriz de Horarios' %>
       </a>
     </div>
   </div>
@@ -61,7 +61,7 @@
       </div>
       <div class="stat-detail-row uk-margin-xsmall-top">
         <span class="detail-highlight"><%= metricas.seccionesAsignadas %></span>
-        <span class="detail-label">de <%= metricas.seccionesTotales %> con horario definitivo</span>
+        <span class="detail-label">de <%= metricas.seccionesTotales %> con docente asignado</span>
       </div>
     </div>
   </div>
@@ -101,7 +101,11 @@
       </div>
       <div class="stat-detail-row">
         <span class="detail-label">
-          <%= metricas.alertasSobrecarga === 0 ? 'Cero sobrecargas detectadas (LOE/CCU)' : 'Requiere ajuste en Consejo de PFG' %>
+          <% if (metricas.alertasSobrecarga === 0) { %>
+            Cero sobrecargas ni déficits de carga (H-04 y H-05)
+          <% } else { %>
+            <%= metricas.sobrecargas %> sobrecargas (H-04) y <%= metricas.deficits %> déficits (H-05) de carga docente
+          <% } %>
         </span>
       </div>
     </div>
@@ -127,33 +131,36 @@
           <span uk-icon="icon: table; ratio: 1.1"></span>
         </div>
         <div class="tile-text">
-          <h3 class="tile-title">Matriz de Horarios</h3>
-          <p class="tile-description">Edición por profesor, aula o sección con validación instantánea.</p>
+          <h3 class="tile-title"><%= esDocente ? 'Mi Horario' : 'Matriz de Horarios' %></h3>
+          <p class="tile-description">
+            <%= esDocente ? 'Consulta de su horario semanal y descarga en PDF.' : 'Edición por profesor, aula o sección con validación instantánea.' %>
+          </p>
         </div>
         <div class="tile-action">
-          <span class="tile-link-text">Abrir matriz</span>
+          <span class="tile-link-text"><%= esDocente ? 'Ver mi horario' : 'Abrir matriz' %></span>
           <span uk-icon="icon: arrow-right; ratio: 0.85"></span>
         </div>
       </a>
     </div>
 
     <div>
-      <a href="/docentes" class="clean-tile">
+      <a href="<%= esDocente ? '/mi-disponibilidad' : '/docentes' %>" class="clean-tile">
         <div class="tile-bar-accent accent-blue"></div>
         <div class="tile-icon-box">
           <span uk-icon="icon: calendar; ratio: 1.1"></span>
         </div>
         <div class="tile-text">
-          <h3 class="tile-title">Disponibilidad Docente</h3>
+          <h3 class="tile-title"><%= esDocente ? 'Mi Disponibilidad' : 'Disponibilidad Docente' %></h3>
           <p class="tile-description">Registro de franjas horarias y prioridades de dedicación.</p>
         </div>
         <div class="tile-action">
-          <span class="tile-link-text">Ver docentes</span>
+          <span class="tile-link-text"><%= esDocente ? 'Declarar disponibilidad' : 'Ver docentes' %></span>
           <span uk-icon="icon: arrow-right; ratio: 0.85"></span>
         </div>
       </a>
     </div>
 
+    <% if (!esDocente) { %>
     <div>
       <a href="/espacios" class="clean-tile">
         <div class="tile-bar-accent accent-purple"></div>
@@ -170,6 +177,7 @@
         </div>
       </a>
     </div>
+    <% } %>
 
     <div>
       <a href="/reportes" class="clean-tile">
@@ -178,11 +186,11 @@
           <span uk-icon="icon: file-text; ratio: 1.1"></span>
         </div>
         <div class="tile-text">
-          <h3 class="tile-title">Reportes y SUR@UBV</h3>
-          <p class="tile-description">Generación de planillas oficiales y exportación para control estudiantil.</p>
+          <h3 class="tile-title">Normativa y Reportes</h3>
+          <p class="tile-description">Reglas de horarios, límites de dedicación y planillas oficiales del período.</p>
         </div>
         <div class="tile-action">
-          <span class="tile-link-text">Exportar datos</span>
+          <span class="tile-link-text">Consultar normativa</span>
           <span uk-icon="icon: arrow-right; ratio: 0.85"></span>
         </div>
       </a>

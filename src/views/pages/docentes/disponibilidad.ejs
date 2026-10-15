@@ -3,7 +3,11 @@
   <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
     <div>
       <div class="header-breadcrumbs uk-margin-xsmall-bottom">
-        <a href="/docentes" class="breadcrumb-link">Docentes</a>
+        <% if (esDocente) { %>
+          <a href="/" class="breadcrumb-link">Tablero</a>
+        <% } else { %>
+          <a href="/docentes" class="breadcrumb-link">Docentes</a>
+        <% } %>
         <span class="breadcrumb-separator">/</span>
         <span class="active-crumb">Disponibilidad Semanal</span>
       </div>
@@ -15,10 +19,27 @@
       </p>
     </div>
     <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
-      <a href="/docentes" class="btn-clean-secondary">
-        <span uk-icon="icon: arrow-left; ratio: 0.85"></span>
-        <span>Volver a Nómina</span>
-      </a>
+      <form method="GET" action="/docentes/<%= profesor.id %>/disponibilidad" class="disp-periodo-form">
+        <label class="label-clean" for="disp-periodo">Período</label>
+        <select id="disp-periodo" name="periodoId" class="table-filter-select" onchange="this.form.submit()">
+          <% periodos.forEach(function(p) { %>
+            <option value="<%= p.id %>" <%= p.id === periodoActivo.id ? 'selected' : '' %>>
+              <%= p.codigo %> (<%= p.estado === 'ACTIVO' ? 'Activo' : (p.estado === 'PLANIFICACION' ? 'Planificación' : 'Borrador') %>)
+            </option>
+          <% }); %>
+        </select>
+      </form>
+      <% if (esDocente) { %>
+        <a href="/" class="btn-clean-secondary">
+          <span uk-icon="icon: arrow-left; ratio: 0.85"></span>
+          <span>Volver al Tablero</span>
+        </a>
+      <% } else { %>
+        <a href="/docentes" class="btn-clean-secondary">
+          <span uk-icon="icon: arrow-left; ratio: 0.85"></span>
+          <span>Volver a Nómina</span>
+        </a>
+      <% } %>
       <button class="btn-clean-primary" onclick="guardarMatriz()">
         <span uk-icon="icon: check; ratio: 0.85"></span>
         <span>Guardar Cambios</span>
@@ -33,7 +54,7 @@
       <div class="uk-flex uk-flex-middle gap-3">
         <span class="email-code"><%= profesor.cedula %></span>
         <span class="table-user-name font-semibold"><%= profesor.apellidos %>, <%= profesor.nombres %></span>
-        <span class="table-sub-info"><%= profesor.email %></span>
+        <span class="table-sub-info"><%= profesor.email || 'Sin correo registrado' %></span>
       </div>
       <div class="uk-flex uk-flex-middle gap-2">
         <% if (dedicacion) { %>
@@ -114,7 +135,7 @@
     <table class="clean-table matrix-table uk-margin-remove">
       <thead>
         <tr>
-          <th style="width: 140px;" class="uk-text-center">Bloque / Turno</th>
+          <th class="uk-text-center disp-bloque-celda">Bloque / Turno</th>
           <% dias.forEach(function(d) { %>
             <th class="uk-text-center">
               <%= d %>
@@ -125,7 +146,7 @@
       <tbody>
         <% franjas.forEach(function(f) { %>
           <tr>
-            <td class="uk-text-center table-sub-info font-semibold" style="background-color: var(--surface-muted);">
+            <td class="uk-text-center table-sub-info font-semibold disp-bloque-celda">
               <div class="table-user-name font-semibold"><%= f.horaInicio12 || f.horaInicio %> - <%= f.horaFin12 || f.horaFin %></div>
               <span class="badge-role <%= f.turno === 'MATUTINO' ? 'badge-docente' : (f.turno === 'VESPERTINO' ? 'badge-director' : 'badge-admin') %> text-xxs">
                 Bloque <%= f.numero %> &bull; <%= f.turno %>
@@ -160,55 +181,81 @@
   </div>
 </div>
 
-<!-- Formulario Oculto de Envío -->
-<form id="form-disponibilidad" method="POST" action="/docentes/<%= profesor.id %>/disponibilidad">
+<!-- Formulario de Envío (con motivo obligatorio cuando el cambio lo hace un tercero) -->
+<form id="form-disponibilidad" method="POST" action="/docentes/<%= profesor.id %>/disponibilidad"
+  class="<%= requiereMotivo ? 'clean-panel uk-padding-small uk-margin-small-top disp-motivo-panel' : '' %>">
   <input type="hidden" name="slots" id="slots-input">
+  <input type="hidden" name="periodoId" value="<%= periodoActivo.id %>">
+  <% if (requiereMotivo) { %>
+    <div class="form-group-clean">
+      <label class="label-clean" for="disp-motivo">Motivo del cambio</label>
+      <textarea id="disp-motivo" name="motivo" class="form-input-clean" required
+        minlength="<%= longitudMinimaMotivo %>" maxlength="500"
+        placeholder="Ej.: El docente está de reposo médico y solicitó por teléfono liberar los martes."></textarea>
+      <span class="label-hint">
+        Está modificando la disponibilidad de otro docente: el motivo (mínimo <%= longitudMinimaMotivo %> caracteres) queda registrado en el historial junto con su usuario y la fecha.
+      </span>
+    </div>
+    <div class="disp-motivo-acciones">
+      <span class="table-sub-info">Los cambios se aplican al período <strong><%= periodoActivo.codigo %></strong>.</span>
+      <button type="button" class="btn-clean-primary" onclick="guardarMatriz()">
+        <span uk-icon="icon: check; ratio: 0.85"></span>
+        <span>Guardar Cambios</span>
+      </button>
+    </div>
+  <% } %>
 </form>
 
-<style>
-  .disp-cell {
-    cursor: pointer;
-    user-select: none;
-    transition: all 0.15s ease-in-out;
-    padding: 12px 6px !important;
-  }
-  .disp-cell:hover {
-    filter: brightness(0.95);
-    transform: scale(0.98);
-  }
-  .disp-cell.is-nodisp {
-    background-color: var(--surface-muted);
-    color: var(--text-faint);
-  }
-  .disp-cell.is-disp.prio-1 {
-    background-color: var(--accent-green-bg);
-    border: 1px solid rgba(63, 185, 80, 0.4);
-    color: var(--accent-green);
-    font-weight: 700;
-  }
-  .disp-cell.is-disp.prio-2 {
-    background-color: var(--accent-blue-bg);
-    border: 1px solid rgba(88, 166, 255, 0.4);
-    color: var(--brand-accent);
-    font-weight: 700;
-  }
-  .disp-cell.is-disp.prio-3 {
-    background-color: var(--accent-amber-bg);
-    border: 1px solid rgba(210, 153, 34, 0.4);
-    color: var(--accent-amber);
-    font-weight: 700;
-  }
-  .disp-legend-box {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
-  }
-  .disp-legend-box.is-prioridad-1 { background-color: var(--accent-green); }
-  .disp-legend-box.is-prioridad-2 { background-color: var(--brand-accent); }
-  .disp-legend-box.is-prioridad-3 { background-color: var(--accent-amber); }
-  .disp-legend-box.is-indisponible { background-color: var(--surface-muted); border: 1px solid var(--border-subtle); }
-</style>
+<!-- Historial de Cambios Auditado -->
+<div class="clean-panel uk-padding-small uk-margin-top" id="historial-disponibilidad">
+  <h2 class="disp-historial-titulo">
+    <span uk-icon="icon: history; ratio: 0.9"></span>
+    <span>Historial de cambios (<%= periodoActivo.codigo %>)</span>
+  </h2>
+  <p class="table-sub-info uk-margin-remove">Últimos 20 cambios: quién los hizo, cuándo y por qué.</p>
+  <% if (historial.length === 0) { %>
+    <div class="disp-historial-vacio">Todavía no hay cambios registrados para este período.</div>
+  <% } else { %>
+    <div class="uk-overflow-auto uk-margin-small-top">
+      <table class="clean-table uk-margin-remove">
+        <thead>
+          <tr>
+            <th>Fecha y hora</th>
+            <th>Responsable</th>
+            <th>Cambio</th>
+            <th>Motivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% historial.forEach(function(h) { %>
+            <tr>
+              <td class="disp-historial-fecha table-sub-info"><%= h.fecha %></td>
+              <td>
+                <div class="table-user-name"><%= h.responsable %></div>
+                <span class="table-sub-info"><%= h.rol %> &bull; <%= h.correo %></span>
+              </td>
+              <td>
+                <div class="font-semibold"><%= h.resumen %></div>
+                <div class="disp-historial-detalle">
+                  <% if (h.agregadas.length) { %><span class="is-agregada">Agregadas: <%= h.agregadas.join(', ') %></span><% } %>
+                  <% if (h.quitadas.length) { %><span class="is-quitada">Quitadas: <%= h.quitadas.join(', ') %></span><% } %>
+                  <% if (h.cambiosPrioridad.length) { %><span class="is-prioridad">Prioridad: <%= h.cambiosPrioridad.join(', ') %></span><% } %>
+                </div>
+              </td>
+              <td>
+                <% if (h.motivo) { %>
+                  <div class="disp-historial-motivo"><%= h.motivo %></div>
+                <% } else { %>
+                  <div class="disp-historial-motivo is-propio">Registrado por el propio docente</div>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
 
 <script>
   function toggleCell(cell) {
@@ -272,7 +319,13 @@
       }
     });
 
+    const form = document.getElementById('form-disponibilidad');
     document.getElementById('slots-input').value = JSON.stringify(slots);
-    document.getElementById('form-disponibilidad').submit();
+    if (!form.reportValidity()) {
+      const motivo = document.getElementById('disp-motivo');
+      if (motivo) motivo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    form.submit();
   }
 </script>

@@ -5,19 +5,52 @@ import {
   EscalafonDocente,
   CondicionLaboral,
   DiaSemana,
+  RolUsuario,
 } from '../../../core/domain/enums';
 import {
   LIMITES_DEDICACION,
   evaluarNormativaDocente,
+  horasDocenciaSeccion,
 } from '../../../core/domain/rules/dedicacionRules';
-import { BLOQUES_HORARIOS_OFICIALES } from '../../../core/domain/rules/timeSlotUtils';
+import { normalizarCedula, serialExcelAAnio } from '../../../core/domain/rules/ofertaNormalizacion';
+import { BLOQUES_HORARIOS_OFICIALES, formatearFechaHora12 } from '../../../core/domain/rules/timeSlotUtils';
+import { filtroPfg } from '../../../core/domain/rules/alcancePfgRules';
+import {
+  FranjaDisponibilidad,
+  LONGITUD_MINIMA_MOTIVO,
+  compararDisponibilidad,
+  normalizarFranjas,
+  permisoDisponibilidad,
+  validarMotivo,
+} from '../../../core/domain/rules/disponibilidadPermisos';
+import {
+  elegirPeriodoDisponibilidad,
+  periodosParaDisponibilidad,
+} from '../../../core/domain/rules/periodoDisponibilidadRules';
+import { alcanceDe } from '../../auth/middlewares/alcancePfg';
+import { profesorPropioId } from '../profesorPropio';
 
-// Helper para asegurar o recuperar el período académico activo (por defecto 2026-I)
+function textoOpcional(valor: unknown): string | null {
+  const t = typeof valor === 'string' ? valor.trim() : '';
+  return t || null;
+}
+
+/** Campos del docente que provienen del consolidado de oferta (profesión, 4to nivel, años, centro). */
+function datosComplementariosDocente(body: Record<string, unknown>) {
+  return {
+    profesion: textoOpcional(body.profesion),
+    estudiosCuartoNivel: textoOpcional(body.estudiosCuartoNivel),
+    anioIngreso: serialExcelAAnio(textoOpcional(body.anioIngreso)),
+    anioConcurso: serialExcelAAnio(textoOpcional(body.anioConcurso)),
+    centroEstudioId: textoOpcional(body.centroEstudioId),
+  };
+}
+
+// Helper para recuperar el período académico vigente (ACTIVO primero; luego el BORRADOR más reciente)
 async function getPeriodoActivo() {
-  let periodo = await prisma.periodoAcademico.findFirst({
-    where: { estado: { in: ['ACTIVO', 'BORRADOR'] } },
-    orderBy: { createdAt: 'desc' },
-  });
+  let periodo =
+    (await prisma.periodoAcademico.findFirst({ where: { estado: 'ACTIVO' }, orderBy: { createdAt: 'desc' } })) ??
+    (await prisma.periodoAcademico.findFirst({ where: { estado: 'BORRADOR' }, orderBy: { createdAt: 'desc' } }));
 
   if (!periodo) {
     periodo = await prisma.periodoAcademico.upsert({
@@ -34,6 +67,112 @@ async function getPeriodoActivo() {
   }
 
   return periodo;
+}
+
+async function periodosDisponibilidad() {
+  return periodosParaDisponibilidad(
+    await prisma.periodoAcademico.findMany({ where: { estado: { not: 'CERRADO' } } })
+  );
+}
+
+function parametroTexto(valor: unknown): string | null {
+  return typeof valor === 'string' && valor.trim() ? valor.trim() : null;
+}
+
+async function permisoSobreDisponibilidad(req: Request, profesorId: string, periodoId: string) {
+  const usuario = (req.session as any)?.usuario;
+  const pfgIdsDelDocente =
+    usuario?.rol === RolUsuario.COORDINADOR_PFG
+      ? (
+          await prisma.seccion.findMany({
+            where: { profesorId, periodoId },
+            select: { unidadCurricular: { select: { pfgId: true } } },
+          })
+        ).map((s) => s.unidadCurricular.pfgId)
+      : [];
+  return permisoDisponibilidad(
+    { rol: usuario?.rol, profesorIdPropio: await profesorPropioId(usuario) },
+    profesorId,
+    pfgIdsDelDocente,
+    alcanceDe(req)
+  );
+}
+
+/**
+ * Docentes cuya disponibilidad puede abrir el coordinador en el período que se planifica
+ * (`null` = todos, para Administración y Dirección).
+ */
+async function docentesConDisponibilidadEditable(req: Request): Promise<string[] | null> {
+  const alcance = alcanceDe(req);
+  if (alcance.total) return null;
+  const periodo = elegirPeriodoDisponibilidad(await periodosDisponibilidad());
+  if (!periodo) return [];
+  const secciones = await prisma.seccion.findMany({
+    where: { periodoId: periodo.id, profesorId: { not: null }, unidadCurricular: { pfgId: filtroPfg(alcance) } },
+    select: { profesorId: true },
+    distinct: ['profesorId'],
+  });
+  return secciones.map((s) => s.profesorId!);
+}
+
+const ETIQUETAS_ROL: Record<string, string> = {
+  [RolUsuario.ADMINISTRADOR]: 'Administrador',
+  [RolUsuario.DIRECTOR_ACADEMICO]: 'Director Académico',
+  [RolUsuario.COORDINADOR_PFG]: 'Coordinador de PFG',
+  [RolUsuario.DOCENTE]: 'Docente',
+};
+
+function franjasGuardadas(json: string | null): FranjaDisponibilidad[] {
+  if (!json) return [];
+  try {
+    const datos = JSON.parse(json);
+    return Array.isArray(datos) ? datos : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Últimos cambios de la disponibilidad del docente en el período, listos para la vista. */
+async function historialDisponibilidad(profesorId: string, periodoId: string) {
+  const registros = await prisma.auditoriaDisponibilidad.findMany({
+    where: { profesorId, periodoId },
+    orderBy: { fecha: 'desc' },
+    take: 20,
+  });
+  const usuarios = await prisma.usuario.findMany({
+    where: { email: { in: [...new Set(registros.map((r) => r.usuarioResponsable))] } },
+    select: { email: true, nombres: true, apellidos: true },
+  });
+  const nombres = new Map(usuarios.map((u) => [u.email, `${u.nombres} ${u.apellidos}`]));
+  return registros.map((r) => {
+    const detalle = compararDisponibilidad(franjasGuardadas(r.datosAnteriores), franjasGuardadas(r.datosNuevos));
+    return {
+      id: r.id,
+      fecha: formatearFechaHora12(r.fecha),
+      responsable: nombres.get(r.usuarioResponsable) ?? r.usuarioResponsable,
+      correo: r.usuarioResponsable,
+      rol: ETIQUETAS_ROL[r.rolResponsable] ?? r.rolResponsable,
+      resumen: r.resumen,
+      motivo: r.motivo,
+      agregadas: detalle.agregadas,
+      quitadas: detalle.quitadas,
+      cambiosPrioridad: detalle.cambiosPrioridad.map((c) => `${c.franja} (P${c.antes} a P${c.despues})`),
+    };
+  });
+}
+
+function franjasDelFormulario(valor: unknown): FranjaDisponibilidad[] {
+  const datos = typeof valor === 'string' && valor ? JSON.parse(valor) : [];
+  if (!Array.isArray(datos)) return [];
+  return datos
+    .filter((s: any) => typeof s?.dia === 'string' && typeof s?.horaInicio === 'string' && typeof s?.horaFin === 'string')
+    .map((s: any) => ({
+      dia: s.dia,
+      horaInicio: s.horaInicio,
+      horaFin: s.horaFin,
+      prioridad: Math.min(3, Math.max(1, parseInt(s.prioridad, 10) || 1)),
+      disponible: s.disponible !== false && s.disponible !== 'false',
+    }));
 }
 
 export class DocentesController {
@@ -91,6 +230,7 @@ export class DocentesController {
         prisma.profesor.findMany({
           where,
           include: {
+            centroEstudio: true,
             dedicaciones: {
               where: { periodoId: periodoActivo.id },
               include: { sedePrincipal: true },
@@ -131,7 +271,7 @@ export class DocentesController {
         const dedicacionActiva = p.dedicaciones[0] || null;
         let horasDocencia = 0;
         for (const sec of p.secciones) {
-          horasDocencia += (sec.unidadCurricular.horasTeoricasSemanales + sec.unidadCurricular.horasPracticasSemanales);
+          horasDocencia += horasDocenciaSeccion(sec);
         }
 
         const evaluacion = dedicacionActiva
@@ -149,12 +289,15 @@ export class DocentesController {
       const totalPages = Math.ceil(totalFiltrados / limit) || 1;
       const success = typeof req.query.msg === 'string' ? req.query.msg : null;
       const errorMsg = typeof req.query.error === 'string' ? req.query.error : null;
+      const centrosEstudio = await prisma.centroEstudio.findMany({ where: { activo: true }, orderBy: { codigo: 'asc' } });
 
       return res.render('pages/docentes/index', {
         title: 'Gestión de Docentes y Régimen de Dedicación',
         periodoActivo,
+        disponibilidadEditable: await docentesConDisponibilidadEditable(req),
         profesores: profesoresData,
         sedes,
+        centrosEstudio,
         success,
         error: errorMsg,
         enums: {
@@ -214,7 +357,7 @@ export class DocentesController {
         observacionExcepcion,
       } = req.body;
 
-      if (!cedula || !nombres || !apellidos || !email || !sedeAdscripcionPrincipalId) {
+      if (!cedula || !nombres || !apellidos || !sedeAdscripcionPrincipalId) {
         return res.redirect('/docentes?error=Campos+obligatorios+incompletos');
       }
 
@@ -224,13 +367,14 @@ export class DocentesController {
       await prisma.$transaction(async (tx) => {
         const profesor = await tx.profesor.create({
           data: {
-            cedula: cedula.trim().toUpperCase(),
+            cedula: normalizarCedula(cedula) ?? cedula.trim().toUpperCase(),
             nombres: nombres.trim(),
             apellidos: apellidos.trim(),
-            email: email.trim().toLowerCase(),
+            email: textoOpcional(email)?.toLowerCase() ?? null,
             telefono: telefono ? telefono.trim() : null,
             condicion: condicion || CondicionLaboral.ORDINARIO,
             escalafon: escalafon || EscalafonDocente.INSTRUCTOR,
+            ...datosComplementariosDocente(req.body),
             activo: true,
           },
         });
@@ -287,10 +431,11 @@ export class DocentesController {
           data: {
             nombres: nombres.trim(),
             apellidos: apellidos.trim(),
-            email: email.trim().toLowerCase(),
+            email: textoOpcional(email)?.toLowerCase() ?? null,
             telefono: telefono ? telefono.trim() : null,
             condicion: condicion || CondicionLaboral.ORDINARIO,
             escalafon: escalafon || EscalafonDocente.INSTRUCTOR,
+            ...datosComplementariosDocente(req.body),
           },
         });
 
@@ -325,9 +470,10 @@ export class DocentesController {
       });
 
       return res.redirect('/docentes?msg=Docente+actualizado+con+exito');
-    } catch (error) {
+    } catch (error: any) {
       console.error('[DOCENTES-EDITAR-ERROR]', error);
-      return res.redirect('/docentes?error=Error+al+modificar+docente');
+      const msg = error?.code === 'P2002' ? 'Correo+ya+registrado+por+otro+docente' : 'Error+al+modificar+docente';
+      return res.redirect(`/docentes?error=${msg}`);
     }
   }
 
@@ -397,25 +543,30 @@ export class DocentesController {
       const { id } = req.params;
       const usuario = (req.session as any)?.usuario;
 
-      // Autoprotección RBAC: Si el usuario es DOCENTE, solo puede ver y editar su propia disponibilidad
-      if (usuario && usuario.rol === 'DOCENTE') {
-        const docenteAutenticado = await prisma.profesor.findFirst({
-          where: {
-            OR: [
-              { id: usuario.profesorId || '' },
-              { email: usuario.email },
-            ],
-          },
+      const periodos = await periodosDisponibilidad();
+      const solicitado = parametroTexto(req.query.periodoId);
+      const periodoActivo = elegirPeriodoDisponibilidad(periodos, solicitado) ?? elegirPeriodoDisponibilidad(periodos);
+      if (!periodoActivo) {
+        return res.status(404).render('pages/error', {
+          title: 'Sin períodos abiertos',
+          error: 'No hay períodos académicos abiertos para registrar disponibilidad.',
         });
-        if (!docenteAutenticado || docenteAutenticado.id !== id) {
-          return res.status(403).render('pages/error', {
-            title: 'Acceso Denegado (RBAC)',
-            error: 'No tiene autorización para consultar ni modificar la disponibilidad de otros docentes.',
-          });
-        }
       }
 
-      const periodoActivo = await getPeriodoActivo();
+      const permiso = await permisoSobreDisponibilidad(req, id, periodoActivo.id);
+      if (!permiso.permitido) {
+        return res.status(403).render('pages/error', {
+          title: 'Acceso Denegado (RBAC)',
+          error:
+            usuario?.rol === RolUsuario.COORDINADOR_PFG
+              ? 'Solo puede consultar y modificar la disponibilidad de los docentes con asignaciones de sus programas en el período.'
+              : 'No tiene autorización para consultar ni modificar la disponibilidad de otros docentes.',
+        });
+      }
+      const avisoPeriodo =
+        solicitado && solicitado !== periodoActivo.id
+          ? 'El período solicitado no existe o está cerrado; se muestra el período en planificación.'
+          : null;
 
       const profesor = await prisma.profesor.findUnique({
         where: { id },
@@ -472,12 +623,17 @@ export class DocentesController {
         title: `Disponibilidad Horaria - ${profesor.nombres} ${profesor.apellidos}`,
         profesor,
         periodoActivo,
+        periodos,
+        esDocente: usuario?.rol === RolUsuario.DOCENTE,
+        requiereMotivo: permiso.requiereMotivo,
+        longitudMinimaMotivo: LONGITUD_MINIMA_MOTIVO,
+        historial: await historialDisponibilidad(id, periodoActivo.id),
         dedicacion: profesor.dedicaciones[0] || null,
         dias,
         franjas,
         disponibilidadMap,
         success,
-        error: errorMsg,
+        error: errorMsg ?? avisoPeriodo,
       });
     } catch (error) {
       console.error('[DOCENTES-DISPONIBILIDAD-ERROR]', error);
@@ -496,52 +652,75 @@ export class DocentesController {
       const { id } = req.params;
       const usuario = (req.session as any)?.usuario;
 
-      // Autoprotección RBAC: Si el usuario es DOCENTE, solo puede modificar su propio registro
-      if (usuario && usuario.rol === 'DOCENTE') {
-        const docenteAutenticado = await prisma.profesor.findFirst({
-          where: {
-            OR: [
-              { id: usuario.profesorId || '' },
-              { email: usuario.email },
-            ],
-          },
-        });
-        if (!docenteAutenticado || docenteAutenticado.id !== id) {
-          return res.status(403).redirect(`/docentes?error=Acceso+denegado+por+politica+RBAC`);
-        }
+      const periodoActivo = elegirPeriodoDisponibilidad(await periodosDisponibilidad(), parametroTexto(req.body.periodoId));
+      if (!periodoActivo) {
+        return res.redirect(
+          `/docentes/${id}/disponibilidad?error=` +
+            encodeURIComponent('El período indicado no existe o está cerrado: no se guardaron cambios.')
+        );
       }
 
-      const periodoActivo = await getPeriodoActivo();
-      const slotsPayload = req.body.slots ? JSON.parse(req.body.slots) : [];
-
-      await prisma.$transaction(async (tx) => {
-        // Eliminar disponibilidad previa para este período
-        await tx.profesorDisponibilidad.deleteMany({
-          where: {
-            profesorId: id,
-            periodoId: periodoActivo.id,
-          },
+      const permiso = await permisoSobreDisponibilidad(req, id, periodoActivo.id);
+      if (!permiso.permitido) {
+        return res.status(403).render('pages/error', {
+          title: 'Acceso Denegado (RBAC)',
+          error: 'No tiene autorización para modificar la disponibilidad de este docente.',
         });
+      }
 
-        // Insertar nuevas franjas
-        if (Array.isArray(slotsPayload) && slotsPayload.length > 0) {
-          const toInsert = slotsPayload.map((s: any) => ({
-            profesorId: id,
-            periodoId: periodoActivo.id,
-            dia: s.dia,
-            horaInicio: s.horaInicio,
-            horaFin: s.horaFin,
-            prioridadPreferencia: parseInt(s.prioridad, 10) || 1,
-            disponible: s.disponible === true || s.disponible === 'true',
-          }));
+      const volver = `/docentes/${id}/disponibilidad?periodoId=${periodoActivo.id}`;
+      const motivo = validarMotivo(permiso.requiereMotivo, req.body.motivo);
+      if (!motivo.valido) {
+        return res.redirect(`${volver}&error=` + encodeURIComponent(motivo.error));
+      }
+      const nuevas = normalizarFranjas(franjasDelFormulario(req.body.slots));
 
+      const comparacion = await prisma.$transaction(async (tx) => {
+        const anteriores = (
+          await tx.profesorDisponibilidad.findMany({ where: { profesorId: id, periodoId: periodoActivo.id } })
+        ).map((d) => ({
+          dia: d.dia,
+          horaInicio: d.horaInicio,
+          horaFin: d.horaFin,
+          prioridad: d.prioridadPreferencia,
+          disponible: d.disponible,
+        }));
+        const resultado = compararDisponibilidad(anteriores, nuevas);
+        if (!resultado.hayCambios) return resultado;
+
+        await tx.profesorDisponibilidad.deleteMany({ where: { profesorId: id, periodoId: periodoActivo.id } });
+        if (nuevas.length > 0) {
           await tx.profesorDisponibilidad.createMany({
-            data: toInsert,
+            data: nuevas.map((f) => ({
+              profesorId: id,
+              periodoId: periodoActivo.id,
+              dia: f.dia,
+              horaInicio: f.horaInicio,
+              horaFin: f.horaFin,
+              prioridadPreferencia: f.prioridad,
+              disponible: true,
+            })),
           });
         }
+        await tx.auditoriaDisponibilidad.create({
+          data: {
+            profesorId: id,
+            periodoId: periodoActivo.id,
+            usuarioResponsable: usuario?.email ?? 'SISTEMA',
+            rolResponsable: usuario?.rol ?? 'SISTEMA',
+            resumen: resultado.resumen,
+            datosAnteriores: JSON.stringify(normalizarFranjas(anteriores)),
+            datosNuevos: JSON.stringify(nuevas),
+            motivo: motivo.motivo,
+          },
+        });
+        return resultado;
       });
 
-      return res.redirect(`/docentes/${id}/disponibilidad?msg=Disponibilidad+actualizada+correctamente`);
+      const mensaje = comparacion.hayCambios
+        ? `Disponibilidad del período ${periodoActivo.codigo} actualizada correctamente: ${comparacion.resumen}.`
+        : `Sin cambios en la disponibilidad del período ${periodoActivo.codigo}: no se registró nada.`;
+      return res.redirect(`${volver}&msg=` + encodeURIComponent(mensaje));
     } catch (error) {
       console.error('[DOCENTES-GUARDAR-DISPONIBILIDAD-ERROR]', error);
       return res.redirect(`/docentes/${req.params.id}/disponibilidad?error=Error+guardando+disponibilidad`);
@@ -560,6 +739,12 @@ export class DocentesController {
       const sedeFiltro = typeof req.query.sedeId === 'string' ? req.query.sedeId.trim() : '';
 
       const whereProfesor: any = { activo: true };
+
+      // Spec 06: el coordinador ve a los docentes con asignaciones en sus programas (con su carga total)
+      const pfgAlcance = filtroPfg(alcanceDe(req));
+      if (pfgAlcance) {
+        whereProfesor.secciones = { some: { periodoId: periodoActivo.id, unidadCurricular: { pfgId: pfgAlcance } } };
+      }
 
       if (dedicacionFiltro || sedeFiltro) {
         whereProfesor.dedicaciones = {
@@ -610,12 +795,10 @@ export class DocentesController {
         let horasProyectoComunidad = 0;
 
         for (const sec of p.secciones) {
-          const teo = sec.unidadCurricular.horasTeoricasSemanales || 0;
-          const pra = sec.unidadCurricular.horasPracticasSemanales || 0;
-          const campo = sec.unidadCurricular.horasCampoComunitarioSemanales || 0;
-
-          horasDocencia += (teo + pra);
-          horasProyectoComunidad += campo;
+          horasDocencia += horasDocenciaSeccion(sec);
+          if (!sec.horasSemanalesOferta) {
+            horasProyectoComunidad += sec.unidadCurricular.horasCampoComunitarioSemanales || 0;
+          }
         }
 
         totalHorasDirectasGlobal += horasDocencia;

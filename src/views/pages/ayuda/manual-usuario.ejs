@@ -1,0 +1,57 @@
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <a href="/" class="uk-link-reset uk-text-muted">Inicio</a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Manual de Usuario</span>
+      </div>
+      <h1 class="page-title uk-margin-remove"><%= manual.titulo || 'Manual de Usuario' %></h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Guía de operación por módulo y flujo de trabajo de cada rol, con capturas de pantalla del sistema.
+      </p>
+    </div>
+    <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
+      <button class="btn-clean-secondary" type="button" onclick="window.print()">
+        <span uk-icon="icon: print; ratio: 0.85"></span>
+        <span>Imprimir / Guardar PDF</span>
+      </button>
+      <a href="/ayuda/manual-tecnico" class="btn-clean-secondary">
+        <span uk-icon="icon: code; ratio: 0.85"></span>
+        <span>Ver Manual Técnico</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="manual-layout">
+  <aside class="manual-indice" aria-label="Índice del manual">
+    <div class="manual-indice-titulo">
+      <span uk-icon="icon: list; ratio: 0.8"></span>
+      <span>Contenido</span>
+    </div>
+    <nav>
+      <ul class="manual-indice-lista">
+        <% manual.indice.forEach(function (entrada) { %>
+          <li class="manual-indice-nivel-<%= entrada.nivel %>">
+            <a href="#<%= entrada.id %>"><%= entrada.texto %></a>
+          </li>
+        <% }) %>
+      </ul>
+    </nav>
+  </aside>
+
+  <article class="bento-card manual-documento">
+    <header class="manual-portada">
+      <img src="/img/logo-ubv.png" alt="UBV SAHAD" class="manual-portada-logo" />
+      <div>
+        <h2 class="manual-portada-titulo">Sistema Automatizado de Horarios Académicos</h2>
+        <span class="manual-portada-subtitulo">Universidad Bolivariana de Venezuela &bull; Eje Geopolítico Regional Kerepakupai Vena</span>
+      </div>
+    </header>
+
+    <div class="manual-contenido">
+      <%- manual.html %>
+    </div>
+  </article>
+</div>

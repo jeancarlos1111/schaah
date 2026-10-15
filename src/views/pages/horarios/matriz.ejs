@@ -3,26 +3,38 @@
   <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
     <div>
       <div class="header-breadcrumbs uk-margin-xsmall-bottom">
-        <a href="/periodos" class="uk-link-reset uk-text-muted">Períodos</a>
-        <span class="breadcrumb-separator">/</span>
-        <a href="/periodos/<%= periodo.id %>/secciones" class="uk-link-reset uk-text-muted"><%= periodo.codigo %></a>
+        <% if (soloLectura) { %>
+          <a href="/" class="uk-link-reset uk-text-muted">Tablero</a>
+          <span class="breadcrumb-separator">/</span>
+          <span class="uk-text-muted"><%= periodo.codigo %></span>
+        <% } else { %>
+          <a href="/periodos" class="uk-link-reset uk-text-muted">Períodos</a>
+          <span class="breadcrumb-separator">/</span>
+          <a href="/periodos/<%= periodo.id %>/secciones" class="uk-link-reset uk-text-muted"><%= periodo.codigo %></a>
+        <% } %>
         <span class="breadcrumb-separator">/</span>
         <span class="active-crumb">Matriz Semanal</span>
       </div>
       <h1 class="page-title uk-margin-remove">Matriz Semanal de Horarios - <%= periodo.codigo %></h1>
       <p class="page-subtitle uk-margin-xsmall-top">
-        Visualización y asignación interactiva (Drag & Drop) con verificación en tiempo real de restricciones duras (<span class="font-mono">H-01</span> a <span class="font-mono">H-09</span>).
+        <% if (soloLectura) { %>
+          Consulta del horario semanal publicado del período, en formato civil de 12 horas.
+        <% } else { %>
+          Visualización y asignación interactiva (Drag & Drop) con verificación en tiempo real de restricciones duras (<span class="font-mono">H-01</span> a <span class="font-mono">H-09</span>).
+        <% } %>
       </p>
     </div>
     <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
-      <button class="btn-clean-secondary" type="button" onclick="abrirModalSolver()">
-        <span uk-icon="icon: bolt; ratio: 0.85"></span>
-        <span>Optimizar Vacantes (Solver)</span>
-      </button>
-      <a href="/periodos/<%= periodo.id %>/secciones" class="btn-clean-secondary">
-        <span uk-icon="icon: list; ratio: 0.85"></span>
-        <span>Oferta de Secciones</span>
-      </a>
+      <% if (!soloLectura) { %>
+        <button class="btn-clean-secondary" type="button" onclick="abrirModalSolver()">
+          <span uk-icon="icon: bolt; ratio: 0.85"></span>
+          <span>Optimizar Vacantes (Solver)</span>
+        </button>
+        <a href="/periodos/<%= periodo.id %>/secciones" class="btn-clean-secondary">
+          <span uk-icon="icon: list; ratio: 0.85"></span>
+          <span>Oferta de Secciones</span>
+        </a>
+      <% } %>
       <button class="btn-clean-primary" type="button" onclick="exportarHorarioPDF()">
         <span uk-icon="icon: download; ratio: 0.85"></span>
         <span>Descargar Horario PDF</span>
@@ -30,50 +42,85 @@
     </div>
   </div>
 
-  <!-- Barra de Filtros y Selector de Perspectiva (Docente / Aula / Sección) -->
+  <!-- Barra de Filtros y Selector de Perspectiva (Docente / Aula / Sección); el docente solo ve su horario -->
+  <% if (!locals.soloSuHorario) { %>
   <div class="admin-subtabs uk-margin-top uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-3">
     <div class="uk-flex uk-flex-middle gap-2">
       <span class="text-xs font-semibold uk-text-muted text-uppercase">Perspectiva:</span>
       <div class="uk-button-group clean-button-group">
         <a 
-          href="/periodos/<%= periodo.id %>/horarios?tipo=DOCENTE" 
+          href="/periodos/<%= periodo.id %>/horarios?tipo=DOCENTE<%= filtroPfgId ? '&pfgId=' + filtroPfgId : '' %>" 
           class="subtab-item <%= filtroTipo === 'DOCENTE' ? 'is-active' : '' %>"
         >
           <span uk-icon="icon: user; ratio: 0.75"></span>
           <span>Por Docente</span>
         </a>
         <a 
-          href="/periodos/<%= periodo.id %>/horarios?tipo=AULA" 
+          href="/periodos/<%= periodo.id %>/horarios?tipo=AULA<%= filtroPfgId ? '&pfgId=' + filtroPfgId : '' %>" 
           class="subtab-item <%= filtroTipo === 'AULA' ? 'is-active' : '' %>"
         >
           <span uk-icon="icon: home; ratio: 0.75"></span>
           <span>Por Aula Física</span>
         </a>
         <a 
-          href="/periodos/<%= periodo.id %>/horarios?tipo=SECCION" 
+          href="/periodos/<%= periodo.id %>/horarios?tipo=SECCION<%= filtroPfgId ? '&pfgId=' + filtroPfgId : '' %>" 
           class="subtab-item <%= filtroTipo === 'SECCION' ? 'is-active' : '' %>"
         >
           <span uk-icon="icon: grid; ratio: 0.75"></span>
-          <span>Por Sección</span>
+          <span>Por Asignación</span>
+        </a>
+        <a 
+          href="/periodos/<%= periodo.id %>/horarios?tipo=GRUPO<%= filtroPfgId ? '&pfgId=' + filtroPfgId : '' %>" 
+          class="subtab-item <%= filtroTipo === 'GRUPO' ? 'is-active' : '' %>"
+        >
+          <span uk-icon="icon: users; ratio: 0.75"></span>
+          <span>Por Sección (Cohorte)</span>
         </a>
       </div>
+    </div>
+
+    <!-- Discriminador por P.F.G. -->
+    <div class="uk-flex uk-flex-middle gap-2">
+      <label class="text-xs font-semibold uk-text-muted text-uppercase" for="select-pfg">P.F.G.:</label>
+      <select 
+        id="select-pfg" 
+        class="table-filter-select" 
+        style="width: 240px;"
+        onchange="cambiarFiltroPfg(this.value)"
+      >
+        <option value="">-- Todos los P.F.G. --</option>
+        <% pfgs.forEach(function(pfg) { %>
+          <option value="<%= pfg.id %>" <%= filtroPfgId === pfg.id ? 'selected' : '' %>>
+            <%= pfg.codigo %> - <%= pfg.nombre %>
+          </option>
+        <% }); %>
+      </select>
     </div>
 
     <!-- Selector dinámico del registro específico -->
     <div class="uk-flex uk-flex-middle gap-2">
       <label class="text-xs font-medium uk-text-muted" for="select-entidad">
-        <%= filtroTipo === 'DOCENTE' ? 'Seleccionar Docente:' : (filtroTipo === 'AULA' ? 'Seleccionar Espacio:' : 'Seleccionar Sección:') %>
+        <%= filtroTipo === 'DOCENTE' ? 'Seleccionar Docente:' : (filtroTipo === 'AULA' ? 'Seleccionar Espacio:' : (filtroTipo === 'GRUPO' ? 'Seleccionar Cohorte:' : 'Seleccionar Asignación:')) %>
       </label>
       <select 
         id="select-entidad" 
         class="table-filter-select" 
         style="width: 320px;" 
-        onchange="location.href='/periodos/<%= periodo.id %>/horarios?tipo=<%= filtroTipo %>&id=' + this.value"
+        onchange="location.href='/periodos/<%= periodo.id %>/horarios?tipo=<%= filtroTipo %>&id=' + this.value + '<%= filtroPfgId ? '&pfgId=' + filtroPfgId : '' %>'"
       >
         <% if (filtroTipo === 'DOCENTE') { %>
           <% profesores.forEach(function(p) { %>
             <option value="<%= p.id %>" <%= filtroId === p.id ? 'selected' : '' %>>
-              <%= p.apellidos %>, <%= p.nombres %> (V-<%= p.cedula %>)
+              <%= p.apellidos %>, <%= p.nombres %> (<%= p.cedula %>)
+            </option>
+          <% }); %>
+        <% } else if (filtroTipo === 'GRUPO') { %>
+          <% if (grupos.length === 0) { %>
+            <option value="">-- Sin secciones (cohortes) en el período --</option>
+          <% } %>
+          <% grupos.forEach(function(g) { %>
+            <option value="<%= g.id %>" <%= filtroId === g.id ? 'selected' : '' %>>
+              <%= g.codigoNormalizado %> - <%= g.pfg.codigo %>
             </option>
           <% }); %>
         <% } else if (filtroTipo === 'AULA') { %>
@@ -92,12 +139,13 @@
       </select>
     </div>
   </div>
+  <% } %>
 </div>
 
 <!-- Barra de Resumen de Entidad Activa -->
 <div class="horario-active-summary uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-2">
   <div class="uk-flex uk-flex-middle gap-3">
-    <span uk-icon="icon: <%= filtroTipo === 'DOCENTE' ? 'user' : (filtroTipo === 'AULA' ? 'home' : 'grid') %>; ratio: 1.2" style="color: var(--brand-accent);"></span>
+    <span uk-icon="icon: <%= filtroTipo === 'DOCENTE' ? 'user' : (filtroTipo === 'AULA' ? 'home' : (filtroTipo === 'GRUPO' ? 'users' : 'grid')) %>; ratio: 1.2" style="color: var(--brand-accent);"></span>
     <div>
       <div class="vista-label">Vista Activa</div>
       <div class="vista-name"><%= entidadSeleccionadaNombre %></div>
@@ -146,11 +194,38 @@
                     data-fin="<%= f.horaFin %>"
                     data-inicio12="<%= f.horaInicio12 %>"
                     data-fin12="<%= f.horaFin12 %>"
-                    ondragover="allowDropHorario(event)"
-                    ondragleave="leaveDropHorario(event)"
-                    ondrop="handleDropHorario(event)"
+                    <% if (!soloLectura) { %>
+                      ondragover="allowDropHorario(event)"
+                      ondragleave="leaveDropHorario(event)"
+                      ondrop="handleDropHorario(event)"
+                    <% } %>
                   >
-                    <% if (bloqueData) { %>
+                    <% if (bloqueData && soloLectura) { %>
+                      <div class="horario-card-badge">
+                        <div class="uk-flex uk-flex-middle gap-1">
+                          <span class="seccion-code font-bold text-xs"><%= bloqueData.codigoSeccion %></span>
+                          <span class="bloque-ajeno-pfg"><%= bloqueData.pfgCodigo %></span>
+                        </div>
+                        <div class="horario-materia-title"><%= bloqueData.unidadNombre %></div>
+                        <div class="horario-sub-info uk-margin-xsmall-top">
+                          <% if (filtroTipo !== 'DOCENTE') { %>
+                            <div><span uk-icon="icon: user; ratio: 0.6"></span> <%= bloqueData.profesorNombre %></div>
+                          <% } %>
+                          <% if (filtroTipo !== 'AULA') { %>
+                            <div><span uk-icon="icon: home; ratio: 0.6"></span> <%= bloqueData.espacioNombre %></div>
+                          <% } %>
+                        </div>
+                      </div>
+                    <% } else if (bloqueData && !bloqueData.editable) { %>
+                      <div class="horario-card-badge bloque-ajeno" title="Bloque de otro programa: ocupa al docente y al aula, pero no puede modificarlo.">
+                        <div class="uk-flex uk-flex-middle gap-1">
+                          <span class="seccion-code font-bold text-xs"><%= bloqueData.codigoSeccion %></span>
+                          <span class="bloque-ajeno-pfg"><%= bloqueData.pfgCodigo %></span>
+                        </div>
+                        <div class="horario-materia-title"><%= bloqueData.unidadNombre %></div>
+                        <span class="bloque-ajeno-etiqueta"><span uk-icon="icon: lock; ratio: 0.55"></span> Ocupado: otro programa</span>
+                      </div>
+                    <% } else if (bloqueData) { %>
                       <div 
                         class="horario-card-badge"
                         draggable="true"
@@ -159,7 +234,14 @@
                         ondragstart="handleDragStartHorario(event)"
                       >
                         <div class="uk-flex uk-flex-between uk-flex-top">
-                          <span class="font-bold text-xs" style="color: var(--accent-primary);"><%= bloqueData.codigoSeccion %></span>
+                          <div class="uk-flex uk-flex-middle gap-1">
+                            <span class="seccion-code font-bold text-xs" style="color: var(--accent-primary);"><%= bloqueData.codigoSeccion %></span>
+                            <% if (bloqueData.pfgCodigo) { %>
+                              <span class="uk-badge" style="background: rgba(197,29,36,0.18); color: #f87171; font-size: 0.58rem; font-weight: 700; padding: 1px 4px; border-radius: 4px;" title="<%= bloqueData.pfgNombre %>">
+                                <%= bloqueData.pfgCodigo %>
+                              </span>
+                            <% } %>
+                          </div>
                           <button 
                             class="btn-delete-slot" 
                             title="Desasignar horario"
@@ -179,7 +261,7 @@
                           <% } %>
                         </div>
                       </div>
-                    <% } else { %>
+                    <% } else if (!soloLectura) { %>
                       <div class="empty-slot-hint">
                         <span class="text-xxs uk-text-muted">+ Arrastrar aquí</span>
                       </div>
@@ -195,6 +277,7 @@
   </div>
 
   <!-- Columna Lateral: Bandeja de Secciones Pendientes por Asignar -->
+  <% if (!soloLectura) { %>
   <div class="uk-width-1-4@m">
     <div class="secciones-sidebar-card">
       <div class="uk-flex uk-flex-between uk-flex-middle uk-margin-small-bottom">
@@ -225,7 +308,14 @@
             ondragstart="handleDragStartSeccionPendiente(event)"
           >
             <div class="uk-flex uk-flex-between uk-flex-middle">
-              <span class="font-bold text-xs" style="color: var(--brand-accent);"><%= sp.codigoSeccion %></span>
+              <div class="uk-flex uk-flex-middle gap-1">
+                <span class="font-bold text-xs" style="color: var(--brand-accent);"><%= sp.codigoSeccion %></span>
+                <% if (sp.unidadCurricular && sp.unidadCurricular.pfg) { %>
+                  <span class="uk-badge" style="background: rgba(197,29,36,0.18); color: #f87171; font-size: 0.58rem; font-weight: 700; padding: 1px 4px; border-radius: 4px;" title="<%= sp.unidadCurricular.pfg.nombre %>">
+                    <%= sp.unidadCurricular.pfg.codigo %>
+                  </span>
+                <% } %>
+              </div>
               <span class="turno-legend-badge <%= sp.turno === 'MATUTINO' ? 'matutino' : (sp.turno === 'VESPERTINO' ? 'vespertino' : 'nocturno') %>" style="font-size: 0.62rem; padding: 1px 4px;"><%= sp.turno %></span>
             </div>
             <div class="font-medium text-xs uk-margin-xsmall-top" style="color: var(--text-white);"><%= sp.unidadCurricular.nombre %></div>
@@ -241,6 +331,7 @@
       </div>
     </div>
   </div>
+  <% } %>
 </div>
 
 <!-- Modal para Confirmación / Ajuste de Movimiento con Selección de Aula -->
@@ -327,6 +418,17 @@
 
   const PERIODO_ID = '<%= periodo.id %>';
 
+  function cambiarFiltroPfg(pfgId) {
+    const url = new URL(window.location.href);
+    if (pfgId) {
+      url.searchParams.set('pfgId', pfgId);
+    } else {
+      url.searchParams.delete('pfgId');
+    }
+    url.searchParams.delete('id'); // Resetear selección específica para recargar el primer elemento del PFG
+    window.location.href = url.toString();
+  }
+
   function handleDragStartHorario(e) {
     dragData = {
       seccionId: e.target.dataset.seccionId,
@@ -396,14 +498,14 @@
       document.getElementById('modal-dia').value = dia;
       document.getElementById('modal-hora-inicio').value = horaInicio;
       document.getElementById('modal-hora-fin').value = horaFin;
-      document.getElementById('modal-resumen-slot').innerText = `${dia} &bull; ${horaInicio12} - ${horaFin12} (Bloque Oficial)`;
+      document.getElementById('modal-resumen-slot').innerText = `${dia} • ${horaInicio12} - ${horaFin12} (Bloque Oficial)`;
 
       // Feedback de advertencias si las hay
       const feedbackDiv = document.getElementById('feedback-drop-container');
       if (res.advertencias && res.advertencias.length > 0) {
-        feedbackDiv.innerHTML = `<div class="p-2 text-xs uk-alert-warning" uk-alert>${res.advertencias.join('<br>')}</div>`;
+        feedbackDiv.innerHTML = `<div class="alert-clean-warning">${res.advertencias.join('<br>')}</div>`;
       } else {
-        feedbackDiv.innerHTML = `<div class="p-2 text-xs uk-alert-success" uk-alert>✓ Movimiento verificado y legalmente factible.</div>`;
+        feedbackDiv.innerHTML = `<div class="alert-clean-success">✓ Movimiento verificado y legalmente factible.</div>`;
       }
 
       UIkit.modal('#modal-confirmar-asignacion').show();
@@ -593,6 +695,8 @@
 <script src="/js/vendor/jspdf.plugin.autotable.min.js"></script>
 
 <!-- Modal Solver de Optimización Automática -->
-<%- include('../../partials/modal-solver', { periodoId: periodo.id, periodoCodigo: periodo.codigo }) %>
+<% if (!soloLectura) { %>
+  <%- include('../../partials/modal-solver', { periodoId: periodo.id, periodoCodigo: periodo.codigo }) %>
+<% } %>
 
 

@@ -2,8 +2,9 @@ import {
   BLOQUES_HORARIOS_OFICIALES,
   BloqueHorarioOficial,
   timeToMinutes,
+  to12HourFormat,
 } from '../../core/domain/rules/timeSlotUtils';
-import { EvaluacionRegla } from '../../core/domain/rules/horarioConflictRules';
+import { EvaluacionRegla, claveCohorte } from '../../core/domain/rules/horarioConflictRules';
 import {
   AsignacionBloquePropuesta,
   BloqueOcupadoExistente,
@@ -44,10 +45,25 @@ export function evaluarSolucion(
   let costoDiasExcesivos = 0;
   let costoMismoDiaConcentrado = 0;
 
+  const mapaSecciones = new Map<string, SeccionSolverData>();
+  for (const sec of input.seccionesPendientes) {
+    mapaSecciones.set(sec.id, sec);
+  }
+
+  const mapaEspacios = new Map<string, EspacioSolverData>();
+  for (const esp of input.espacios) {
+    mapaEspacios.set(esp.id, esp);
+  }
+  const nombreDocente = (id: string) => input.docentes.get(id)?.nombreCompleto ?? 'sin nombre registrado';
+  const nombreSede = (id: string) => input.nombresSedes?.get(id) ?? id;
+
   // Unificamos bloques asignados propuestos con los bloques existentes ya fijados
   const todosLosBloques: {
     id: string;
     seccionId: string;
+    codigoSeccion: string;
+    grupoId: string | null;
+    grupoCodigo: string | null;
     profesorId: string | null;
     espacioFisicoId: string | null;
     sedeId: string;
@@ -59,6 +75,9 @@ export function evaluarSolucion(
     ...input.horariosExistentes.map((h) => ({
       id: h.id,
       seccionId: h.seccionId,
+      codigoSeccion: h.codigoSeccion ?? 'ya programada',
+      grupoId: h.grupoId || null,
+      grupoCodigo: h.grupoCodigo || null,
       profesorId: h.profesorId || null,
       espacioFisicoId: h.espacioFisicoId || null,
       sedeId: h.sedeId,
@@ -70,6 +89,9 @@ export function evaluarSolucion(
     ...propuestas.map((p) => ({
       id: `prop-${p.seccionId}-${p.bloqueIndice}`,
       seccionId: p.seccionId,
+      codigoSeccion: p.codigoSeccion,
+      grupoId: mapaSecciones.get(p.seccionId)?.grupoId || null,
+      grupoCodigo: mapaSecciones.get(p.seccionId)?.grupoCodigo || null,
       profesorId: p.profesorId,
       espacioFisicoId: p.espacioFisicoId,
       sedeId: p.sedeId,
@@ -83,23 +105,26 @@ export function evaluarSolucion(
   // 1. RESTRICCIONES DURAS
   // ----------------------------------------------------
   // H-01: No solapamiento de docente (mismo profesor, mismo día y horaInicio)
-  const ocupacionDocente = new Map<string, string[]>(); // key: `${profesorId}_${dia}_${horaInicio}` -> [seccionId]
+  const ocupacionDocente = new Map<string, string[]>(); // key: `${profesorId}_${dia}_${horaInicio}` -> [codigoSeccion]
   // H-02: No solapamiento de aula (mismo espacioFisico, mismo día y horaInicio)
-  const ocupacionAula = new Map<string, string[]>(); // key: `${espacioFisicoId}_${dia}_${horaInicio}` -> [seccionId]
-  // H-03: No solapamiento de sección (misma sección, mismo día y horaInicio)
-  const ocupacionSeccion = new Map<string, string[]>(); // key: `${seccionId}_${dia}_${horaInicio}` -> [bloqueId]
+  const ocupacionAula = new Map<string, string[]>(); // key: `${espacioFisicoId}_${dia}_${horaInicio}` -> [codigoSeccion]
+  // H-03: No solapamiento de cohorte (mismo grupo de estudiantes, mismo día y horaInicio)
+  const ocupacionSeccion = new Map<string, string[]>(); // key: `${cohorte}_${dia}_${horaInicio}` -> [codigoSeccion]
 
   for (const b of todosLosBloques) {
-    // H-03: Sección
-    const secKey = `${b.seccionId}_${b.dia}_${b.horaInicio}`;
+    const momento = `el ${b.dia} a las ${to12HourFormat(b.horaInicio)}`;
+
+    // H-03: Sección / Grupo
+    const secKey = `${claveCohorte(b)}_${b.dia}_${b.horaInicio}`;
     const secList = ocupacionSeccion.get(secKey) || [];
-    secList.push(b.id);
+    secList.push(b.codigoSeccion);
     ocupacionSeccion.set(secKey, secList);
     if (secList.length > 1) {
+      const cohorte = b.grupoCodigo ? `del grupo ${b.grupoCodigo}` : `de la sección ${b.codigoSeccion}`;
       violacionesDuras.push({
         valido: false,
         codigoRegla: 'H-03',
-        mensaje: `Conflicto H-03: La sección ${b.seccionId} tiene más de una clase en ${b.dia} a las ${b.horaInicio}.`,
+        mensaje: `Conflicto H-03: La cohorte ${cohorte} tiene más de una clase ${momento} (secciones ${secList.join(', ')}).`,
       });
     }
 
@@ -107,13 +132,13 @@ export function evaluarSolucion(
     if (b.profesorId) {
       const docKey = `${b.profesorId}_${b.dia}_${b.horaInicio}`;
       const docList = ocupacionDocente.get(docKey) || [];
-      docList.push(b.seccionId);
+      docList.push(b.codigoSeccion);
       ocupacionDocente.set(docKey, docList);
       if (docList.length > 1) {
         violacionesDuras.push({
           valido: false,
           codigoRegla: 'H-01',
-          mensaje: `Conflicto H-01: El docente ${b.profesorId} tiene asignaciones solapadas el ${b.dia} a las ${b.horaInicio}.`,
+          mensaje: `Conflicto H-01: El docente ${nombreDocente(b.profesorId)} tiene asignaciones solapadas ${momento} (secciones ${docList.join(', ')}).`,
         });
       }
     }
@@ -122,29 +147,20 @@ export function evaluarSolucion(
     if (b.espacioFisicoId) {
       const aulaKey = `${b.espacioFisicoId}_${b.dia}_${b.horaInicio}`;
       const aulaList = ocupacionAula.get(aulaKey) || [];
-      aulaList.push(b.seccionId);
+      aulaList.push(b.codigoSeccion);
       ocupacionAula.set(aulaKey, aulaList);
       if (aulaList.length > 1) {
+        const espacio = mapaEspacios.get(b.espacioFisicoId)?.codigo ?? 'sin código registrado';
         violacionesDuras.push({
           valido: false,
           codigoRegla: 'H-02',
-          mensaje: `Conflicto H-02: El espacio ${b.espacioFisicoId} está ocupado por múltiples secciones el ${b.dia} a las ${b.horaInicio}.`,
+          mensaje: `Conflicto H-02: El espacio ${espacio} está ocupado por varias secciones ${momento} (secciones ${aulaList.join(', ')}).`,
         });
       }
     }
   }
 
   // H-06, H-07, H-08 sobre cada propuesta individual
-  const mapaEspacios = new Map<string, EspacioSolverData>();
-  for (const esp of input.espacios) {
-    mapaEspacios.set(esp.id, esp);
-  }
-
-  const mapaSecciones = new Map<string, SeccionSolverData>();
-  for (const sec of input.seccionesPendientes) {
-    mapaSecciones.set(sec.id, sec);
-  }
-
   for (const p of propuestas) {
     const sec = mapaSecciones.get(p.seccionId);
     if (!sec) continue;
@@ -160,7 +176,7 @@ export function evaluarSolucion(
           violacionesDuras.push({
             valido: false,
             codigoRegla: 'H-06',
-            mensaje: `Conflicto H-06: El docente ${doc.nombreCompleto} no tiene disponibilidad para el ${p.dia} a las ${p.horaInicio}.`,
+            mensaje: `Conflicto H-06: El docente ${doc.nombreCompleto} no tiene disponibilidad para el ${p.dia} a las ${to12HourFormat(p.horaInicio)}.`,
           });
         } else if (disp.prioridadPreferencia === 3) {
           costoPreferencias += PESO_PREFERENCIA;
@@ -169,7 +185,13 @@ export function evaluarSolucion(
     }
 
     // H-07 y H-08: Aforo y Tipo de Espacio
-    if (p.espacioFisicoId) {
+    if (p.espacioFisicoId && sec.esProyectoComunitario) {
+      violacionesDuras.push({
+        valido: false,
+        codigoRegla: 'H-08',
+        mensaje: `Conflicto H-08: La sección ${sec.codigoSeccion} es Proyecto Comunitario (trabajo de campo) y no debe reservar aula física.`,
+      });
+    } else if (p.espacioFisicoId) {
       const esp = mapaEspacios.get(p.espacioFisicoId);
       if (esp) {
         // H-08 Tipo de espacio (Estricto: laboratorios no van a aulas teóricas ni campo)
@@ -240,10 +262,42 @@ export function evaluarSolucion(
           violacionesDuras.push({
             valido: false,
             codigoRegla: 'H-09',
-            mensaje: `Conflicto H-09: Traslado insuficiente (${tiempoTraslado} min < 90 min) para docente entre sede ${actual.sedeId} y ${siguiente.sedeId} en ${actual.dia}.`,
+            mensaje: `Conflicto H-09: Traslado insuficiente (${tiempoTraslado} min < 90 min) para el docente ${nombreDocente(actual.profesorId!)} entre las sedes ${nombreSede(actual.sedeId)} y ${nombreSede(siguiente.sedeId)} el ${actual.dia}.`,
           });
         }
       }
+    }
+  }
+
+  // Integridad de asignación semanal (Spec 03): cada sección pendiente recibe todos sus bloques.
+  // Sin esta regla un motor podría omitir secciones sin franja candidata y aun así reportar OPTIMAL.
+  const bloquesPorSeccion = new Map<string, number>();
+  for (const p of propuestas) {
+    bloquesPorSeccion.set(p.seccionId, (bloquesPorSeccion.get(p.seccionId) ?? 0) + 1);
+  }
+  for (const sec of input.seccionesPendientes) {
+    const asignados = bloquesPorSeccion.get(sec.id) ?? 0;
+    if (asignados >= sec.bloquesRequeridos) continue;
+    const doc = sec.profesorId ? input.docentes.get(sec.profesorId) : undefined;
+    const franjasDocente = doc ? doc.disponibilidades.filter((d) => d.disponible).length : null;
+    if (doc && franjasDocente === 0) {
+      violacionesDuras.push({
+        valido: false,
+        codigoRegla: 'H-06',
+        mensaje: `Sección ${sec.codigoSeccion} sin programar: el docente ${doc.nombreCompleto} no ha declarado disponibilidad horaria en el período.`,
+      });
+    } else if (doc && franjasDocente !== null && franjasDocente < sec.bloquesRequeridos) {
+      violacionesDuras.push({
+        valido: false,
+        codigoRegla: 'H-06',
+        mensaje: `Sección ${sec.codigoSeccion} incompleta: el docente ${doc.nombreCompleto} declaró ${franjasDocente} franjas disponibles y la materia requiere ${sec.bloquesRequeridos} bloques semanales.`,
+      });
+    } else {
+      violacionesDuras.push({
+        valido: false,
+        codigoRegla: 'INTEGRIDAD',
+        mensaje: `Sección ${sec.codigoSeccion} incompleta: recibió ${asignados} de ${sec.bloquesRequeridos} bloques semanales; no hay franja factible para el resto.`,
+      });
     }
   }
 

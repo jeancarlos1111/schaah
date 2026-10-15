@@ -6,17 +6,20 @@ import { RolUsuario } from '../../core/domain/enums';
 const router = Router();
 const espaciosController = new EspaciosController();
 
-const ROLES_GESTION_ESPACIOS = [
+const ROLES_LECTURA_ESPACIOS = [
   RolUsuario.ADMINISTRADOR,
   RolUsuario.DIRECTOR_ACADEMICO,
   RolUsuario.COORDINADOR_PFG,
 ];
 
+// Spec 06: el coordinador consulta sedes y aulas pero no las modifica
+const ROLES_GESTION_ESPACIOS = [RolUsuario.ADMINISTRADOR, RolUsuario.DIRECTOR_ACADEMICO];
+
 // Listado de Espacios y Sedes
 router.get(
   '/espacios',
   requireAuth,
-  requireRole(...ROLES_GESTION_ESPACIOS),
+  requireRole(...ROLES_LECTURA_ESPACIOS),
   (req, res) => espaciosController.index(req, res)
 );
 

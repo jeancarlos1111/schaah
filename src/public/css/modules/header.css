@@ -59,6 +59,19 @@
   margin-left: 2px;
 }
 
+.ubv-header-logo {
+  height: 38px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+}
+
+@media (max-width: 640px) {
+  .ubv-header-logo {
+    height: 30px;
+  }
+}
+
 /* Enlaces de Navegación Sleek */
 .header-nav {
   display: flex;

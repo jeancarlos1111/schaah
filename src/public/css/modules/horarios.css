@@ -214,6 +214,45 @@
   background-color: var(--accent-red-bg);
 }
 
+/* Bloque de otro programa (coordinador): ocupa docente/aula pero es de solo lectura */
+.horario-card-badge.bloque-ajeno {
+  cursor: not-allowed;
+  background-color: var(--canvas-bg);
+  border-style: dashed;
+  box-shadow: none;
+  opacity: 0.75;
+}
+
+.horario-card-badge.bloque-ajeno:hover {
+  transform: none;
+  background-color: var(--canvas-bg);
+}
+
+.horario-card-badge.bloque-ajeno .font-bold {
+  color: var(--text-muted);
+}
+
+.bloque-ajeno-pfg {
+  padding: 1px 4px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background-color: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+}
+
+.bloque-ajeno-etiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
 /* Columna Lateral: Secciones por Programar */
 .secciones-sidebar-card {
   background-color: var(--surface-card);
