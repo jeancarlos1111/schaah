@@ -135,7 +135,8 @@ describe('Matriz de horarios según el rol (controlador real sobre SQLite)', () 
     const capturada = await abrirMatriz(docenteSinFicha);
     expect(capturada.status).toBe(403);
     expect(capturada.vista).toBe('pages/error');
-    expect(capturada.locals.error).toMatch(/no está vinculada a una ficha docente/);
+    expect(capturada.locals.statusCode).toBe(403);
+    expect(capturada.locals.mensaje).toMatch(/no está vinculada a una ficha docente/);
     expect(capturada.redirect).toBeUndefined();
   });
 

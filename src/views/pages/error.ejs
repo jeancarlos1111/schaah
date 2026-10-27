@@ -3,9 +3,9 @@
     <div class="uk-text-danger uk-margin-small-bottom">
       <span uk-icon="icon: ban; ratio: 3"></span>
     </div>
-    <div class="uk-text-meta uk-text-bold">Código <%= statusCode %></div>
+    <div class="uk-text-meta uk-text-bold">Código <%= typeof statusCode !== 'undefined' ? statusCode : 500 %></div>
     <h2 class="uk-card-title uk-text-bold uk-margin-small-top"><%= title %></h2>
-    <p class="uk-text-muted"><%= mensaje %></p>
+    <p class="uk-text-muted"><%= typeof mensaje !== 'undefined' ? mensaje : (typeof error !== 'undefined' ? error : 'Ha ocurrido un error inesperado.') %></p>
     <div class="uk-margin-medium-top uk-flex uk-flex-center uk-grid-small" uk-grid>
       <div>
         <a href="/" class="uk-button uk-button-primary uk-border-rounded">

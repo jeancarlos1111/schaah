@@ -175,7 +175,8 @@ describe('Disponibilidad auditada y coordinador acotado a sus programas (control
     for (const profesorId of [ids.ana, ids.luis]) {
       const vista = await abrir(coordinador, profesorId);
       expect(vista.status).toBe(403);
-      expect(vista.locals.error).toMatch(/docentes con asignaciones de sus programas/);
+      expect(vista.locals.statusCode).toBe(403);
+      expect(vista.locals.mensaje).toMatch(/docentes con asignaciones de sus programas/);
 
       const capturada = await guardar(coordinador, profesorId, [lunes], 'Intento fuera de su programa');
       expect(capturada.status).toBe(403);

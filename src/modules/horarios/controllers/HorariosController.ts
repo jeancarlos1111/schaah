@@ -199,7 +199,8 @@ export class HorariosController {
         if (!profesorPropio) {
           return res.status(403).render('pages/error', {
             title: 'Cuenta sin docente vinculado',
-            error:
+            statusCode: 403,
+            mensaje:
               'Su cuenta no está vinculada a una ficha docente, por lo que no hay un horario que mostrar. Solicite a la Administración que la vincule.',
           });
         }

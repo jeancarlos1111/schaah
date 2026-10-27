@@ -341,7 +341,8 @@ export class DocentesController {
       console.error('[DOCENTES-INDEX-ERROR]', error);
       return res.status(500).render('pages/error', {
         title: 'Error de Servidor',
-        error: 'No se pudo cargar la nómina de docentes.',
+        statusCode: 500,
+        mensaje: 'No se pudo cargar la nómina de docentes.',
       });
     }
   }
@@ -575,7 +576,8 @@ export class DocentesController {
       if (!profesor) {
         return res.status(404).render('pages/error', {
           title: 'Perfil Docente No Encontrado',
-          error: 'Su cuenta de usuario no está asociada a ningún perfil docente en el sistema.',
+          statusCode: 404,
+          mensaje: 'Su cuenta de usuario no está asociada a ningún perfil docente en el sistema.',
         });
       }
 
@@ -600,7 +602,8 @@ export class DocentesController {
       if (!periodoActivo) {
         return res.status(404).render('pages/error', {
           title: 'Sin períodos abiertos',
-          error: 'No hay períodos académicos abiertos para registrar disponibilidad.',
+          statusCode: 404,
+          mensaje: 'No hay períodos académicos abiertos para registrar disponibilidad.',
         });
       }
 
@@ -608,7 +611,8 @@ export class DocentesController {
       if (!permiso.permitido) {
         return res.status(403).render('pages/error', {
           title: 'Acceso Denegado (RBAC)',
-          error:
+          statusCode: 403,
+          mensaje:
             usuario?.rol === RolUsuario.COORDINADOR_PFG
               ? 'Solo puede consultar y modificar la disponibilidad de los docentes con asignaciones de sus programas en el período.'
               : 'No tiene autorización para consultar ni modificar la disponibilidad de otros docentes.',
@@ -636,7 +640,8 @@ export class DocentesController {
       if (!profesor) {
         return res.status(404).render('pages/error', {
           title: 'Docente no encontrado',
-          error: 'El docente solicitado no existe en el sistema.',
+          statusCode: 404,
+          mensaje: 'El docente solicitado no existe en el sistema.',
         });
       }
 
@@ -691,7 +696,8 @@ export class DocentesController {
       console.error('[DOCENTES-DISPONIBILIDAD-ERROR]', error);
       return res.status(500).render('pages/error', {
         title: 'Error de Disponibilidad',
-        error: 'No se pudo cargar la matriz horaria del docente.',
+        statusCode: 500,
+        mensaje: 'No se pudo cargar la matriz horaria del docente.',
       });
     }
   }
@@ -716,7 +722,8 @@ export class DocentesController {
       if (!permiso.permitido) {
         return res.status(403).render('pages/error', {
           title: 'Acceso Denegado (RBAC)',
-          error: 'No tiene autorización para modificar la disponibilidad de este docente.',
+          statusCode: 403,
+          mensaje: 'No tiene autorización para modificar la disponibilidad de este docente.',
         });
       }
 
@@ -922,7 +929,8 @@ export class DocentesController {
       console.error('[DOCENTES-CARGA-CONSOLIDADA-ERROR]', error);
       return res.status(500).render('pages/error', {
         title: 'Error de Consolidación',
-        error: 'No se pudo generar la planilla de carga docente.',
+        statusCode: 500,
+        mensaje: 'No se pudo generar la planilla de carga docente.',
       });
     }
   }
