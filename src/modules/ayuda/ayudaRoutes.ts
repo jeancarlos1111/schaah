@@ -1,5 +1,9 @@
 import express, { Request, Response, Router } from 'express';
-import { cargarManualUsuario, DIRECTORIO_IMAGENES_MANUAL } from './manualRenderer';
+import {
+  cargarManualTecnico,
+  cargarManualUsuario,
+  DIRECTORIO_IMAGENES_MANUAL,
+} from './manualRenderer';
 
 const router = Router();
 
@@ -14,12 +18,15 @@ export function manualUsuario(req: Request, res: Response) {
   });
 }
 
-router.get('/ayuda/manual-usuario', manualUsuario);
-
-router.get('/ayuda/manual-tecnico', (req: Request, res: Response) => {
+export function manualTecnico(req: Request, res: Response) {
+  const manual = cargarManualTecnico();
   res.render('pages/ayuda/manual-tecnico', {
     title: 'Manual Técnico',
+    manual,
   });
-});
+}
+
+router.get('/ayuda/manual-usuario', manualUsuario);
+router.get('/ayuda/manual-tecnico', manualTecnico);
 
 export default router;

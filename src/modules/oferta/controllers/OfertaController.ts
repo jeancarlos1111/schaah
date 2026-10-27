@@ -306,7 +306,7 @@ export class OfertaController {
         filas: tabla.filas,
         pagination: tabla.pagination,
         filters: { q, sortBy: tabla.sortBy ?? '', sortDir, limit: tabla.pagination.limit },
-        puedeEditarCodigos: ['ADMINISTRADOR', 'DIRECTOR_ACADEMICO', 'COORDINADOR_PFG'].includes(rol),
+        puedeEditarCodigos: ['ADMINISTRADOR', 'PLANIFICADOR', 'DIRECTOR_ACADEMICO', 'COORDINADOR_PFG'].includes(rol),
         mensaje: req.query.msg || null,
         error: req.query.error || null,
       });

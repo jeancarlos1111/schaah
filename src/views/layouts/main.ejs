@@ -63,9 +63,12 @@
             <a href="/usuarios" class="nav-link <%= (title.includes('Usuarios') || title.includes('Roles')) ? 'is-active' : '' %>">
               Usuarios
             </a>
+            <a href="/auditoria" class="nav-link <%= title.includes('Auditoría') ? 'is-active' : '' %>">
+              Auditoría
+            </a>
           <% } %>
 
-          <% if (usuario.rol === 'ADMINISTRADOR' || usuario.rol === 'DIRECTOR_ACADEMICO' || usuario.rol === 'COORDINADOR_PFG') { %>
+          <% if (usuario.rol === 'ADMINISTRADOR' || usuario.rol === 'PLANIFICADOR' || usuario.rol === 'DIRECTOR_ACADEMICO' || usuario.rol === 'COORDINADOR_PFG') { %>
             <a href="/curriculo" class="nav-link <%= title.includes('Mallas') || title.includes('Currículo') ? 'is-active' : '' %>">
               Mallas
             </a>

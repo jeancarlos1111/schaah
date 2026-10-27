@@ -139,7 +139,7 @@ describe('Disponibilidad auditada y coordinador acotado a sus programas (control
     expect(ultimo.fecha).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} (AM|PM)$/);
     expect(ultimo).toMatchObject({
       responsable: 'director academico',
-      rol: 'Director Académico',
+      rol: 'Planificador',
       quitadas: ['MARTES 01:30 PM'],
       cambiosPrioridad: ['LUNES 07:30 AM (P1 a P3)'],
     });

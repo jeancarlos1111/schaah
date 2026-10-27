@@ -10,14 +10,15 @@ import { UsuarioSesion, parametroRedireccion, peticion, respuesta } from '../hel
 
 const VISTA_MATRIZ = path.join(RAIZ_PROYECTO, 'src/views/pages/horarios/matriz.ejs');
 
-describe('Roles que programan horarios', () => {
-  it('administrador, director y coordinador programan; el docente solo consulta', () => {
+describe('Roles que programan horarios (Spec 06 y Fase 3)', () => {
+  it('administrador y planificador programan espacios/horarios; coordinador y docente consultan en modo lectura', () => {
     expect(ROLES_PROGRAMACION_HORARIOS).toEqual([
       RolUsuario.ADMINISTRADOR,
-      RolUsuario.DIRECTOR_ACADEMICO,
-      RolUsuario.COORDINADOR_PFG,
+      RolUsuario.PLANIFICADOR,
     ]);
-    expect(puedeProgramarHorarios(RolUsuario.DIRECTOR_ACADEMICO)).toBe(true);
+    expect(puedeProgramarHorarios(RolUsuario.ADMINISTRADOR)).toBe(true);
+    expect(puedeProgramarHorarios(RolUsuario.PLANIFICADOR)).toBe(true);
+    expect(puedeProgramarHorarios(RolUsuario.COORDINADOR_PFG)).toBe(false);
     expect(puedeProgramarHorarios(RolUsuario.DOCENTE)).toBe(false);
     expect(puedeProgramarHorarios(undefined)).toBe(false);
   });
@@ -173,5 +174,18 @@ describe('Matriz de horarios según el rol (controlador real sobre SQLite)', () 
     expect(plantilla).toContain("card.querySelector('.seccion-code')");
     const tarjetas = plantilla.match(/<span class="seccion-code[^"]*"[^>]*><%= bloqueData\.codigoSeccion %><\/span>/g) ?? [];
     expect(tarjetas).toHaveLength(3);
+  });
+
+  it('el coordinador consulta la matriz en modo solo lectura (asignación de espacios es potestad de planificador)', async () => {
+    const f = fabrica(base.prisma);
+    const coordinador = await f.usuario('coord.info@ubv.edu.ve', RolUsuario.COORDINADOR_PFG);
+    const capturada = await abrirMatriz(coordinador, { tipo: 'DOCENTE', id: ids.carlos });
+    expect(capturada.locals.soloLectura).toBe(true);
+    expect(capturada.locals.matrizMap.LUNES['07:30'].editable).toBe(false);
+
+    const html = await ejs.renderFile(VISTA_MATRIZ, capturada.locals);
+    expect(html).not.toContain('Optimizar Vacantes');
+    expect(html).not.toContain('id="modal-solver"');
+    expect(html).not.toContain('draggable="true"');
   });
 });

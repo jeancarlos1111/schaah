@@ -35,15 +35,19 @@
           Uso de la Matriz Semanal de Horarios
         </h4>
         <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
-          La matriz representa los días laborables de lunes a sábado organizados en bloques académicos oficiales de 45 y 90 minutos en formato civil de 12 horas (AM/PM).
+          La matriz representa los días laborables de lunes a sábado en bloques académicos oficiales de 90 minutos, con horario en formato civil de 12 horas (AM/PM).
+        </p>
+        <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin-top: 8px;">
+          <strong>Quién programa:</strong> solo el Administrador y el Planificador arrastran bloques y ejecutan el optimizador.
+          El Coordinador de PFG y el Docente consultan en modo solo lectura; el Docente ve únicamente su propio horario.
         </p>
         
         <div class="uk-grid-small uk-child-width-1-2@s uk-margin-small-top" uk-grid>
           <div>
             <div style="background: var(--surface-muted); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle);">
-              <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-white);">Filtro y Discriminación por P.F.G.</span>
+              <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-white);">Filtro por P.F.G.</span>
               <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; margin-bottom: 0;">
-                Permite aislar la matriz para visualizar exclusivamente las secciones y aulas asignadas al Programa de Formación de Grado seleccionado.
+                En roles de planificación, aisla la matriz a las secciones del programa seleccionado. El Docente no usa este filtro: su vista está fijada a su ficha.
               </p>
             </div>
           </div>
@@ -51,7 +55,7 @@
             <div style="background: var(--surface-muted); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle);">
               <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-white);">Ajuste Manual con Auditoría</span>
               <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; margin-bottom: 0;">
-                Cada cambio de horario valida en tiempo real la disponibilidad docente, solapamiento de espacio y emite registro formal en el libro de auditoría.
+                Cada movimiento válido (Admin / Planificador) valida restricciones duras en tiempo real y deja registro de auditoría antes de guardar.
               </p>
             </div>
           </div>
@@ -142,7 +146,7 @@
               <span uk-icon="icon: user; ratio: 1.5" style="color: var(--brand-ubv);"></span>
               <h5 style="margin: 8px 0 4px; font-weight: 700; color: var(--text-white); font-size: 0.92rem;">Manual de Usuario</h5>
               <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px;">
-                Guía completa para directores, coordinadores y profesores sobre todas las funciones visuales y operativas.
+                Guía completa para Administrador, Planificador, Coordinador de PFG y Docente, con capturas del sistema.
               </p>
               <a href="/ayuda/manual-usuario" target="_blank" class="btn-clean-primary" style="font-size: 0.8rem; padding: 6px 14px; text-decoration: none;">
                 <span uk-icon="icon: file-text; ratio: 0.8"></span>

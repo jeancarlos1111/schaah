@@ -1,7 +1,7 @@
 # Manual Técnico de Arquitectura y Desarrollo — SAHAD UBV
 **Sistema Automatizado para la Asignación de Horarios Académicos de los Docentes**  
 **Universidad Bolivariana de Venezuela (UBV) — Eje Geopolítico Regional Kerepakupai Vena**  
-*Versión: 2.1 — Octubre 2026*
+*Versión: 2.3 — Octubre 2026*
 
 ---
 
@@ -67,6 +67,23 @@ graph TD
 - **`H-07` No Solapamiento de Prelaciones Curriculares**: Dos secciones de un mismo PFG y turno con relación de prelación directa no deben colisionar en franja horaria.
 - **`H-08` Adecuación Espacial de Proyecto**: Unidades marcadas como Proyecto Comunitario no reservan aula física de campus (validador, matriz, motores genético y CP-SAT y evaluador).
 - **`H-09` Antiteletransportación Inter-Sede**: Se impone un intervalo mínimo de 90 minutos para traslados físicos de docentes entre sedes o aldeas no colindantes.
+- **`H-10` Integridad del bloque curricular**: Unidades en bloques continuos de 90 o 135 minutos.
+- **`H-13` Reserva institucional de los martes**: Martes 10:45 AM–12:15 PM reservado; no se programa clase.
+- **`H-14` Bloque fijo de Liderazgo**: Liderazgo I/II en bloques fijos de los jueves.
+- **`H-ACCESIBILIDAD-PISO` / `H-DIAS-DISPONIBILIDAD`**: Piso máximo del docente vs nivel del aula; exactamente tres días hábiles acordados.
+
+### 3.1.1 RBAC y privilegios operativos (Spec 06)
+
+Roles vigentes: `ADMINISTRADOR`, `PLANIFICADOR` (alias legado `DIRECTOR_ACADEMICO` → mismo privilegio), `COORDINADOR_PFG`, `DOCENTE`.
+
+| Capacidad | Dónde se aplica |
+| :--- | :--- |
+| Programación de matriz y solver | Solo Admin y Planificador (`ROLES_PROGRAMACION_HORARIOS` / `puedeProgramarHorarios`). El Coordinador ve la matriz en solo lectura. |
+| Bitácora global `/auditoria` | Solo Admin (`AuditService` + `auditoriaRoutes`). |
+| Toggles activar/desactivar (docentes, PFG, UC, espacios) | Solo Admin en rutas y en la UI (`usuario.rol === 'ADMINISTRADOR'`). |
+| Disponibilidad de terceros | `permisoDisponibilidad`: Admin y Planificador (cualquier docente, motivo obligatorio); Coordinador (docentes de sus programas en el período, con motivo); Docente (solo la suya, sin motivo). |
+| Prioridad de adscripción al asignar docente | `compararDocentesParaAsignacion` en `adscripcionRules.ts` y el picker de `secciones.ejs`: primero el profesor actual, luego adscritos al PFG de la UC, luego carga dentro de norma y nombre. |
+| Ventana de oferta | `ofertaWorkflowRules.ts`: Coordinador escribe solo en *Borrador* / *Registro de Ofertas* / *Planificación*; fuera de esa ventana (salvo período cerrado) Admin y Planificador pueden ajustar. |
 
 ### 3.2 Reglas de Dominio Curricular ($RC$)
 - **`RC-01` Unicidad**: Código de UC único por PFG.
@@ -99,15 +116,18 @@ sahad/
 │   │   ├── espacios/          # Sedes y aulas físicas
 │   │   ├── horarios/          # Matriz semanal, Drag & Drop y filtros PFG
 │   │   ├── periodos/          # Períodos lectivos y secciones
-│   │   └── solver/            # Motor de optimización CP-SAT
+│   │   ├── auditoria/         # Bitácora global (solo Administrador)
+│   │   └── solver/            # Motor de optimización CP-SAT / genético
 │   ├── public/                # Recursos estáticos (CSS modular, JS, SVG logos)
 │   ├── server.ts              # Punto de entrada de la aplicación Express
 │   └── views/                 # Plantillas EJS y componentes parciales
 └── tests/                     # Suite de pruebas automatizadas con Vitest
     ├── acceptance/            # Pasos de la Spec 05 (un archivo por Regla)
+    ├── auditoria/             # Acceso a la bitácora
     ├── database/              # Respaldo SQLite
     ├── domain/                # Pruebas reales de reglas de negocio
     ├── helpers/               # Base SQLite efímera, peticiones Express mínimas y fábricas
+    ├── roles/                 # Permisos del Planificador y límites de toggles
     └── oferta/                # Importación, exportación e inconsistencias
 ```
 
@@ -130,6 +150,8 @@ Conforme a la directriz `AGENTS.md`:
 
 ## 6. Procedimiento de Instalación y Despliegue
 
+### 6.1 Entorno local (desarrollo)
+
 ```bash
 # 1. Clonar repositorio y entrar al directorio
 cd sahad
@@ -150,16 +172,103 @@ npx tsx src/scripts/seedAdmin.ts
 # 6. Iniciar servidor de desarrollo
 pnpm dev
 
-# 7. Compilar para producción
+# 7. Compilar (TypeScript no copia vistas ni estáticos)
 pnpm build
+cp -r src/views src/public dist/
 pnpm start
 ```
+
+### 6.2 Servidor de pruebas (staging)
+
+Instancia operativa del Eje Kerepakupai Vena usada para validación previa a producción.
+
+| Elemento | Valor |
+|---|---|
+| Acceso público | `http://185.193.66.108` |
+| Código en el servidor | `/root/www/node/schaah` |
+| Repositorio remoto | `https://github.com/jeancarlos1111/schaah.git` |
+| Runtime | Node.js 22 + pnpm 10.33 |
+| Persistencia | SQLite (`prisma/dev.db`, modo WAL) |
+| Proceso | PM2, nombre `sahad` (`dist/server.js`, `--env-file=.env`) |
+| Proxy HTTP | Nginx en el puerto 80 → `127.0.0.1:3000` (`client_max_body_size 20m` para Excel de oferta) |
+| Firewall | Solo SSH (22) y HTTP (80); el puerto 3000 no es público |
+| Arranque al reinicio | `pm2-root.service` (systemd) |
+
+Variables en `/root/www/node/schaah/.env` (permisos `600`):
+
+```bash
+PORT=3000
+NODE_ENV=staging
+DATABASE_URL="file:./dev.db"
+SESSION_SECRET="<aleatorio de openssl rand -hex 32>"
+```
+
+`NODE_ENV` debe ser `staging` mientras el sitio se sirva por HTTP sin TLS. Con `production`, Express marca la cookie de sesión como `secure` y el navegador no la guarda en HTTP plano, de modo que el inicio de sesión falla. Cuando exista dominio con HTTPS (`certbot --nginx`), pasar a `NODE_ENV=production`.
+
+Tras `pnpm build` hay que copiar `src/views` y `src/public` a `dist/`: el compilador TypeScript no las incluye y el servidor las resuelve desde `__dirname` en `dist/`.
+
+Comandos de operación habituales:
+
+```bash
+pm2 status
+pm2 logs sahad
+pm2 restart sahad --update-env
+curl -fsS http://127.0.0.1:3000/health
+curl -fsS http://185.193.66.108/health
+```
+
+### 6.3 Redespliegue desde GitHub
+
+El script `/root/www/node/redesplegar-sahad.sh` actualiza el código en el servidor de pruebas sin tocar la base ni el `.env` (ambos están en `.gitignore`). Debe ejecutarse como `root` en el servidor:
+
+```bash
+/root/www/node/redesplegar-sahad.sh
+```
+
+Secuencia que ejecuta:
+
+1. Respaldo de la base con `pnpm db:respaldo` (queda en `backups/`).
+2. `git pull --ff-only` desde `origin/main`.
+3. `pnpm install --frozen-lockfile`, `pnpm prisma:generate` y `pnpm build`.
+4. Copia de `src/views` y `src/public` a `dist/`.
+5. `pm2 restart sahad --update-env`, `pm2 save` y comprobación de `/health`.
+
+Contenido de referencia del script:
+
+```bash
+#!/usr/bin/env bash
+# Actualiza SAHAD-UBV desde GitHub y reinicia el proceso PM2 "sahad".
+# La base prisma/dev.db y el .env no se tocan (están en .gitignore).
+set -euo pipefail
+cd /root/www/node/schaah
+export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 CI=true
+
+pnpm db:respaldo
+git pull --ff-only
+pnpm install --frozen-lockfile
+pnpm prisma:generate
+pnpm build
+rm -rf dist/views dist/public
+cp -r src/views src/public dist/
+pm2 restart sahad --update-env
+pm2 save
+sleep 3
+curl -fsS http://127.0.0.1:3000/health && echo
+```
+
+Flujo recomendado desde el puesto de desarrollo:
+
+1. Commit y `git push` a `main` en GitHub.
+2. En el servidor: `/root/www/node/redesplegar-sahad.sh`.
+3. Verificar login y una matriz de horarios en `http://185.193.66.108`.
+
+Para restaurar un respaldo: detener el proceso (`pm2 stop sahad`), copiar el archivo de `backups/` sobre `prisma/dev.db`, eliminar `prisma/dev.db-wal` y `prisma/dev.db-shm` si existen, y `pm2 start sahad`.
 
 ---
 
 ## 7. Manual de Usuario y sus Capturas
 
-`docs/MANUAL_USUARIO.md` es la única fuente del manual. La ruta `/ayuda/manual-usuario` lo convierte a HTML con `marked` (`src/modules/ayuda/manualRenderer.ts`: índice a partir de los encabezados de nivel 2 y 3, capturas con la clase `.manual-captura`, tablas con `.clean-table`) y publica `docs/img` bajo `/ayuda/img`, de modo que las rutas relativas `img/manual/NN-modulo-accion.png` funcionan igual en el repositorio y en el sistema.
+`docs/MANUAL_USUARIO.md` (v3.5) es la única fuente del manual de usuario; este documento técnico va en v2.3. La ruta `/ayuda/manual-usuario` lo convierte a HTML con `marked` (`src/modules/ayuda/manualRenderer.ts`: índice a partir de los encabezados de nivel 2 y 3, capturas con la clase `.manual-captura`, tablas con `.clean-table`) y publica `docs/img` bajo `/ayuda/img`, de modo que las rutas relativas `img/manual/NN-modulo-accion.png` funcionan igual en el repositorio y en el sistema. El recorrido `pnpm manual:capturas` inicia sesión con cada rol: Admin (usuarios, auditoría, docentes con Suspender), Planificador (catálogos, oferta, solver, matriz editable), Coordinador (tablero, mallas, oferta y matriz solo lectura) y Docente (tablero, disponibilidad y su horario).
 
 Para regenerar las capturas sin tocar `prisma/dev.db`:
 

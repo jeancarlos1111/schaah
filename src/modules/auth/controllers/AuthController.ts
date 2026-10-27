@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { authService } from '../services/AuthService';
+import { AuditService } from '../../../core/audit/auditService';
 
 export class AuthController {
   showLogin(req: Request, res: Response) {
@@ -28,6 +29,19 @@ export class AuthController {
       }
 
       const usuario = await authService.validarCredenciales(email, password);
+
+      // Registrar evento de login en bitácora de auditoría
+      await AuditService.registrar({
+        usuarioId: usuario.id,
+        usuarioEmail: usuario.email,
+        usuarioNombre: `${usuario.nombres} ${usuario.apellidos}`,
+        rol: usuario.rol,
+        accion: 'LOGIN',
+        entidad: 'USUARIO',
+        entidadId: usuario.id,
+        detalles: `Inicio de sesión exitoso`,
+        ip: req.ip || req.socket?.remoteAddress || null,
+      });
 
       // Guardar en sesión
       req.session.usuario = usuario;

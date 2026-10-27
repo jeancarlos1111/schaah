@@ -210,6 +210,13 @@
 <script>
   let solverUltimoResultado = null;
   const periodoIdActivo = '<%= periodoId %>';
+  const solverPfgId = <%- JSON.stringify(typeof filtroPfgId !== 'undefined' && filtroPfgId ? filtroPfgId : null) %>;
+
+  function solverUrl(ruta) {
+    const base = '/periodos/' + periodoIdActivo + '/solver/' + ruta;
+    if (!solverPfgId) return base;
+    return base + (base.includes('?') ? '&' : '?') + 'pfgId=' + encodeURIComponent(solverPfgId);
+  }
 
   async function abrirModalSolver() {
     UIkit.modal('#modal-solver').show();
@@ -219,7 +226,7 @@
     document.getElementById('solver-step-success').classList.add('uk-hidden');
 
     try {
-      const res = await fetch('/periodos/' + periodoIdActivo + '/solver/diagnostico', {
+      const res = await fetch(solverUrl('diagnostico'), {
         headers: { 'Accept': 'application/json' }
       });
       const data = await res.json();
@@ -293,7 +300,7 @@
     }
 
     try {
-      const res = await fetch('/periodos/' + periodoIdActivo + '/solver/ejecutar', {
+      const res = await fetch(solverUrl('ejecutar'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -304,6 +311,7 @@
           autoAplicar,
           maxGeneraciones,
           tamanoPoblacion,
+          ...(solverPfgId ? { pfgId: solverPfgId } : {}),
         }),
       });
 
@@ -392,7 +400,7 @@
     btn.innerHTML = '<span uk-spinner="ratio: 0.7"></span> Guardando...';
 
     try {
-      const res = await fetch('/periodos/' + periodoIdActivo + '/solver/aplicar', {
+      const res = await fetch(solverUrl('aplicar'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -400,6 +408,7 @@
         },
         body: JSON.stringify({
           propuesta: solverUltimoResultado,
+          ...(solverPfgId ? { pfgId: solverPfgId } : {}),
         }),
       });
 

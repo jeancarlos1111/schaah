@@ -123,6 +123,7 @@ model EspacioFisico {
   tipo      String   @default("AULA_TEORICA")
   capacidad Int
   piso      String?
+  pisoNivel Int      @default(0) @map("piso_nivel")
   activo    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -145,6 +146,7 @@ model ProgramaFormacion {
   unidadesCurriculares UnidadCurricular[]
   grupos               GrupoSeccion[]
   coordinadores        UsuarioPrograma[]
+  profesoresAdscritos  Profesor[]          @relation("DocentesAdscritos")
 
   @@map("programas_formacion")
 }
@@ -221,11 +223,16 @@ model Profesor {
   estudiosCuartoNivel String?        @map("estudios_cuarto_nivel")
   anioIngreso         Int?           @map("anio_ingreso")
   anioConcurso        Int?           @map("anio_concurso")
-  centroEstudioId     String?        @map("centro_estudio_id")
-  centroEstudio       CentroEstudio? @relation(fields: [centroEstudioId], references: [id], onDelete: SetNull)
-  activo              Boolean        @default(true)
-  createdAt           DateTime       @default(now()) @map("created_at")
-  updatedAt           DateTime       @updatedAt @map("updated_at")
+  centroEstudioId     String?            @map("centro_estudio_id")
+  centroEstudio       CentroEstudio?     @relation(fields: [centroEstudioId], references: [id], onDelete: SetNull)
+  pfgAdscripcionId    String?            @map("pfg_adscripcion_id")
+  pfgAdscripcion      ProgramaFormacion? @relation("DocentesAdscritos", fields: [pfgAdscripcionId], references: [id], onDelete: SetNull)
+  pisoMaximo          Int?               @map("piso_maximo") // 0 = PB, 1 = Piso 1, etc. null = Sin restricción
+  motivoRestriccionPiso String?          @map("motivo_restriccion_piso") // DISCAPACIDAD, SALUD, POSTOPERATORIO
+  diasDisponibles     String?            @map("dias_disponibles") // JSON con exactamente 3 días acordados ej. ["LUNES","MARTES","JUEVES"]
+  activo              Boolean            @default(true)
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
 
   usuario                  Usuario?
   dedicaciones             ProfesorDedicacion[]
@@ -398,3 +405,26 @@ model AuditoriaDisponibilidad {
   @@index([profesorId, periodoId])
   @@map("auditoria_disponibilidad")
 }
+
+// Historial global de auditoría para supervisión administrativa exclusiva
+model BitacoraAuditoria {
+  id              String   @id @default(uuid())
+  usuarioId       String?  @map("usuario_id")
+  usuarioEmail    String   @map("usuario_email")
+  usuarioNombre   String   @map("usuario_nombre")
+  rol             String
+  accion          String   // CREAR, EDITAR, ELIMINAR, ACTIVAR, DESACTIVAR, LOGIN
+  entidad         String   // USUARIOS, ROLES, ESPACIOS, DOCENTES, SECCIONES, HORARIOS, PERIODOS, MALLAS, OFERTA, DISPONIBILIDAD
+  entidadId       String?  @map("entidad_id")
+  detalles        String?
+  datosAnteriores String?  @map("datos_anteriores")
+  datosNuevos     String?  @map("datos_nuevos")
+  ip              String?
+  fecha           DateTime @default(now())
+
+  @@index([fecha])
+  @@index([entidad])
+  @@index([usuarioEmail])
+  @@map("bitacora_auditoria")
+}
+

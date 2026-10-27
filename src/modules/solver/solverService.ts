@@ -114,6 +114,16 @@ export class SolverService {
     const docentesMap = new Map<string, DocenteSolverData>();
     for (const p of profesoresRaw) {
       const ded = p.dedicaciones[0];
+      let diasDisponiblesArray: string[] | null = null;
+      if (p.diasDisponibles) {
+        try {
+          const parsed = JSON.parse(p.diasDisponibles);
+          if (Array.isArray(parsed)) diasDisponiblesArray = parsed;
+        } catch {
+          diasDisponiblesArray = p.diasDisponibles.split(',').map((d) => d.trim());
+        }
+      }
+
       docentesMap.set(p.id, {
         id: p.id,
         cedula: p.cedula,
@@ -122,6 +132,9 @@ export class SolverService {
         minHorasDocenciaDirecta: ded?.minHorasDocenciaDirecta,
         maxHorasDocenciaDirecta: ded?.maxHorasDocenciaDirecta,
         sedePrincipalId: ded?.sedeAdscripcionPrincipalId,
+        pisoMaximo: p.pisoMaximo,
+        motivoRestriccionPiso: p.motivoRestriccionPiso,
+        diasDisponibles: diasDisponiblesArray,
         disponibilidades: p.disponibilidades.map((d) => ({
           dia: d.dia,
           horaInicio: d.horaInicio,
@@ -144,6 +157,8 @@ export class SolverService {
       tipo: e.tipo,
       capacidad: e.capacidad,
       sedeId: e.sedeId,
+      piso: e.piso,
+      pisoNivel: e.pisoNivel ?? 0,
       activa: e.activo,
     }));
 

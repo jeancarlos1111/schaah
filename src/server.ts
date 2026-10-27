@@ -13,6 +13,7 @@ import horarioRoutes from './modules/horarios/horarioRoutes';
 import solverRoutes from './modules/solver/solverRoutes';
 import curriculoRoutes from './modules/curriculo/curriculoRoutes';
 import ofertaRoutes from './modules/oferta/ofertaRoutes';
+import auditoriaRoutes from './modules/auditoria/auditoriaRoutes';
 import ayudaRoutes from './modules/ayuda/ayudaRoutes';
 import normativaRoutes from './modules/normativa/normativaRoutes';
 import { tablero } from './modules/tablero/TableroController';
@@ -73,6 +74,7 @@ app.use(horarioRoutes);
 app.use(solverRoutes);
 app.use(curriculoRoutes);
 app.use(ofertaRoutes);
+app.use(auditoriaRoutes);
 
 // Documentación y Manuales Oficiales
 app.use(ayudaRoutes);

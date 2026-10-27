@@ -7,10 +7,12 @@ import ejs from 'ejs';
 import express from 'express';
 import type { Request } from 'express';
 import { RolUsuario } from '../../src/core/domain/enums';
-import ayudaRoutes, { manualUsuario } from '../../src/modules/ayuda/ayudaRoutes';
+import ayudaRoutes, { manualTecnico, manualUsuario } from '../../src/modules/ayuda/ayudaRoutes';
 import {
   DIRECTORIO_IMAGENES_MANUAL,
+  RUTA_MANUAL_TECNICO,
   RUTA_MANUAL_USUARIO,
+  cargarManualTecnico,
   cargarManualUsuario,
   imagenesDelManual,
   renderizarManual,
@@ -20,10 +22,14 @@ import { respuesta } from '../helpers/peticiones';
 
 const RAIZ = path.resolve(__dirname, '../..');
 const VISTA_MANUAL = path.join(RAIZ, 'src/views/pages/ayuda/manual-usuario.ejs');
+const VISTA_TECNICO = path.join(RAIZ, 'src/views/pages/ayuda/manual-tecnico.ejs');
+const MODAL_AYUDA = path.join(RAIZ, 'src/views/partials/modal-ayuda.ejs');
 const FIRMA_PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 const markdown = readFileSync(RUTA_MANUAL_USUARIO, 'utf8');
 const manual = cargarManualUsuario();
+const markdownTecnico = readFileSync(RUTA_MANUAL_TECNICO, 'utf8');
+const tecnico = cargarManualTecnico();
 
 /** Texto de una sección de nivel 2 (desde su encabezado hasta el siguiente de nivel 2). */
 function seccion(numero: number): string {
@@ -94,7 +100,7 @@ describe('Manual de usuario: contenido por rol y por módulo', () => {
     const cabecera = seccion(3)
       .split('\n')
       .find((l) => l.startsWith('| Acción'));
-    expect(cabecera).toBe('| Acción | Administrador | Director Académico | Coordinador de PFG | Docente |');
+    expect(cabecera).toBe('| Acción | Administrador | Planificador | Coordinador de PFG | Docente |');
   });
 
   it('dedica una sección con captura a cada módulo del menú', () => {
@@ -112,7 +118,23 @@ describe('Manual de usuario: contenido por rol y por módulo', () => {
       .split('\n')
       .filter((l) => l.startsWith('| **'));
     const codigos = filas.map((l) => l.match(/^\| \*\*([A-Z0-9-]+)\*\*/)?.[1]);
-    expect(codigos).toEqual(['H-01', 'H-02', 'H-03', 'H-04', 'H-05', 'H-06', 'H-07', 'H-08', 'H-09', 'INTEGRIDAD']);
+    expect(codigos).toEqual([
+      'H-01',
+      'H-02',
+      'H-03',
+      'H-04',
+      'H-05',
+      'H-06',
+      'H-07',
+      'H-08',
+      'H-09',
+      'H-10',
+      'H-13',
+      'H-14',
+      'H-ACCESIBILIDAD-PISO',
+      'H-DIAS-DISPONIBILIDAD',
+      'INTEGRIDAD',
+    ]);
     for (const fila of filas) {
       const [, , significado, accion] = fila.split('|').map((c) => c.trim());
       expect(significado.length).toBeGreaterThan(20);
@@ -122,6 +144,47 @@ describe('Manual de usuario: contenido por rol y por módulo', () => {
 
   it('muestra los horarios en formato civil de 12 horas', () => {
     expect(markdown).not.toMatch(/\b(1[3-9]|2[0-3]):[0-5]\d\b/);
+  });
+
+  it('deja explícito que el Docente solo consulta su propio horario en la matriz', () => {
+    const docente = seccion(4).split('\n### ').find((s) => s.startsWith('4.4 Docente'));
+    expect(docente).toBeDefined();
+    expect(docente!).toMatch(/solo su (propio )?horario/i);
+    expect(docente!).toMatch(/Solo puede consultar su propio horario/);
+    expect(docente!).toMatch(/no aparecen el optimizador/i);
+    expect(docente!).toMatch(/sin solver/i);
+  });
+});
+
+describe('Centro de ayuda en línea y manual técnico', () => {
+  it('el modal de ayuda nombra Planificador y no Director Académico como rol vigente', () => {
+    const modal = readFileSync(MODAL_AYUDA, 'utf8');
+    expect(modal).toMatch(/Planificador/);
+    expect(modal).not.toMatch(/directores/i);
+    expect(modal).not.toMatch(/Director Académico/);
+    expect(modal).toMatch(/solo lectura|únicamente su propio horario/i);
+  });
+
+  it('el manual técnico se carga desde docs/MANUAL_TECNICO.md y menciona Planificador y H-13', () => {
+    expect(tecnico.titulo).toMatch(/Manual Técnico/);
+    expect(markdownTecnico).toMatch(/PLANIFICADOR/);
+    expect(markdownTecnico).toMatch(/H-13/);
+    expect(tecnico.html).toMatch(/H-13/);
+  });
+
+  it('la ruta /ayuda/manual-tecnico renderiza el markdown actual', () => {
+    const { res, capturada } = respuesta();
+    manualTecnico({} as Request, res);
+    expect(capturada.vista).toBe('pages/ayuda/manual-tecnico');
+    expect(capturada.locals.manual).toEqual(tecnico);
+  });
+
+  it('la vista del manual técnico muestra el índice del markdown', async () => {
+    const html = await ejs.renderFile(VISTA_TECNICO, { title: 'Manual Técnico', manual: tecnico });
+    expect(html).toContain(tecnico.titulo);
+    for (const entrada of tecnico.indice.filter((e) => e.nivel === 2).slice(0, 3)) {
+      expect(html).toContain(`href="#${entrada.id}"`);
+    }
   });
 });
 

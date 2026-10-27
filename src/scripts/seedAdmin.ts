@@ -53,12 +53,11 @@ async function main() {
       permisos: permisosCatalogo.map(p => p.codigo), // Todos los permisos
     },
     {
-      codigo: 'DIRECTOR_ACADEMICO',
-      nombre: 'Director Académico',
-      descripcion: 'Supervisión académica, aprobación de períodos y control normativo',
+      codigo: 'PLANIFICADOR',
+      nombre: 'Planificador',
+      descripcion: 'Planificación académica, asignación de espacios, revisión de ofertas y optimización de horarios',
       esSistema: true,
       permisos: [
-        'usuarios.ver',
         'espacios.ver', 'espacios.gestionar',
         'docentes.ver', 'docentes.disponibilidad_todos',
         'horarios.ver', 'horarios.optimizar', 'horarios.ajuste_manual',
@@ -124,7 +123,7 @@ async function main() {
   // 3. Usuarios de Prueba
   const passwordHash = await bcrypt.hash('ubv2026', 10);
   const rolAdmin = await prisma.rol.findUnique({ where: { codigo: 'ADMINISTRADOR' } });
-  const rolDirector = await prisma.rol.findUnique({ where: { codigo: 'DIRECTOR_ACADEMICO' } });
+  const rolPlanificador = await prisma.rol.findUnique({ where: { codigo: 'PLANIFICADOR' } });
   const rolCoord = await prisma.rol.findUnique({ where: { codigo: 'COORDINADOR_PFG' } });
   const rolDocente = await prisma.rol.findUnique({ where: { codigo: 'DOCENTE' } });
 
@@ -142,17 +141,17 @@ async function main() {
     },
   });
 
-  // Director
+  // Planificador
   await prisma.usuario.upsert({
-    where: { email: 'director.academico@ubv.edu.ve' },
-    update: { rolRelacionId: rolDirector?.id },
+    where: { email: 'planificador@ubv.edu.ve' },
+    update: { rol: RolUsuario.PLANIFICADOR, rolRelacionId: rolPlanificador?.id },
     create: {
-      email: 'director.academico@ubv.edu.ve',
+      email: 'planificador@ubv.edu.ve',
       passwordHash,
-      nombres: 'María',
-      apellidos: 'Rodríguez',
-      rol: RolUsuario.DIRECTOR_ACADEMICO,
-      rolRelacionId: rolDirector?.id,
+      nombres: 'Planificador',
+      apellidos: 'Académico',
+      rol: RolUsuario.PLANIFICADOR,
+      rolRelacionId: rolPlanificador?.id,
     },
   });
 

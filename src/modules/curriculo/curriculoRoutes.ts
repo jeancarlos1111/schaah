@@ -11,7 +11,7 @@ router.get(
   requireAuth,
   requireRole(
     RolUsuario.ADMINISTRADOR,
-    RolUsuario.DIRECTOR_ACADEMICO,
+    RolUsuario.PLANIFICADOR,
     RolUsuario.COORDINADOR_PFG
   ),
   CurriculoController.index
@@ -21,21 +21,21 @@ router.get(
 router.post(
   '/curriculo/pfg',
   requireAuth,
-  requireRole(RolUsuario.ADMINISTRADOR, RolUsuario.DIRECTOR_ACADEMICO),
+  requireRole(RolUsuario.ADMINISTRADOR, RolUsuario.PLANIFICADOR),
   CurriculoController.crearPfg
 );
 
 router.post(
   '/curriculo/pfg/:id/editar',
   requireAuth,
-  requireRole(RolUsuario.ADMINISTRADOR, RolUsuario.DIRECTOR_ACADEMICO),
+  requireRole(RolUsuario.ADMINISTRADOR, RolUsuario.PLANIFICADOR),
   CurriculoController.editarPfg
 );
 
 router.post(
   '/curriculo/pfg/:id/toggle',
   requireAuth,
-  requireRole(RolUsuario.ADMINISTRADOR, RolUsuario.DIRECTOR_ACADEMICO),
+  requireRole(RolUsuario.ADMINISTRADOR),
   CurriculoController.togglePfg
 );
 
@@ -45,7 +45,7 @@ router.post(
   requireAuth,
   requireRole(
     RolUsuario.ADMINISTRADOR,
-    RolUsuario.DIRECTOR_ACADEMICO,
+    RolUsuario.PLANIFICADOR,
     RolUsuario.COORDINADOR_PFG
   ),
   CurriculoController.crearUnidad
@@ -56,7 +56,7 @@ router.post(
   requireAuth,
   requireRole(
     RolUsuario.ADMINISTRADOR,
-    RolUsuario.DIRECTOR_ACADEMICO,
+    RolUsuario.PLANIFICADOR,
     RolUsuario.COORDINADOR_PFG
   ),
   CurriculoController.editarUnidad
@@ -65,11 +65,7 @@ router.post(
 router.post(
   '/curriculo/unidades/:id/toggle',
   requireAuth,
-  requireRole(
-    RolUsuario.ADMINISTRADOR,
-    RolUsuario.DIRECTOR_ACADEMICO,
-    RolUsuario.COORDINADOR_PFG
-  ),
+  requireRole(RolUsuario.ADMINISTRADOR),
   CurriculoController.toggleUnidad
 );
 

@@ -29,6 +29,8 @@ import {
 } from '../../../core/domain/rules/periodoDisponibilidadRules';
 import { alcanceDe } from '../../auth/middlewares/alcancePfg';
 import { profesorPropioId } from '../profesorPropio';
+import { validarTresDiasDisponibilidad } from '../../../core/domain/rules/adscripcionRules';
+import { normalizarNivelPiso } from '../../../core/domain/rules/pisoRules';
 
 function textoOpcional(valor: unknown): string | null {
   const t = typeof valor === 'string' ? valor.trim() : '';
@@ -117,7 +119,7 @@ async function docentesConDisponibilidadEditable(req: Request): Promise<string[]
 
 const ETIQUETAS_ROL: Record<string, string> = {
   [RolUsuario.ADMINISTRADOR]: 'Administrador',
-  [RolUsuario.DIRECTOR_ACADEMICO]: 'Director Académico',
+  [RolUsuario.PLANIFICADOR]: 'Planificador',
   [RolUsuario.COORDINADOR_PFG]: 'Coordinador de PFG',
   [RolUsuario.DOCENTE]: 'Docente',
 };
@@ -231,6 +233,7 @@ export class DocentesController {
           where,
           include: {
             centroEstudio: true,
+            pfgAdscripcion: true,
             dedicaciones: {
               where: { periodoId: periodoActivo.id },
               include: { sedePrincipal: true },
@@ -289,7 +292,10 @@ export class DocentesController {
       const totalPages = Math.ceil(totalFiltrados / limit) || 1;
       const success = typeof req.query.msg === 'string' ? req.query.msg : null;
       const errorMsg = typeof req.query.error === 'string' ? req.query.error : null;
-      const centrosEstudio = await prisma.centroEstudio.findMany({ where: { activo: true }, orderBy: { codigo: 'asc' } });
+      const [centrosEstudio, programasFormacion] = await Promise.all([
+        prisma.centroEstudio.findMany({ where: { activo: true }, orderBy: { codigo: 'asc' } }),
+        prisma.programaFormacion.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } }),
+      ]);
 
       return res.render('pages/docentes/index', {
         title: 'Gestión de Docentes y Régimen de Dedicación',
@@ -298,6 +304,7 @@ export class DocentesController {
         profesores: profesoresData,
         sedes,
         centrosEstudio,
+        programasFormacion,
         success,
         error: errorMsg,
         enums: {
@@ -355,6 +362,10 @@ export class DocentesController {
         dedicacion,
         sedeAdscripcionPrincipalId,
         observacionExcepcion,
+        pfgAdscripcionId,
+        pisoMaximo: pisoMaximoRaw,
+        motivoRestriccionPiso,
+        diasDisponibles: diasDisponiblesRaw,
       } = req.body;
 
       if (!cedula || !nombres || !apellidos || !sedeAdscripcionPrincipalId) {
@@ -363,6 +374,18 @@ export class DocentesController {
 
       const periodoActivo = await getPeriodoActivo();
       const limites = LIMITES_DEDICACION[dedicacion] || LIMITES_DEDICACION[DedicacionDocente.TIEMPO_COMPLETO];
+
+      const pisoMaximo =
+        pisoMaximoRaw !== undefined && pisoMaximoRaw !== '' && pisoMaximoRaw !== null
+          ? parseInt(String(pisoMaximoRaw), 10)
+          : null;
+      let diasDisponibles: string | null = null;
+      if (diasDisponiblesRaw) {
+        const valDias = validarTresDiasDisponibilidad(diasDisponiblesRaw);
+        if (valDias.valido) {
+          diasDisponibles = JSON.stringify(valDias.dias);
+        }
+      }
 
       await prisma.$transaction(async (tx) => {
         const profesor = await tx.profesor.create({
@@ -374,6 +397,10 @@ export class DocentesController {
             telefono: telefono ? telefono.trim() : null,
             condicion: condicion || CondicionLaboral.ORDINARIO,
             escalafon: escalafon || EscalafonDocente.INSTRUCTOR,
+            pfgAdscripcionId: textoOpcional(pfgAdscripcionId),
+            pisoMaximo,
+            motivoRestriccionPiso: textoOpcional(motivoRestriccionPiso),
+            diasDisponibles,
             ...datosComplementariosDocente(req.body),
             activo: true,
           },
@@ -420,23 +447,47 @@ export class DocentesController {
         dedicacion,
         sedeAdscripcionPrincipalId,
         observacionExcepcion,
+        pfgAdscripcionId,
+        pisoMaximo: pisoMaximoRaw,
+        motivoRestriccionPiso,
+        diasDisponibles: diasDisponiblesRaw,
       } = req.body;
 
       const periodoActivo = await getPeriodoActivo();
       const limites = LIMITES_DEDICACION[dedicacion] || LIMITES_DEDICACION[DedicacionDocente.TIEMPO_COMPLETO];
 
+      const pisoMaximo =
+        pisoMaximoRaw !== undefined && pisoMaximoRaw !== '' && pisoMaximoRaw !== null
+          ? parseInt(String(pisoMaximoRaw), 10)
+          : null;
+      let diasDisponibles: string | null = null;
+      if (diasDisponiblesRaw) {
+        const valDias = validarTresDiasDisponibilidad(diasDisponiblesRaw);
+        if (valDias.valido) {
+          diasDisponibles = JSON.stringify(valDias.dias);
+        }
+      }
+
       await prisma.$transaction(async (tx) => {
+        const updateData: any = {
+          nombres: nombres.trim(),
+          apellidos: apellidos.trim(),
+          email: textoOpcional(email)?.toLowerCase() ?? null,
+          telefono: telefono ? telefono.trim() : null,
+          condicion: condicion || CondicionLaboral.ORDINARIO,
+          escalafon: escalafon || EscalafonDocente.INSTRUCTOR,
+          pfgAdscripcionId: textoOpcional(pfgAdscripcionId),
+          pisoMaximo,
+          motivoRestriccionPiso: textoOpcional(motivoRestriccionPiso),
+          ...datosComplementariosDocente(req.body),
+        };
+        if (diasDisponibles !== null) {
+          updateData.diasDisponibles = diasDisponibles;
+        }
+
         await tx.profesor.update({
           where: { id },
-          data: {
-            nombres: nombres.trim(),
-            apellidos: apellidos.trim(),
-            email: textoOpcional(email)?.toLowerCase() ?? null,
-            telefono: telefono ? telefono.trim() : null,
-            condicion: condicion || CondicionLaboral.ORDINARIO,
-            escalafon: escalafon || EscalafonDocente.INSTRUCTOR,
-            ...datosComplementariosDocente(req.body),
-          },
+          data: updateData,
         });
 
         if (dedicacion && sedeAdscripcionPrincipalId) {
@@ -571,6 +622,7 @@ export class DocentesController {
       const profesor = await prisma.profesor.findUnique({
         where: { id },
         include: {
+          pfgAdscripcion: true,
           dedicaciones: {
             where: { periodoId: periodoActivo.id },
             include: { sedePrincipal: true },

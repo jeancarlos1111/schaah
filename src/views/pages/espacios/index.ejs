@@ -1,4 +1,4 @@
-<% const puedeGestionarEspacios = usuario && ['ADMINISTRADOR', 'DIRECTOR_ACADEMICO'].includes(usuario.rol); %>
+<% const puedeGestionarEspacios = usuario && ['ADMINISTRADOR', 'PLANIFICADOR', 'DIRECTOR_ACADEMICO'].includes(usuario.rol); %>
 <!-- Header del Módulo de Espacios con Sub-navegación -->
 <div class="page-header uk-margin-medium-bottom">
   <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
@@ -367,13 +367,15 @@
                         <span>Editar</span>
                       </button>
 
-                      <!-- Activar / Desactivar -->
+                      <!-- Activar / Desactivar (exclusivo de Administrador) -->
+                      <% if (usuario && usuario.rol === 'ADMINISTRADOR') { %>
                       <form action="/espacios/aulas/<%= e.id %>/toggle" method="POST">
                         <button type="submit" class="btn-table-action" uk-tooltip="<%= e.activo ? 'Deshabilitar recinto' : 'Habilitar recinto' %>">
                           <span uk-icon="icon: <%= e.activo ? 'ban' : 'check' %>; ratio: 0.75"></span>
                           <span><%= e.activo ? 'Desactivar' : 'Activar' %></span>
                         </button>
                       </form>
+                      <% } %>
                       <% } %>
                     </div>
                   </td>
@@ -541,12 +543,15 @@
                     <span>Editar</span>
                   </button>
 
+                  <!-- Activar / Desactivar (exclusivo de Administrador) -->
+                  <% if (usuario && usuario.rol === 'ADMINISTRADOR') { %>
                   <form action="/espacios/sedes/<%= s.id %>/toggle" method="POST">
                     <button type="submit" class="btn-table-action" uk-tooltip="<%= s.activa ? 'Inhabilitar sede' : 'Habilitar sede' %>">
                       <span uk-icon="icon: <%= s.activa ? 'ban' : 'check' %>; ratio: 0.75"></span>
                       <span><%= s.activa ? 'Desactivar' : 'Activar' %></span>
                     </button>
                   </form>
+                  <% } %>
                   <% } %>
                 </div>
               </td>

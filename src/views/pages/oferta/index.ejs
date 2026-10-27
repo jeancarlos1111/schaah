@@ -1,5 +1,5 @@
 <%
-  const puedeImportar = usuario && ['ADMINISTRADOR', 'DIRECTOR_ACADEMICO'].includes(usuario.rol);
+  const puedeImportar = usuario && ['ADMINISTRADOR', 'PLANIFICADOR', 'DIRECTOR_ACADEMICO'].includes(usuario.rol);
   const etiquetaTurno = { MATUTINO: 'Mañana', VESPERTINO: 'Tarde', NOCTURNO: 'Noche', FIN_DE_SEMANA: 'Fin de semana', UNICA: 'Única' };
   const claseTurno = { MATUTINO: 'status-active', VESPERTINO: 'indicator-blue', NOCTURNO: 'indicator-teal', FIN_DE_SEMANA: 'indicator-amber', UNICA: 'indicator-gray' };
 
@@ -174,7 +174,7 @@
     <% } else { %>
       <p class="oferta-card-note">
         <span uk-icon="icon: lock; ratio: 0.75"></span>
-        <span>Solo Administración y Dirección Académica pueden importar la oferta.</span>
+        <span>Solo Administración y Planificación pueden importar la oferta.</span>
       </p>
     <% } %>
   </div>

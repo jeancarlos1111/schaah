@@ -13,8 +13,15 @@ import {
   normalizarEjeMunicipal,
 } from '../../../core/domain/rules/ofertaNormalizacion';
 import { urlRetornoSecciones } from '../urlRetorno';
-import { filtroPfg, filtroPfgEfectivo, puedeGestionarPfg } from '../../../core/domain/rules/alcancePfgRules';
+import { filtroPfg, filtroPfgEfectivo, puedeGestionarPfg, puedeProgramarHorarios } from '../../../core/domain/rules/alcancePfgRules';
 import { alcanceDe, denegarPfg } from '../../auth/middlewares/alcancePfg';
+import { validarAccesoPiso, etiquetaPiso } from '../../../core/domain/rules/pisoRules';
+import {
+  puedeRegistrarOferta,
+  validarTransicionEstadoPeriodo,
+  validarPrerrequisitosApertura,
+} from '../../../core/domain/rules/ofertaWorkflowRules';
+import { AuditService } from '../../../core/audit/auditService';
 
 function enteroOpcional(valor: unknown): number | null {
   const n = parseInt(String(valor ?? ''), 10);
@@ -207,15 +214,67 @@ export class PeriodosController {
       const { id } = req.params;
       const { estado } = req.body;
 
+      const periodoActual = await prisma.periodoAcademico.findUnique({ where: { id } });
+      if (!periodoActual) {
+        return res.redirect('/periodos?error=' + encodeURIComponent('Período académico no encontrado.'));
+      }
+
+      const validacionTransicion = validarTransicionEstadoPeriodo(
+        periodoActual.estado,
+        estado,
+        req.session?.usuario?.rol
+      );
+      if (!validacionTransicion.valido) {
+        return res.redirect('/periodos?error=' + encodeURIComponent(validacionTransicion.error || 'Transición de estado no autorizada.'));
+      }
+
+      // Si se abre la ventana de registro de ofertas, comprobar prerrequisitos institucionales
+      const nuevoEstadoNorm = estado.trim().toUpperCase();
+      if (nuevoEstadoNorm === 'REGISTRO_OFERTAS' || nuevoEstadoNorm === 'PLANIFICACION') {
+        const [docentesActivos, espaciosActivos, unidadesCurricularesActivas] = await Promise.all([
+          prisma.profesor.count({ where: { activo: true } }),
+          prisma.espacioFisico.count({ where: { activo: true } }),
+          prisma.unidadCurricular.count({ where: { activa: true } }),
+        ]);
+
+        const prereq = validarPrerrequisitosApertura({
+          docentesActivos,
+          espaciosActivos,
+          unidadesCurricularesActivas,
+        });
+
+        if (!prereq.listo) {
+          return res.redirect(
+            '/periodos?error=' +
+              encodeURIComponent(`No se puede abrir la oferta académica. Prerrequisitos incompletos: ${prereq.detalles.join(' ')}`)
+          );
+        }
+      }
+
       await prisma.periodoAcademico.update({
         where: { id },
         data: { estado },
       });
 
-      return res.redirect('/periodos?msg=' + encodeURIComponent('Estado del período actualizado correctamente.'));
+      const actor = req.session?.usuario;
+      await AuditService.registrar({
+        usuarioId: actor?.id,
+        usuarioEmail: actor?.email ?? 'sistema',
+        usuarioNombre: `${actor?.nombres ?? ''} ${actor?.apellidos ?? ''}`.trim() || 'Sistema',
+        rol: actor?.rol ?? 'ADMINISTRADOR',
+        accion: 'EDITAR',
+        entidad: 'PERIODO',
+        entidadId: id,
+        detalles: `Cambio de estado del período a ${estado}`,
+        datosAnteriores: { estado: periodoActual.estado },
+        datosNuevos: { estado },
+        ip: req.ip,
+      });
+
+      return res.redirect('/periodos?msg=' + encodeURIComponent(`Estado del período actualizado a ${estado}.`));
     } catch (err: any) {
       console.error('[ESTADO-PERIODO-ERROR]', err);
-      return res.redirect('/periodos?error=' + encodeURIComponent('No se pudo actualizar el estado.'));
+      return res.redirect('/periodos?error=' + encodeURIComponent(err.message || 'No se pudo actualizar el estado.'));
     }
   }
 
@@ -358,6 +417,7 @@ export class PeriodosController {
             dedicaciones: {
               where: { periodoId },
             },
+            pfgAdscripcion: true,
           },
           orderBy: [{ apellidos: 'asc' }, { nombres: 'asc' }],
         }),
@@ -382,18 +442,31 @@ export class PeriodosController {
         lista.push(a);
         asignacionesPorDocente.set(a.profesorId!, lista);
       });
-      const docentesCarga = profesores.map((p) => ({
-        id: p.id,
-        nombre: `${p.apellidos}, ${p.nombres}`,
-        cedula: p.cedula,
-        ...calcularCargaDocente(p.dedicaciones[0]?.dedicacion ?? null, asignacionesPorDocente.get(p.id) ?? []),
-      }));
+      const docentesCarga = profesores.map((p) => {
+        const carga = calcularCargaDocente(p.dedicaciones[0]?.dedicacion ?? null, asignacionesPorDocente.get(p.id) ?? []);
+        const horasDisponibles = carga.disponibles;
+        return {
+          id: p.id,
+          nombre: `${p.apellidos}, ${p.nombres}`,
+          cedula: p.cedula,
+          pfgAdscripcionId: p.pfgAdscripcionId,
+          pfgAdscripcionCodigo: p.pfgAdscripcion?.codigo || null,
+          pfgAdscripcionNombre: p.pfgAdscripcion?.nombre || null,
+          pisoMaximo: p.pisoMaximo,
+          motivoRestriccionPiso: p.motivoRestriccionPiso,
+          diasDisponibles: p.diasDisponibles ? JSON.parse(p.diasDisponibles) : [],
+          horasDisponibles,
+          ...carga,
+        };
+      });
 
       const totalPages = Math.ceil(totalFiltrados / limit) || 1;
 
       res.render('pages/periodos/secciones', {
         title: `Oferta Académica - ${periodo.codigo}`,
         periodo,
+        puedeModificarOferta: puedeRegistrarOferta(periodo.estado, req.session?.usuario?.rol),
+        puedeModificarHorarios: puedeProgramarHorarios(req.session?.usuario?.rol),
         secciones,
         pfgs,
         sedes,
@@ -445,6 +518,19 @@ export class PeriodosController {
   static async crearSeccion(req: Request, res: Response) {
     const { id: periodoId } = req.params;
     try {
+      const periodo = await prisma.periodoAcademico.findUnique({
+        where: { id: periodoId },
+      });
+      if (!periodo) {
+        return res.redirect('/periodos?error=' + encodeURIComponent('Período académico no encontrado.'));
+      }
+
+      if (!puedeRegistrarOferta(periodo.estado, req.session?.usuario?.rol)) {
+        return res.redirect(
+          `/periodos/${periodoId}/secciones?error=` +
+            encodeURIComponent(`La ventana de oferta académica está cerrada (Estado: ${periodo.estado}). No se pueden agregar secciones.`)
+        );
+      }
       const {
         pfgId,
         unidadCurricularId,
@@ -559,6 +645,20 @@ export class PeriodosController {
   static async crearGrupo(req: Request, res: Response) {
     const { id: periodoId } = req.params;
     try {
+      const periodo = await prisma.periodoAcademico.findUnique({
+        where: { id: periodoId },
+      });
+      if (!periodo) {
+        return res.redirect('/periodos?error=' + encodeURIComponent('Período académico no encontrado.'));
+      }
+
+      if (!puedeRegistrarOferta(periodo.estado, req.session?.usuario?.rol)) {
+        return res.redirect(
+          `/periodos/${periodoId}/secciones?error=` +
+            encodeURIComponent(`La ventana de oferta académica está cerrada (Estado: ${periodo.estado}). No se pueden registrar cohortes.`)
+        );
+      }
+
       const { pfgId, sedeId, codigo, trayecto, tramo, malla, turno, estatus, cantidadEstudiantes, ejeMunicipal, observaciones } =
         req.body;
 
@@ -623,11 +723,28 @@ export class PeriodosController {
     try {
       const { profesorId, volver } = req.body;
 
+      const periodo = await prisma.periodoAcademico.findUnique({ where: { id: periodoId } });
+      if (periodo && !puedeRegistrarOferta(periodo.estado, req.session?.usuario?.rol)) {
+        return res.redirect(
+          urlRetornoSecciones(
+            periodoId,
+            volver,
+            'error',
+            `La ventana de oferta académica está cerrada (Estado: ${periodo.estado}). No se puede modificar la asignación docente.`
+          )
+        );
+      }
+
       const profId = profesorId && profesorId.trim() !== '' ? profesorId.trim() : null;
 
       const seccionDestino = await prisma.seccion.findFirst({
         where: { id: seccionId, periodoId },
-        include: { unidadCurricular: true },
+        include: {
+          unidadCurricular: true,
+          horarios: {
+            include: { espacioFisico: true },
+          },
+        },
       });
       if (!seccionDestino) {
         return res.redirect(
@@ -638,8 +755,29 @@ export class PeriodosController {
         return denegarPfg(req, res);
       }
 
-      // Si se está asignando un docente, verificar sus horas actuales vs tope H-04
+      // Si se está asignando un docente, verificar restricciones de piso y tope H-04
       if (profId) {
+        const docente = await prisma.profesor.findUnique({
+          where: { id: profId },
+        });
+
+        if (docente && docente.pisoMaximo !== null && docente.pisoMaximo !== undefined) {
+          for (const hor of seccionDestino.horarios) {
+            if (hor.espacioFisico) {
+              const pisoAula = hor.espacioFisico.pisoNivel ?? hor.espacioFisico.piso;
+              if (!validarAccesoPiso(docente.pisoMaximo, pisoAula)) {
+                return res.redirect(
+                  urlRetornoSecciones(
+                    periodoId,
+                    volver,
+                    'error',
+                    `Restricción de movilidad (Piso): El docente tiene asignado piso máx ${etiquetaPiso(docente.pisoMaximo)} (${docente.motivoRestriccionPiso || 'condición física'}) y el horario está en aula ${hor.espacioFisico.nombre} (${etiquetaPiso(pisoAula)}).`
+                  )
+                );
+              }
+            }
+          }
+        }
         const dedicacion = await prisma.profesorDedicacion.findUnique({
           where: {
             profesorId_periodoId: {
@@ -698,6 +836,14 @@ export class PeriodosController {
   static async eliminarSeccion(req: Request, res: Response) {
     const { id: periodoId, seccionId } = req.params;
     try {
+      const periodo = await prisma.periodoAcademico.findUnique({ where: { id: periodoId } });
+      if (periodo && !puedeRegistrarOferta(periodo.estado, req.session?.usuario?.rol)) {
+        return res.redirect(
+          `/periodos/${periodoId}/secciones?error=` +
+            encodeURIComponent(`La ventana de oferta académica está cerrada (Estado: ${periodo.estado}). No se pueden eliminar secciones.`)
+        );
+      }
+
       const seccion = await prisma.seccion.findFirst({ where: { id: seccionId, periodoId }, select: { id: true } });
       if (!seccion) {
         return res.redirect(

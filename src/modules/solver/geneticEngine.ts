@@ -4,6 +4,13 @@ import {
   indicesBloquesPorTurno,
 } from '../../core/domain/rules/timeSlotUtils';
 import { claveCohorte } from '../../core/domain/rules/horarioConflictRules';
+import {
+  clasificarLiderazgo,
+  esFranjaReservaMartes,
+  DIA_LIDERAZGO,
+  HORA_INICIO_LIDERAZGO_1,
+  HORA_INICIO_LIDERAZGO_2,
+} from '../../core/domain/rules/bloquesInstitucionalesRules';
 import { evaluarSolucion, EvaluacionResultado } from './evaluator';
 import {
   AsignacionBloquePropuesta,
@@ -92,6 +99,15 @@ export class GeneticSolverEngine {
             espaciosValidos = espaciosSede.filter((e) => e.capacidad >= sec.cuposEstimados);
           }
         }
+
+        // Restricción de piso del docente
+        const docAsignado = sec.profesorId ? this.input.docentes.get(sec.profesorId) : null;
+        if (docAsignado && docAsignado.pisoMaximo !== null && docAsignado.pisoMaximo !== undefined) {
+          const espaciosAccesibles = espaciosValidos.filter((e) => (e.pisoNivel ?? 0) <= docAsignado.pisoMaximo!);
+          if (espaciosAccesibles.length > 0) {
+            espaciosValidos = espaciosAccesibles;
+          }
+        }
       }
 
       if (espaciosValidos.length === 0 && !sec.esProyectoComunitario) {
@@ -108,10 +124,18 @@ export class GeneticSolverEngine {
         const disps = doc.disponibilidades.filter((d) => d.disponible);
 
         for (const disp of disps) {
+          if (doc.diasDisponibles && doc.diasDisponibles.length > 0 && !doc.diasDisponibles.includes(disp.dia)) {
+            continue; // Saltar días que no forman parte de los 3 acordados
+          }
           const slotIdx = BLOQUES_HORARIOS_OFICIALES.findIndex(
             (b) => b.horaInicio === disp.horaInicio
           );
           if (slotIdx !== -1) {
+            const bOficial = BLOQUES_HORARIOS_OFICIALES[slotIdx];
+            // H-13: Reserva Institucional Martes (10:45 AM - 12:15 PM)
+            if (bOficial && esFranjaReservaMartes(disp.dia, bOficial.horaInicio, bOficial.horaFin)) {
+              continue;
+            }
             slotsValidos.push({
               dia: disp.dia,
               oficialSlotIndex: slotIdx,
@@ -129,8 +153,42 @@ export class GeneticSolverEngine {
         // Docente no preasignado: todos los bloques del turno
         for (const dia of diasPorTurno(sec.turno)) {
           for (const idx of indicesBloquesPorTurno(sec.turno)) {
+            const bOficial = BLOQUES_HORARIOS_OFICIALES[idx];
+            if (bOficial && esFranjaReservaMartes(dia, bOficial.horaInicio, bOficial.horaFin)) {
+              continue;
+            }
             slotsValidos.push({ dia, oficialSlotIndex: idx, prioridad: 1 });
           }
+        }
+      }
+
+      // H-14: Bloque Fijo Institucional para Liderazgo
+      const tipoLid = clasificarLiderazgo(sec.nombreMateria);
+      if (tipoLid === 'LIDERAZGO_1') {
+        const slotsLid1 = slotsValidos.filter(
+          (s) =>
+            s.dia.toUpperCase() === DIA_LIDERAZGO &&
+            BLOQUES_HORARIOS_OFICIALES[s.oficialSlotIndex]?.horaInicio === HORA_INICIO_LIDERAZGO_1
+        );
+        slotsValidos.length = 0;
+        slotsValidos.push(...slotsLid1);
+        if (slotsValidos.length === 0) {
+          this.cuellosDeBotella.push(
+            `Infactibilidad en Liderazgo 1 (${sec.codigoSeccion}): requiere Jueves en Bloque 1 (07:30 AM - 09:00 AM) y no hay franja compatible disponible.`
+          );
+        }
+      } else if (tipoLid === 'LIDERAZGO_2') {
+        const slotsLid2 = slotsValidos.filter(
+          (s) =>
+            s.dia.toUpperCase() === DIA_LIDERAZGO &&
+            BLOQUES_HORARIOS_OFICIALES[s.oficialSlotIndex]?.horaInicio === HORA_INICIO_LIDERAZGO_2
+        );
+        slotsValidos.length = 0;
+        slotsValidos.push(...slotsLid2);
+        if (slotsValidos.length === 0) {
+          this.cuellosDeBotella.push(
+            `Infactibilidad en Liderazgo 2 (${sec.codigoSeccion}): requiere Jueves en Bloque 2 (09:05 AM - 10:35 AM) y no hay franja compatible disponible.`
+          );
         }
       }
 

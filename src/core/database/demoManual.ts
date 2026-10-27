@@ -62,6 +62,48 @@ export interface ResumenDemoManual {
 }
 
 /**
+ * Declara disponibilidad (lunes a sábado, bloques de los turnos de sus secciones) para todos
+ * los docentes con asignación en el período. Útil tras una corrida infactible del solver
+ * para volver a optimizar con factibilidad.
+ */
+export async function sembrarDisponibilidadPeriodo(
+  prisma: PrismaClient,
+  periodoId: string
+): Promise<number> {
+  const secciones = await prisma.seccion.findMany({
+    where: { periodoId, profesorId: { not: null } },
+    select: { profesorId: true, turno: true },
+  });
+  const turnosPorDocente = new Map<string, Set<string>>();
+  for (const s of secciones) {
+    if (!s.profesorId) continue;
+    const turnos = turnosPorDocente.get(s.profesorId) ?? new Set<string>();
+    turnos.add(s.turno);
+    turnosPorDocente.set(s.profesorId, turnos);
+  }
+  let franjas = 0;
+  for (const [profesorId, turnos] of turnosPorDocente) {
+    const indices = new Set<number>();
+    for (const turno of turnos) indicesBloquesPorTurno(turno).forEach((i) => indices.add(i));
+    const data = DIAS_LECTIVOS.flatMap((dia) =>
+      [...indices].sort((a, b) => a - b).map((i) => ({
+        profesorId,
+        periodoId,
+        dia,
+        horaInicio: BLOQUES_HORARIOS_OFICIALES[i].horaInicio,
+        horaFin: BLOQUES_HORARIOS_OFICIALES[i].horaFin,
+        prioridadPreferencia: 1,
+        disponible: true,
+      }))
+    );
+    await prisma.profesorDisponibilidad.deleteMany({ where: { profesorId, periodoId } });
+    await prisma.profesorDisponibilidad.createMany({ data });
+    franjas += data.length;
+  }
+  return franjas;
+}
+
+/**
  * Datos de demostración sobre una copia de la base: el docente de prueba recibe una sección
  * vacante del programa y una dedicación, todos los docentes del programa declaran
  * disponibilidad de lunes a sábado en los bloques de los turnos de sus secciones y la sede
@@ -140,6 +182,15 @@ export async function sembrarDemoManual(
     franjasCreadas += franjas.length;
   }
 
+  // Adscripción al PFG de demostración (visible en nómina y pills). Los 3 días y el piso del
+  // docente de prueba se fijan en capturasManual tras el solver, para no volverlo infactible.
+  for (const profesorId of turnosPorDocente.keys()) {
+    await prisma.profesor.update({
+      where: { id: profesorId },
+      data: { pfgAdscripcionId: pfg.id },
+    });
+  }
+
   return {
     periodoId: periodo.id,
     seccionesPfg: secciones.length,
@@ -203,6 +254,7 @@ async function completarAulasTeoricas(prisma: PrismaClient, secciones: SeccionDe
           tipo: 'AULA_TEORICA',
           capacidad: CAPACIDAD_AULA_DEMO,
           piso: 'PB',
+          pisoNivel: 0,
         },
       });
       agregadas++;

@@ -20,7 +20,7 @@
         <% if (soloLectura) { %>
           Consulta del horario semanal publicado del período, en formato civil de 12 horas.
         <% } else { %>
-          Visualización y asignación interactiva (Drag & Drop) con verificación en tiempo real de restricciones duras (<span class="font-mono">H-01</span> a <span class="font-mono">H-09</span>).
+          Visualización y asignación interactiva (Drag & Drop) con verificación en tiempo real de restricciones duras (<span class="font-mono">H-01</span> a <span class="font-mono">H-14</span>).
         <% } %>
       </p>
     </div>
@@ -696,7 +696,7 @@
 
 <!-- Modal Solver de Optimización Automática -->
 <% if (!soloLectura) { %>
-  <%- include('../../partials/modal-solver', { periodoId: periodo.id, periodoCodigo: periodo.codigo }) %>
+  <%- include('../../partials/modal-solver', { periodoId: periodo.id, periodoCodigo: periodo.codigo, filtroPfgId: typeof filtroPfgId !== 'undefined' ? filtroPfgId : null }) %>
 <% } %>
 
 

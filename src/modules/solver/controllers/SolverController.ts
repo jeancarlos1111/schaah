@@ -10,9 +10,23 @@ import {
   horasSemanalesSeccion,
 } from '../../../core/domain/rules/diagnosticoFactibilidad';
 
-/** Programas a los que se limita el solver para el usuario (Spec 06); `undefined` = todos. */
+/**
+ * Programas a los que se limita el solver (Spec 06).
+ * - Coordinador: siempre sus programas del alcance.
+ * - Admin / Planificador: todos, o el `pfgId` opcional del filtro de la matriz / cuerpo JSON.
+ */
 function pfgIdsSolver(req: Request): string[] | undefined {
-  return filtroPfg(alcanceDe(req))?.in;
+  const delAlcance = filtroPfg(alcanceDe(req))?.in;
+  const pedidoRaw = (req.body?.pfgId ?? req.query?.pfgId) as string | string[] | undefined;
+  const pedido = Array.isArray(pedidoRaw) ? pedidoRaw[0] : pedidoRaw;
+  const pfgPedido = typeof pedido === 'string' && pedido.trim() ? pedido.trim() : undefined;
+
+  if (delAlcance) {
+    if (pfgPedido && delAlcance.includes(pfgPedido)) return [pfgPedido];
+    return delAlcance;
+  }
+  if (pfgPedido) return [pfgPedido];
+  return undefined;
 }
 
 export class SolverController {

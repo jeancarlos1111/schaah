@@ -10,15 +10,26 @@ export type AlcancePfg = { total: true } | { total: false; pfgIds: string[] };
 
 export const ALCANCE_TOTAL: AlcancePfg = { total: true };
 
-/** Roles que ajustan la matriz y ejecutan el optimizador; los demás la consultan en modo lectura. */
+/** Roles que ajustan la matriz y ejecutan el optimizador (espacios/días); los coordinadores y docentes la consultan en modo lectura. */
 export const ROLES_PROGRAMACION_HORARIOS = [
   RolUsuario.ADMINISTRADOR,
-  RolUsuario.DIRECTOR_ACADEMICO,
-  RolUsuario.COORDINADOR_PFG,
+  RolUsuario.PLANIFICADOR,
 ];
 
 export function puedeProgramarHorarios(rol: string | null | undefined): boolean {
   return ROLES_PROGRAMACION_HORARIOS.some((r) => r === rol);
+}
+
+/** Roles con acceso a reportes e inconsistencias de planificación institucional. */
+export const ROLES_REPORTES_PLANIFICACION = [
+  RolUsuario.ADMINISTRADOR,
+  RolUsuario.PLANIFICADOR,
+  RolUsuario.COORDINADOR_PFG,
+  RolUsuario.DIRECTOR_ACADEMICO,
+];
+
+export function puedeVerReportesPlanificacion(rol: string | null | undefined): boolean {
+  return ROLES_REPORTES_PLANIFICACION.some((r) => r === rol);
 }
 
 export function alcanceDeUsuario(rol: string | null | undefined, pfgIds: string[]): AlcancePfg {

@@ -4,7 +4,7 @@ import { to12HourFormat } from './timeSlotUtils';
 
 /**
  * Quién edita la disponibilidad de un docente (Spec 06): el propio docente sin más trámite;
- * Administración y Dirección, la de cualquiera; el Coordinador, la de los docentes con
+ * Administración y Planificación, la de cualquiera; el Coordinador, la de los docentes con
  * asignaciones de sus programas en el período. Quien edita la de otro debe dejar un motivo,
  * que queda en el historial auditable (por ejemplo, una emergencia del docente).
  */
@@ -34,6 +34,7 @@ export function permisoDisponibilidad(
     case RolUsuario.DOCENTE:
       return usuario.profesorIdPropio === profesorId ? { permitido: true, requiereMotivo: false } : DENEGADO;
     case RolUsuario.ADMINISTRADOR:
+    case RolUsuario.PLANIFICADOR:
     case RolUsuario.DIRECTOR_ACADEMICO:
       return { permitido: true, requiereMotivo: true };
     case RolUsuario.COORDINADOR_PFG:

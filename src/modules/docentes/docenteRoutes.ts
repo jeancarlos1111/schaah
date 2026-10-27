@@ -8,7 +8,7 @@ const docentesController = new DocentesController();
 
 const ROLES_GESTION_DOCENTES = [
   RolUsuario.ADMINISTRADOR,
-  RolUsuario.DIRECTOR_ACADEMICO,
+  RolUsuario.PLANIFICADOR,
   RolUsuario.COORDINADOR_PFG,
 ];
 
@@ -44,11 +44,11 @@ router.post(
   (req, res) => docentesController.editar(req, res)
 );
 
-// Conmutar Estado Activo / Inactivo
+// Conmutar Estado Activo / Inactivo (exclusivo de Administrador)
 router.post(
   '/docentes/:id/toggle',
   requireAuth,
-  requireRole(...ROLES_GESTION_DOCENTES),
+  requireRole(RolUsuario.ADMINISTRADOR),
   (req, res) => docentesController.toggle(req, res)
 );
 

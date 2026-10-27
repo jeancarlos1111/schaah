@@ -3,6 +3,7 @@ import { Marked, Tokens } from 'marked';
 import path from 'path';
 
 export const RUTA_MANUAL_USUARIO = path.resolve(__dirname, '../../../docs/MANUAL_USUARIO.md');
+export const RUTA_MANUAL_TECNICO = path.resolve(__dirname, '../../../docs/MANUAL_TECNICO.md');
 export const DIRECTORIO_IMAGENES_MANUAL = path.resolve(__dirname, '../../../docs/img');
 
 export interface EntradaIndice {
@@ -94,5 +95,9 @@ export function imagenesDelManual(markdown: string): string[] {
 }
 
 export function cargarManualUsuario(ruta = RUTA_MANUAL_USUARIO): ManualRenderizado {
+  return renderizarManual(readFileSync(ruta, 'utf8'));
+}
+
+export function cargarManualTecnico(ruta = RUTA_MANUAL_TECNICO): ManualRenderizado {
   return renderizarManual(readFileSync(ruta, 'utf8'));
 }

@@ -272,6 +272,25 @@
               <td>
                 <div class="table-user-name"><%= p.apellidos %>, <%= p.nombres %></div>
                 <div class="table-sub-info"><%= p.email || 'Sin correo registrado' %> <%= p.telefono ? '• ' + p.telefono : '' %></div>
+                <div class="uk-flex uk-flex-middle gap-1 uk-margin-xsmall-top uk-flex-wrap">
+                  <% if (p.pfgAdscripcion) { %>
+                    <span class="badge-role badge-admin text-xxs" title="<%= p.pfgAdscripcion.nombre %>">
+                      PFG: <%= p.pfgAdscripcion.codigo %>
+                    </span>
+                  <% } %>
+                  <% if (p.pisoMaximo !== null && p.pisoMaximo !== undefined) { %>
+                    <span class="badge-role badge-warning text-xxs" title="<%= p.motivoRestriccionPiso || 'Movilidad reducida' %>">
+                      Piso máx: <%= p.pisoMaximo === 0 ? 'PB' : p.pisoMaximo %>
+                    </span>
+                  <% } %>
+                  <% if (p.diasDisponibles) { %>
+                    <% try { const dArr = JSON.parse(p.diasDisponibles); if (Array.isArray(dArr)) { %>
+                      <span class="badge-role badge-coordinador text-xxs" title="Días acordados">
+                        <%= dArr.map(d => d.slice(0, 2)).join('-') %>
+                      </span>
+                    <% } } catch(e){} %>
+                  <% } %>
+                </div>
                 <% if (p.profesion || p.centroEstudio) { %>
                   <div class="table-sub-info"><%= [p.profesion, p.centroEstudio ? p.centroEstudio.codigo : null].filter(Boolean).join(' • ') %></div>
                 <% } %>
@@ -357,6 +376,7 @@
                     <span uk-icon="icon: pencil; ratio: 0.75"></span>
                     <span>Editar</span>
                   </button>
+                  <% if (usuario && usuario.rol === 'ADMINISTRADOR') { %>
                   <form action="/docentes/<%= p.id %>/toggle" method="POST" onsubmit="return confirm('¿Desea cambiar el estado de este docente?')">
                     <button 
                       type="submit" 
@@ -367,6 +387,7 @@
                       <span><%= p.activo ? 'Suspender' : 'Activar' %></span>
                     </button>
                   </form>
+                  <% } %>
                 </div>
               </td>
             </tr>
@@ -511,6 +532,51 @@
             <label class="label-clean">Observación o Excepción Normativa</label>
             <input type="text" name="observacionExcepcion" placeholder="Descarga de carga, jefatura, etc." class="input-control-clean">
           </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div class="module-title">Adscripción Académica, Accesibilidad y Disponibilidad</div>
+          </div>
+
+          <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">PFG de Adscripción (Prioridad)</label>
+            <select name="pfgAdscripcionId" class="table-filter-select uk-width-1-1">
+              <option value="">-- Sin programa asignado --</option>
+              <% if (typeof programasFormacion !== 'undefined') { %>
+                <% programasFormacion.forEach(function(pfg) { %>
+                  <option value="<%= pfg.id %>">[<%= pfg.codigo %>] <%= pfg.nombre %></option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+
+          <div class="uk-width-1-4@m uk-width-1-2 form-group-clean">
+            <label class="label-clean">Piso Máx. Accesible</label>
+            <select name="pisoMaximo" class="table-filter-select uk-width-1-1">
+              <option value="">Sin restricción</option>
+              <option value="0">Planta Baja (PB)</option>
+              <option value="1">Piso 1</option>
+              <option value="2">Piso 2</option>
+              <option value="3">Piso 3</option>
+            </select>
+          </div>
+
+          <div class="uk-width-1-4@m uk-width-1-2 form-group-clean">
+            <label class="label-clean">Motivo Restricción Piso</label>
+            <input type="text" name="motivoRestriccionPiso" placeholder="Condición médica / salud" class="input-control-clean">
+          </div>
+
+          <div class="uk-width-1-1 form-group-clean">
+            <label class="label-clean">Días Hábiles Acordados (Exactamente 3 días)</label>
+            <div class="uk-grid-small uk-child-width-auto uk-margin-xsmall-top" uk-grid>
+              <label><input class="uk-checkbox" type="checkbox" name="diasDisponibles" value="LUNES"> Lunes</label>
+              <label><input class="uk-checkbox" type="checkbox" name="diasDisponibles" value="MARTES"> Martes</label>
+              <label><input class="uk-checkbox" type="checkbox" name="diasDisponibles" value="MIERCOLES"> Miércoles</label>
+              <label><input class="uk-checkbox" type="checkbox" name="diasDisponibles" value="JUEVES"> Jueves</label>
+              <label><input class="uk-checkbox" type="checkbox" name="diasDisponibles" value="VIERNES"> Viernes</label>
+              <label><input class="uk-checkbox" type="checkbox" name="diasDisponibles" value="SABADO"> Sábado</label>
+            </div>
+            <span class="table-sub-info">Acuerdo previo entre el docente y la coordinación académica.</span>
+          </div>
         </div>
       </div>
       <div class="uk-modal-footer uk-text-right uk-margin-top">
@@ -607,6 +673,51 @@
             <label class="label-clean">Observación o Excepción Normativa</label>
             <input type="text" name="observacionExcepcion" id="edit-observacion" class="input-control-clean">
           </div>
+
+          <div class="uk-width-1-1 uk-margin-small-top">
+            <div class="module-title">Adscripción Académica, Accesibilidad y Disponibilidad</div>
+          </div>
+
+          <div class="uk-width-1-2@m uk-width-1-1 form-group-clean">
+            <label class="label-clean">PFG de Adscripción (Prioridad)</label>
+            <select name="pfgAdscripcionId" id="edit-pfgAdscripcionId" class="table-filter-select uk-width-1-1">
+              <option value="">-- Sin programa asignado --</option>
+              <% if (typeof programasFormacion !== 'undefined') { %>
+                <% programasFormacion.forEach(function(pfg) { %>
+                  <option value="<%= pfg.id %>">[<%= pfg.codigo %>] <%= pfg.nombre %></option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+
+          <div class="uk-width-1-4@m uk-width-1-2 form-group-clean">
+            <label class="label-clean">Piso Máx. Accesible</label>
+            <select name="pisoMaximo" id="edit-pisoMaximo" class="table-filter-select uk-width-1-1">
+              <option value="">Sin restricción</option>
+              <option value="0">Planta Baja (PB)</option>
+              <option value="1">Piso 1</option>
+              <option value="2">Piso 2</option>
+              <option value="3">Piso 3</option>
+            </select>
+          </div>
+
+          <div class="uk-width-1-4@m uk-width-1-2 form-group-clean">
+            <label class="label-clean">Motivo Restricción Piso</label>
+            <input type="text" name="motivoRestriccionPiso" id="edit-motivoRestriccionPiso" placeholder="Condición médica / salud" class="input-control-clean">
+          </div>
+
+          <div class="uk-width-1-1 form-group-clean">
+            <label class="label-clean">Días Hábiles Acordados (Exactamente 3 días)</label>
+            <div class="uk-grid-small uk-child-width-auto uk-margin-xsmall-top" uk-grid>
+              <label><input class="uk-checkbox edit-dia-cb" type="checkbox" name="diasDisponibles" value="LUNES"> Lunes</label>
+              <label><input class="uk-checkbox edit-dia-cb" type="checkbox" name="diasDisponibles" value="MARTES"> Martes</label>
+              <label><input class="uk-checkbox edit-dia-cb" type="checkbox" name="diasDisponibles" value="MIERCOLES"> Miércoles</label>
+              <label><input class="uk-checkbox edit-dia-cb" type="checkbox" name="diasDisponibles" value="JUEVES"> Jueves</label>
+              <label><input class="uk-checkbox edit-dia-cb" type="checkbox" name="diasDisponibles" value="VIERNES"> Viernes</label>
+              <label><input class="uk-checkbox edit-dia-cb" type="checkbox" name="diasDisponibles" value="SABADO"> Sábado</label>
+            </div>
+            <span class="table-sub-info">Acuerdo previo entre el docente y la coordinación académica.</span>
+          </div>
         </div>
       </div>
       <div class="uk-modal-footer uk-text-right uk-margin-top">
@@ -632,6 +743,22 @@
     document.getElementById('edit-anioIngreso').value = profesor.anioIngreso || '';
     document.getElementById('edit-anioConcurso').value = profesor.anioConcurso || '';
     document.getElementById('edit-centroEstudioId').value = profesor.centroEstudioId || '';
+
+    document.getElementById('edit-pfgAdscripcionId').value = profesor.pfgAdscripcionId || '';
+    document.getElementById('edit-pisoMaximo').value = (profesor.pisoMaximo !== null && profesor.pisoMaximo !== undefined) ? String(profesor.pisoMaximo) : '';
+    document.getElementById('edit-motivoRestriccionPiso').value = profesor.motivoRestriccionPiso || '';
+
+    let dias = [];
+    if (profesor.diasDisponibles) {
+      try {
+        dias = JSON.parse(profesor.diasDisponibles);
+      } catch(e) {
+        dias = [];
+      }
+    }
+    document.querySelectorAll('.edit-dia-cb').forEach(function(cb) {
+      cb.checked = Array.isArray(dias) && dias.includes(cb.value);
+    });
 
     if (profesor.dedicacionActiva) {
       document.getElementById('edit-dedicacion').value = profesor.dedicacionActiva.dedicacion;

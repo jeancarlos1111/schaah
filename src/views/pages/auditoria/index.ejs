@@ -1,0 +1,256 @@
+<!-- Header de Bitácora de Auditoría -->
+<div class="page-header uk-margin-medium-bottom">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
+    <div>
+      <div class="header-breadcrumbs uk-margin-xsmall-bottom">
+        <span>Administración</span>
+        <span class="breadcrumb-separator">/</span>
+        <span class="active-crumb">Bitácora de Auditoría</span>
+      </div>
+      <h1 class="page-title uk-margin-remove">Historial de Auditoría Global</h1>
+      <p class="page-subtitle uk-margin-xsmall-top">
+        Registro cronológico e inmutable de eventos, creaciones, modificaciones y eliminaciones del sistema.
+      </p>
+    </div>
+  </div>
+
+  <!-- Pestañas de Navegación del Módulo de Administración -->
+  <div class="admin-subtabs uk-margin-top">
+    <a href="/usuarios" class="subtab-item">
+      <span uk-icon="icon: users; ratio: 0.8"></span>
+      <span>Cuentas de Usuarios</span>
+    </a>
+    <a href="/roles" class="subtab-item">
+      <span uk-icon="icon: lock; ratio: 0.8"></span>
+      <span>Matriz de Roles y Permisos</span>
+    </a>
+    <a href="/auditoria" class="subtab-item is-active">
+      <span uk-icon="icon: history; ratio: 0.8"></span>
+      <span>Bitácora de Auditoría</span>
+    </a>
+  </div>
+</div>
+
+<!-- Barra de Herramientas y Filtros del Servidor -->
+<div class="table-container-card">
+  <form id="audit-filter-form" method="GET" action="/auditoria" class="table-toolbar uk-margin-remove">
+    <div class="uk-flex uk-flex-between uk-flex-middle uk-width-1-1 uk-margin-small-bottom uk-flex-wrap gap-2">
+      <!-- Búsqueda General -->
+      <div class="table-search-box" style="max-width: 380px; flex: 1;">
+        <span uk-icon="icon: search; ratio: 0.8" class="search-icon"></span>
+        <input 
+          type="text" 
+          name="q"
+          value="<%= filtros.q %>"
+          class="search-input" 
+          placeholder="Buscar por usuario, email, detalle o ID..." 
+          autocomplete="off"
+        />
+      </div>
+
+      <!-- Selector de Filas por Página -->
+      <div class="table-toolbar-right uk-flex uk-flex-middle gap-2">
+        <span class="uk-text-muted uk-text-small">Filas:</span>
+        <select name="limit" class="table-page-size-select" onchange="this.form.submit()">
+          <option value="10" <%= pagination.limit === 10 ? 'selected' : '' %>>10</option>
+          <option value="15" <%= pagination.limit === 15 ? 'selected' : '' %>>15</option>
+          <option value="25" <%= pagination.limit === 25 ? 'selected' : '' %>>25</option>
+          <option value="50" <%= pagination.limit === 50 ? 'selected' : '' %>>50</option>
+        </select>
+        <button type="submit" class="btn-clean-primary">
+          <span uk-icon="icon: filter; ratio: 0.8"></span>
+          <span>Filtrar</span>
+        </button>
+        <% if (filtros.q || filtros.entidad || filtros.accion || filtros.fechaDesde || filtros.fechaHasta) { %>
+          <a href="/auditoria" class="btn-clean-secondary">
+            <span uk-icon="icon: refresh; ratio: 0.8"></span>
+            <span>Limpiar</span>
+          </a>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Filtros Desplegables -->
+    <div class="table-filters-row uk-flex uk-flex-middle uk-flex-wrap gap-2 uk-width-1-1 uk-margin-small-top">
+      <!-- Filtro Entidad -->
+      <select name="entidad" class="table-filter-select" onchange="this.form.submit()">
+        <option value="">Todas las entidades</option>
+        <% ['USUARIO', 'ROL', 'ESPACIO', 'DOCENTE', 'SECCION', 'HORARIO', 'PERIODO', 'MALLA', 'OFERTA', 'DISPONIBILIDAD'].forEach(function(e) { %>
+          <option value="<%= e %>" <%= filtros.entidad === e ? 'selected' : '' %>><%= e %></option>
+        <% }); %>
+      </select>
+
+      <!-- Filtro Acción -->
+      <select name="accion" class="table-filter-select" onchange="this.form.submit()">
+        <option value="">Todas las acciones</option>
+        <% ['CREAR', 'EDITAR', 'ELIMINAR', 'ACTIVAR', 'DESACTIVAR', 'LOGIN', 'IMPORTAR', 'SOLVER'].forEach(function(a) { %>
+          <option value="<%= a %>" <%= filtros.accion === a ? 'selected' : '' %>><%= a %></option>
+        <% }); %>
+      </select>
+
+      <!-- Rango de Fechas -->
+      <div class="uk-flex uk-flex-middle gap-1">
+        <span class="uk-text-muted uk-text-small">Desde:</span>
+        <input type="date" name="fechaDesde" value="<%= filtros.fechaDesde %>" class="uk-input uk-form-small uk-form-width-small" style="border-radius: 6px;" />
+      </div>
+      <div class="uk-flex uk-flex-middle gap-1">
+        <span class="uk-text-muted uk-text-small">Hasta:</span>
+        <input type="date" name="fechaHasta" value="<%= filtros.fechaHasta %>" class="uk-input uk-form-small uk-form-width-small" style="border-radius: 6px;" />
+      </div>
+    </div>
+  </form>
+
+  <!-- Tabla de Auditoría -->
+  <div class="table-responsive-wrapper uk-margin-small-top">
+    <table class="clean-table uk-table uk-table-small uk-table-divider uk-table-hover">
+      <thead>
+        <tr>
+          <th style="width: 170px;">Fecha / Hora</th>
+          <th style="width: 220px;">Usuario Responsable</th>
+          <th style="width: 110px;">Acción</th>
+          <th style="width: 130px;">Entidad</th>
+          <th>Detalles del Evento</th>
+          <th style="width: 120px;" class="uk-text-right">Registro</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (items && items.length > 0) { %>
+          <% items.forEach(function(item) { 
+            const d = new Date(item.fecha);
+            const fechaFormateada = d.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const horaFormateada = d.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+
+            let badgeClass = 'clean-badge-neutral';
+            if (item.accion === 'CREAR') badgeClass = 'clean-badge-success';
+            else if (item.accion === 'EDITAR') badgeClass = 'clean-badge-info';
+            else if (item.accion === 'ELIMINAR' || item.accion === 'DESACTIVAR') badgeClass = 'clean-badge-danger';
+            else if (item.accion === 'ACTIVAR') badgeClass = 'clean-badge-success';
+            else if (item.accion === 'LOGIN') badgeClass = 'clean-badge-primary';
+          %>
+            <tr>
+              <td>
+                <div class="uk-text-bold"><%= fechaFormateada %></div>
+                <div class="uk-text-muted uk-text-small"><%= horaFormateada %></div>
+              </td>
+              <td>
+                <div class="uk-text-bold"><%= item.usuarioNombre %></div>
+                <div class="uk-text-muted uk-text-small"><%= item.usuarioEmail %></div>
+                <span class="clean-badge clean-badge-neutral" style="font-size: 0.65rem; padding: 1px 6px;">
+                  <%= item.rol %>
+                </span>
+              </td>
+              <td>
+                <span class="clean-badge <%= badgeClass %>"><%= item.accion %></span>
+              </td>
+              <td>
+                <span class="uk-text-bold" style="font-size: 0.8rem;"><%= item.entidad %></span>
+                <% if (item.entidadId) { %>
+                  <div class="uk-text-muted uk-text-small" style="font-family: monospace; font-size: 0.7rem;">
+                    <%= item.entidadId.substring(0, 8) %>...
+                  </div>
+                <% } %>
+              </td>
+              <td>
+                <div style="font-size: 0.85rem; color: var(--text-main);"><%= item.detalles || 'Sin descripción adicional' %></div>
+                <% if (item.ip) { %>
+                  <div class="uk-text-muted uk-text-small" style="font-size: 0.7rem;">IP: <%= item.ip %></div>
+                <% } %>
+              </td>
+              <td class="table-actions-cell">
+                <div class="table-actions-group" style="justify-content: flex-end;">
+                  <% if (item.datosAnteriores || item.datosNuevos) { %>
+                    <button 
+                      type="button" 
+                      class="btn-clean-secondary uk-button-small"
+                      uk-toggle="target: #modal-auditoria-<%= item.id %>"
+                    >
+                      <span uk-icon="icon: code; ratio: 0.75"></span>
+                      <span>Ver Datos</span>
+                    </button>
+
+                    <!-- Modal de Inspección de Cambios -->
+                    <div id="modal-auditoria-<%= item.id %>" uk-modal>
+                      <div class="uk-modal-dialog uk-modal-body clean-modal" style="border-radius: 8px; max-width: 700px;">
+                        <button class="uk-modal-close-default" type="button" uk-close></button>
+                        <h2 class="uk-modal-title" style="font-size: 1.2rem; font-weight: 700;">
+                          Detalle de Auditoría — <%= item.entidad %> [<%= item.accion %>]
+                        </h2>
+                        <p class="uk-text-small uk-text-muted uk-margin-remove-top">
+                          Registrado el <%= fechaFormateada %> a las <%= horaFormateada %> por <%= item.usuarioNombre %> (<%= item.rol %>).
+                        </p>
+
+                        <div class="uk-grid-small uk-child-width-1-2@m uk-margin-small-top" uk-grid>
+                          <% if (item.datosAnteriores) { %>
+                            <div>
+                              <label class="uk-form-label uk-text-bold" style="font-size: 0.8rem; color: var(--text-danger, #ef4444);">
+                                Datos Anteriores:
+                              </label>
+                              <pre style="background: var(--bg-surface-alt, #0f172a); color: var(--text-main, #f8fafc); padding: 10px; border-radius: 6px; font-size: 0.75rem; max-height: 250px; overflow-y: auto;"><code><%= JSON.stringify(JSON.parse(item.datosAnteriores), null, 2) %></code></pre>
+                            </div>
+                          <% } %>
+                          <% if (item.datosNuevos) { %>
+                            <div>
+                              <label class="uk-form-label uk-text-bold" style="font-size: 0.8rem; color: var(--text-success, #22c55e);">
+                                Datos Nuevos:
+                              </label>
+                              <pre style="background: var(--bg-surface-alt, #0f172a); color: var(--text-main, #f8fafc); padding: 10px; border-radius: 6px; font-size: 0.75rem; max-height: 250px; overflow-y: auto;"><code><%= JSON.stringify(JSON.parse(item.datosNuevos), null, 2) %></code></pre>
+                            </div>
+                          <% } %>
+                        </div>
+
+                        <div class="uk-text-right uk-margin-top">
+                          <button class="btn-clean-secondary uk-modal-close" type="button">
+                            <span>Cerrar</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  <% } else { %>
+                    <span class="uk-text-muted uk-text-small">—</span>
+                  <% } %>
+                </div>
+              </td>
+            </tr>
+          <% }); %>
+        <% } else { %>
+          <tr>
+            <td colspan="6" class="uk-text-center uk-text-muted uk-padding-large">
+              <span uk-icon="icon: history; ratio: 1.5" class="uk-margin-small-bottom"></span>
+              <p class="uk-margin-remove">No se encontraron registros de auditoría con los filtros seleccionados.</p>
+            </td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Paginación del Servidor -->
+  <div class="table-pagination-footer uk-flex uk-flex-between uk-flex-middle uk-margin-small-top">
+    <div class="pagination-info uk-text-small uk-text-muted">
+      Mostrando <strong><%= items.length %></strong> de <strong><%= pagination.total %></strong> registros
+      (Página <%= pagination.page %> de <%= pagination.totalPages %>)
+    </div>
+
+    <div class="pagination-controls uk-flex uk-flex-middle gap-1">
+      <% if (pagination.hasPrev) { %>
+        <a 
+          href="/auditoria?page=<%= pagination.page - 1 %>&limit=<%= pagination.limit %>&entidad=<%= filtros.entidad %>&accion=<%= filtros.accion %>&q=<%= filtros.q %>&fechaDesde=<%= filtros.fechaDesde %>&fechaHasta=<%= filtros.fechaHasta %>" 
+          class="btn-clean-secondary uk-button-small"
+        >
+          <span uk-icon="icon: chevron-left; ratio: 0.75"></span>
+          <span>Anterior</span>
+        </a>
+      <% } %>
+
+      <% if (pagination.hasNext) { %>
+        <a 
+          href="/auditoria?page=<%= pagination.page + 1 %>&limit=<%= pagination.limit %>&entidad=<%= filtros.entidad %>&accion=<%= filtros.accion %>&q=<%= filtros.q %>&fechaDesde=<%= filtros.fechaDesde %>&fechaHasta=<%= filtros.fechaHasta %>" 
+          class="btn-clean-secondary uk-button-small"
+        >
+          <span>Siguiente</span>
+          <span uk-icon="icon: chevron-right; ratio: 0.75"></span>
+        </a>
+      <% } %>
+    </div>
+  </div>
+</div>

@@ -15,9 +15,9 @@ const { tablero } = await import('../../src/modules/tablero/TableroController');
 const { normativa, reportesDisponibles } = await import('../../src/modules/normativa/NormativaController');
 
 describe('Catálogo de normativa (Spec 01, sección 4)', () => {
-  it('lista las restricciones duras H-01 a H-10 y las blandas con su peso', () => {
+  it('lista las restricciones duras H-01 a H-14 y las blandas con su peso', () => {
     expect(RESTRICCIONES_DURAS.map((r) => r.codigo)).toEqual(
-      ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10'].map((n) => `H-${n}`)
+      ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '13', '14'].map((n) => `H-${n}`)
     );
     expect(RESTRICCIONES_BLANDAS.map((r) => r.codigo)).toEqual(['S-01', 'S-02', 'S-03', 'S-04', 'S-05', 'S-06', 'S-07', 'S-08']);
     for (const r of [...RESTRICCIONES_DURAS, ...RESTRICCIONES_BLANDAS]) {

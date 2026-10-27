@@ -7,16 +7,29 @@
         <span class="breadcrumb-separator">/</span>
         <span class="active-crumb"><%= periodo.codigo %> - Oferta de Secciones</span>
       </div>
-      <h1 class="page-title uk-margin-remove">Secciones y Oferta Académica (<%= periodo.codigo %>)</h1>
+      <div class="uk-flex uk-flex-middle gap-2">
+        <h1 class="page-title uk-margin-remove">Secciones y Oferta Académica (<%= periodo.codigo %>)</h1>
+        <% if (periodo.estado === 'REGISTRO_OFERTAS' || periodo.estado === 'PLANIFICACION') { %>
+          <span class="badge-role badge-admin">Ventana de Ofertas Abierta</span>
+        <% } else if (periodo.estado === 'OFERTA_APROBADA') { %>
+          <span class="badge-role badge-warning">Oferta Aprobada (Asignación Espacios en Curso)</span>
+        <% } else if (periodo.estado === 'ACTIVO' || periodo.estado === 'PUBLICADA') { %>
+          <span class="badge-role badge-director">Período Publicado</span>
+        <% } else { %>
+          <span class="badge-role badge-docente"><%= periodo.estado %></span>
+        <% } %>
+      </div>
       <p class="page-subtitle uk-margin-xsmall-top">
         Administración de cohortes estudiantiles por Programa de Formación (PFG), asignación docente y cupos para el período <%= periodo.codigo %>.
       </p>
     </div>
     <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
-      <button class="btn-clean-secondary" type="button" onclick="abrirModalSolver()">
-        <span uk-icon="icon: bolt; ratio: 0.85"></span>
-        <span>Optimización Automática</span>
-      </button>
+      <% if (locals.puedeModificarHorarios) { %>
+        <button class="btn-clean-secondary" type="button" onclick="abrirModalSolver()">
+          <span uk-icon="icon: bolt; ratio: 0.85"></span>
+          <span>Optimización Automática</span>
+        </button>
+      <% } %>
       <a href="/periodos/<%= periodo.id %>/horarios" class="btn-clean-secondary">
         <span uk-icon="icon: table; ratio: 0.85"></span>
         <span>Ver Matriz de Horarios</span>
@@ -25,14 +38,16 @@
         <span uk-icon="icon: file-text; ratio: 0.85"></span>
         <span>Oferta de Carga Horaria</span>
       </a>
-      <button class="btn-clean-secondary" type="button" uk-toggle="target: #modal-nuevo-grupo">
-        <span uk-icon="icon: users; ratio: 0.85"></span>
-        <span>Nueva Sección (Cohorte)</span>
-      </button>
-      <button class="btn-clean-primary" type="button" uk-toggle="target: #modal-nueva-seccion">
-        <span uk-icon="icon: plus; ratio: 0.85"></span>
-        <span>Nueva Asignación UC</span>
-      </button>
+      <% if (locals.puedeModificarOferta) { %>
+        <button class="btn-clean-secondary" type="button" uk-toggle="target: #modal-nuevo-grupo">
+          <span uk-icon="icon: users; ratio: 0.85"></span>
+          <span>Nueva Sección (Cohorte)</span>
+        </button>
+        <button class="btn-clean-primary" type="button" uk-toggle="target: #modal-nueva-seccion">
+          <span uk-icon="icon: plus; ratio: 0.85"></span>
+          <span>Nueva Asignación UC</span>
+        </button>
+      <% } %>
     </div>
   </div>
 </div>
@@ -356,12 +371,13 @@
                     data-unidad="<%= uc.nombre %>"
                     data-horas="<%= horasOferta || (uc.horasTeoricasSemanales + uc.horasPracticasSemanales) %>"
                     data-profesor-id="<%= s.profesorId || '' %>"
+                    data-pfg-id="<%= pfg.id %>"
                   >
                     <span uk-icon="icon: user; ratio: 0.75"></span>
                     <span><%= s.profesorId ? 'Cambiar Prof.' : 'Asignar' %></span>
                   </button>
 
-                  <% if (usuario && ['ADMINISTRADOR', 'DIRECTOR_ACADEMICO'].includes(usuario.rol)) { %>
+                  <% if (usuario && ['ADMINISTRADOR', 'PLANIFICADOR', 'DIRECTOR_ACADEMICO'].includes(usuario.rol)) { %>
                   <form action="/periodos/<%= periodo.id %>/secciones/<%= s.id %>/eliminar" method="POST" onsubmit="return confirm('¿Eliminar la sección <%= s.codigoSeccion %>?');">
                     <button class="btn-table-action text-danger" type="submit" title="Eliminar Sección">
                       <span uk-icon="icon: trash; ratio: 0.75"></span>
@@ -892,6 +908,13 @@
       const actual = d.id === fila.profesorId ? ' • Docente actual' : '';
       info.appendChild(elemento('span', 'table-sub-info', `${d.cedula} • ${ded}${actual}`));
 
+      const tags = [];
+      if (d.pfgAdscripcionCodigo) tags.push(`Adscrito: ${d.pfgAdscripcionCodigo}`);
+      if (d.pisoMaximo !== null && d.pisoMaximo !== undefined) tags.push(d.pisoMaximo === 0 ? 'Piso máx: PB' : `Piso máx: ${d.pisoMaximo}`);
+      const disp = Math.max(0, (d.maxHoras || 0) - (d.horas || 0));
+      tags.push(`Disponible: ${disp}h`);
+      info.appendChild(elemento('span', 'table-sub-info font-medium', tags.join(' • ')));
+
       const carga = elemento('div', 'docente-picker-load');
       carga.appendChild(elemento('span', 'docente-picker-hours', `${d.horas}/${d.maxHoras} h`));
       const barra = elemento('div', 'docente-picker-bar');
@@ -919,9 +942,13 @@
       return item;
     }
 
+    /** Misma prioridad que compararDocentesParaAsignacion (adscripcionRules). */
     function ordenar(a, b) {
       if (a.id === fila.profesorId) return -1;
       if (b.id === fila.profesorId) return 1;
+      const adscrito = (d) => Boolean(fila.pfgId && d.pfgAdscripcionId && d.pfgAdscripcionId === fila.pfgId);
+      const diffAds = (adscrito(a) ? 0 : 1) - (adscrito(b) ? 0 : 1);
+      if (diffAds !== 0) return diffAds;
       const rango = (d) => (d.dedicacion === null ? 1 : excede(d) ? 2 : 0);
       return rango(a) - rango(b) || a.nombre.localeCompare(b.nombre, 'es');
     }
@@ -997,6 +1024,7 @@
         seccionId: boton.dataset.seccionId,
         horas: parseInt(boton.dataset.horas, 10) || 0,
         profesorId: boton.dataset.profesorId || '',
+        pfgId: boton.dataset.pfgId || '',
       };
       seleccionado = fila.profesorId;
       form.action = `/periodos/<%= periodo.id %>/secciones/${fila.seccionId}/asignar-profesor`;
@@ -1013,5 +1041,7 @@
 </script>
 
 <!-- Modal Solver de Optimización Automática -->
-<%- include('../../partials/modal-solver', { periodoId: periodo.id, periodoCodigo: periodo.codigo }) %>
+<% if (locals.puedeModificarHorarios) { %>
+  <%- include('../../partials/modal-solver', { periodoId: periodo.id, periodoCodigo: periodo.codigo }) %>
+<% } %>
 

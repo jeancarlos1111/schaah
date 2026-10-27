@@ -1,4 +1,6 @@
 import { rangosSeSolapan, to12HourFormat } from './timeSlotUtils';
+import { validarAccesoPiso, etiquetaPiso } from './pisoRules';
+import { validarDiaEnDisponibilidad } from './adscripcionRules';
 
 export interface EvaluacionRegla {
   valido: boolean;
@@ -45,6 +47,9 @@ export interface PropuestaBloqueHorario {
   pfgId?: string;
   turno?: string;
   prelacionIds?: string[];
+  pisoNivelEspacio?: number | string | null;
+  pisoMaximoDocente?: number | null;
+  diasPermitidosDocente?: string[] | string | null;
 }
 
 /**
@@ -215,4 +220,46 @@ export function validarH07NoSolapamientoPrelacion(
 
   return { valido: true, codigoRegla: 'H-07' };
 }
+
+/**
+ * H-ACCESIBILIDAD-PISO: Restricción Física de Piso / Movilidad
+ */
+export function validarHAccesibilidadPiso(
+  propuesta: PropuestaBloqueHorario
+): EvaluacionRegla {
+  if (
+    propuesta.pisoMaximoDocente !== undefined &&
+    propuesta.pisoMaximoDocente !== null &&
+    propuesta.pisoNivelEspacio !== undefined &&
+    propuesta.pisoNivelEspacio !== null
+  ) {
+    if (!validarAccesoPiso(propuesta.pisoMaximoDocente, propuesta.pisoNivelEspacio)) {
+      return {
+        valido: false,
+        codigoRegla: 'H-ACCESIBILIDAD-PISO',
+        mensaje: `Conflicto H-ACCESIBILIDAD-PISO: El docente tiene restricción de movilidad (máximo ${etiquetaPiso(propuesta.pisoMaximoDocente)}) y el espacio seleccionado está en ${etiquetaPiso(propuesta.pisoNivelEspacio)}.`,
+      };
+    }
+  }
+  return { valido: true, codigoRegla: 'H-ACCESIBILIDAD-PISO' };
+}
+
+/**
+ * H-DIAS-DISPONIBILIDAD: Restricción de 3 Días Acordados
+ */
+export function validarHDiasDisponibilidad(
+  propuesta: PropuestaBloqueHorario
+): EvaluacionRegla {
+  if (propuesta.diasPermitidosDocente && propuesta.dia) {
+    if (!validarDiaEnDisponibilidad(propuesta.dia, propuesta.diasPermitidosDocente)) {
+      return {
+        valido: false,
+        codigoRegla: 'H-DIAS-DISPONIBILIDAD',
+        mensaje: `Conflicto H-DIAS-DISPONIBILIDAD: El día ${propuesta.dia} no forma parte de los tres (3) días acordados para el docente.`,
+      };
+    }
+  }
+  return { valido: true, codigoRegla: 'H-DIAS-DISPONIBILIDAD' };
+}
+
 

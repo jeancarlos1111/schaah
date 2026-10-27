@@ -28,7 +28,7 @@ const ALTO = 900;
 
 const CUENTAS = {
   administrador: 'admin@ubv.edu.ve',
-  director: 'director.academico@ubv.edu.ve',
+  planificador: 'planificador@ubv.edu.ve',
   coordinador: 'coord.informatica@ubv.edu.ve',
   docente: 'carlos.gomez@ubv.edu.ve',
 };
@@ -327,7 +327,8 @@ function libroOferta(): string | null {
 
 async function recorrido(nav: Navegador, ids: Ids) {
   const { periodoId, pfgId, docenteId, docenteCargaId, grupoId, aulaId } = ids;
-  const matriz = (tipo: string, id: string) => `/periodos/${periodoId}/horarios?tipo=${tipo}&id=${id}`;
+  const matriz = (tipo: string, id: string, pfg?: string) =>
+    `/periodos/${periodoId}/horarios?tipo=${tipo}&id=${id}${pfg ? `&pfgId=${pfg}` : ''}`;
 
   // Acceso
   await nav.ir('/logout');
@@ -363,15 +364,21 @@ async function recorrido(nav: Navegador, ids: Ids) {
   await nav.cerrarModales();
   await nav.ir('/roles');
   await nav.capturarPagina('09-roles-permisos');
+  await nav.ir('/auditoria');
+  await nav.capturarPagina('47-auditoria-bitacora', 1400);
+  // Nómina con Suspender/Activar: solo el Administrador ve esos botones
+  await nav.ir('/docentes');
+  await nav.capturarPagina('49-docentes-admin-listado', 1300);
 
-  // Director académico: catálogos, período y oferta
-  await nav.iniciarSesion(CUENTAS.director);
+  // Planificador: catálogos, período y oferta
+  await nav.iniciarSesion(CUENTAS.planificador);
   await nav.ir('/espacios?q=AUL-DEMO');
   if (!(await nav.evaluar<boolean>(`document.body.innerText.includes('AUL-DEMO-01')`))) {
     throw new Error('El servidor no usa la base de demostración (no muestra AUL-DEMO-01). Se cancela antes de escribir.');
   }
   await nav.ir('/');
-  await nav.capturarElemento('10-menu-director', '.app-header', 0);
+  await nav.capturarPagina('50-tablero-planificador');
+  await nav.capturarElemento('10-menu-planificador', '.app-header', 0);
   await nav.ir(`/curriculo?pfg=${pfgId}`);
   await nav.capturarPagina('11-curriculo-mallas', 1400);
   await nav.abrirModal('modal-nueva-unidad');
@@ -389,7 +396,7 @@ async function recorrido(nav: Navegador, ids: Ids) {
   await nav.ir('/docentes/carga-consolidada');
   await nav.capturarPagina('17-docentes-carga-consolidada', 1300);
 
-  // Director: carga una franja más por el docente (solo amplía su disponibilidad) con motivo auditado
+  // Planificador: carga una franja más por el docente con motivo auditado
   await nav.ir(`/docentes/${docenteId}/disponibilidad`);
   const tras = await nav.evaluar<string>(`(async () => {
     toggleCell(document.querySelector('.disp-cell.is-nodisp'));
@@ -442,7 +449,7 @@ async function recorrido(nav: Navegador, ids: Ids) {
   await nav.capturarElemento('24-secciones-asignar-docente', '#modal-asignar-docente .uk-modal-dialog');
   await nav.cerrarModales();
 
-  // Director: el solver sobre todo el período queda infactible (otros programas sin disponibilidad)
+  // Planificador: solver sobre todo el período → infactible (otros programas sin disponibilidad)
   await nav.ir(matriz('GRUPO', grupoId));
   await nav.capturarPagina('25-horarios-matriz-vacia', 1300);
   await nav.evaluar('abrirModalSolver()');
@@ -459,33 +466,28 @@ async function recorrido(nav: Navegador, ids: Ids) {
   await nav.capturarElemento('27-solver-infactible', '#modal-solver .uk-modal-dialog');
   await nav.cerrarModales();
 
-  // Coordinador de PFG
-  await nav.iniciarSesion(CUENTAS.coordinador);
-  await nav.ir('/');
-  await nav.capturarPagina('28-tablero-coordinador');
-  await nav.capturarElemento('29-menu-coordinador', '.app-header', 0);
-  await nav.ir(`/curriculo?pfg=${pfgId}`);
-  await nav.capturarPagina('30-coordinador-curriculo');
-  await nav.ir(`/periodos/${periodoId}/oferta`);
-  await nav.capturarPagina('31-coordinador-oferta', 1400);
-  await nav.ir(matriz('GRUPO', grupoId));
+  // Optimizar solo el PFG-INFO (filtro de la matriz) — factible con la disponibilidad sembrada
+  await nav.ir(matriz('GRUPO', grupoId, pfgId));
   await nav.evaluar('abrirModalSolver()');
   await nav.esperar(`document.getElementById('solver-metric-secciones').textContent !== '--'`);
   await nav.evaluar(`(() => {
-    document.getElementById('solver-param-motor').value = 'CP_SAT';
+    document.getElementById('solver-param-motor').value = 'GENETICO';
+    document.getElementById('solver-param-estrategia').value = 'rapido';
     ejecutarSolver();
   })()`);
   await nav.esperar(`!document.getElementById('solver-step-results').classList.contains('uk-hidden')`, 300000);
   await pausa(600);
   const estado = await nav.evaluar<string>(`document.getElementById('solver-badge-status').textContent`);
-  if (!estado.startsWith('FACTIBLE')) throw new Error(`El solver del coordinador no fue factible: ${estado}`);
+  if (!estado.startsWith('FACTIBLE') && !estado.includes('FEASIBLE')) {
+    throw new Error(`El solver del planificador (PFG-INFO) no fue factible: ${estado}`);
+  }
   await nav.capturarElemento('32-solver-optimo', '#modal-solver .uk-modal-dialog');
   await nav.evaluar('aplicarHorariosSolver()');
   await nav.esperar(`!document.getElementById('solver-step-success').classList.contains('uk-hidden')`, 120000);
   await pausa(600);
   await nav.capturarElemento('33-solver-aplicado', '#modal-solver .uk-modal-dialog');
 
-  await nav.ir(matriz('GRUPO', grupoId));
+  await nav.ir(matriz('GRUPO', grupoId, pfgId));
   await nav.capturarPagina('34-horarios-grupo', 1300);
   await nav.evaluar(`(() => {
     const filtro = document.getElementById('select-pfg');
@@ -496,7 +498,7 @@ async function recorrido(nav: Navegador, ids: Ids) {
   })()`);
   await nav.capturarElemento('35-horarios-selectores', '#captura-selectores', 8);
 
-  // Arrastrar y soltar: un destino válido abre la confirmación; uno ocupado por la cohorte, el conflicto
+  // Arrastrar y soltar (solo Planificador / Admin)
   const destinos = await nav.evaluar<{ valido: number | null; conflicto: number | null }>(`(async () => {
     const bloque = document.querySelector('.horario-card-badge[data-horario-id]');
     const celdas = [...document.querySelectorAll('.horario-slot-cell')];
@@ -562,7 +564,48 @@ async function recorrido(nav: Navegador, ids: Ids) {
   await nav.ir('/reportes');
   await nav.capturarPagina('45-normativa', 3200);
 
-  // Docente
+  // Coordinador de PFG: consulta (matriz solo lectura; sin solver)
+  await nav.iniciarSesion(CUENTAS.coordinador);
+  await nav.ir('/');
+  await nav.capturarPagina('28-tablero-coordinador');
+  await nav.capturarElemento('29-menu-coordinador', '.app-header', 0);
+  await nav.ir(`/curriculo?pfg=${pfgId}`);
+  await nav.capturarPagina('30-coordinador-curriculo');
+  await nav.ir(`/periodos/${periodoId}/oferta`);
+  await nav.capturarPagina('31-coordinador-oferta', 1400);
+  await nav.ir(matriz('GRUPO', grupoId));
+  if (
+    !(await nav.evaluar<boolean>(
+      `document.body.innerText.includes('Consulta del horario semanal') || !document.querySelector('button[onclick="abrirModalSolver()"]')`
+    ))
+  ) {
+    throw new Error('La matriz del Coordinador no aparece en modo solo lectura.');
+  }
+  if (await nav.evaluar<boolean>(`Boolean(document.querySelector('button[onclick="abrirModalSolver()"]'))`)) {
+    throw new Error('El Coordinador todavía ve el botón del solver; la matriz debería ser solo lectura.');
+  }
+  await nav.capturarPagina('48-horarios-coordinador-lectura', 1300);
+
+  // Docente: fijar 3 días y piso para las pastillas (después del solver)
+  {
+    const urlDemo = process.env.SAHAD_DEMO_URL ?? `file:${RUTA_BASE_DEMO}`;
+    const db = new PrismaClient({
+      datasourceUrl: `file:${verificarDestinoDemo(urlDemo, process.env.DATABASE_URL)}`,
+    });
+    try {
+      await db.profesor.update({
+        where: { id: docenteId },
+        data: {
+          diasDisponibles: JSON.stringify(['LUNES', 'MIERCOLES', 'JUEVES']),
+          pisoMaximo: 1,
+          motivoRestriccionPiso: 'Restricción de movilidad (demostración del manual).',
+        },
+      });
+    } finally {
+      await db.$disconnect();
+    }
+  }
+
   await nav.iniciarSesion(CUENTAS.docente);
   await nav.ir('/');
   await nav.capturarPagina('41-tablero-docente');

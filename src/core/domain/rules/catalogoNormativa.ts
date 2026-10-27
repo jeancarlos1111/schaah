@@ -60,6 +60,18 @@ export const RESTRICCIONES_DURAS: ReglaNormativa[] = [
     nombre: 'Integridad del bloque curricular',
     descripcion: 'Las unidades se dictan en bloques continuos de 90 o 135 minutos, nunca en bloques aislados de 45.',
   },
+  {
+    codigo: 'H-13',
+    nombre: 'Reserva institucional de los martes',
+    descripcion:
+      'Los martes de 10:45 AM a 12:15 PM están reservados institucionalmente para reuniones de Dirección, PFG, PIU y Formación General; prohibido programar clases.',
+  },
+  {
+    codigo: 'H-14',
+    nombre: 'Bloque fijo institucional de Liderazgo',
+    descripcion:
+      'Liderazgo 1 se dicta los jueves en el bloque 1 (07:30 AM a 09:00 AM) y Liderazgo 2 en el bloque 2 (09:05 AM a 10:35 AM), con docente disponible los jueves.',
+  },
 ];
 
 export const RESTRICCIONES_BLANDAS: ReglaNormativa[] = [

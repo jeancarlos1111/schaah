@@ -84,6 +84,11 @@ Deben cumplirse en el 100% de los casos. Si no se cumplen, la asignación es inv
   - Una materia de campo comunitario (`esProyectoComunitario`) no debe reservar aula física, pero sí consumir bloque temporal y la disponibilidad del docente. Se aplica en el validador (`validarH08AdecuacionEspacio`), al colocar o mover en la matriz (el aula indicada se descarta y el bloque se guarda con `espacio_fisico_id` nulo y tipo `PROYECTO_COMUNITARIO`), en ambos motores del solver (no se generan candidatos de aula) y en el evaluador (un bloque de proyecto con aula es violación dura H-08).
 - **H-09 (Antiteletransportación de Sede)**: Si un docente tiene clases en dos sedes o aldeas distintas en el mismo día, debe existir una brecha mínima de traslado de al menos 90 minutos entre el fin de una y el inicio de la otra.
 - **H-10 (Integridad de Bloque Curricular)**: Las unidades curriculares se dictan en bloques mínimos continuos de 90 minutos (2 horas académicas de 45 min) o 135 minutos (3 horas académicas). No se fraccionan en bloques aislados de 45 minutos.
+- **H-13 (Reserva Institucional de los Martes)**: Los días martes de 10:45 AM a 12:15 PM (horas 5 y 6 de la jornada matutina) están reservados de forma obligatoria para reuniones de Dirección, PFG, PIU y Formación General. El solver y la asignación manual prohíben estrictamente programar actividades docentes en esta franja.
+- **H-14 (Bloques Fijos Institucionales de Liderazgo)**: En todos los programas, Liderazgo I se programa fijamente los días jueves en el bloque 1 (07:30 AM - 09:00 AM) y Liderazgo II en el bloque 2 (09:05 AM - 10:35 AM), quedando libres las horas 5 y 6 de ese turno para otras actividades. Todo docente asignado a Liderazgo debe tener el día jueves acordado en su disponibilidad.
+- **H-ACCESIBILIDAD-PISO (Restricción de Movilidad Docente por Nivel de Piso)**: Si un docente tiene prescripción de movilidad reducida o condición de salud con `pisoMaximo` asignado (ej. PB = 0, Piso 1 = 1), el sistema prohíbe programarlo en un espacio físico cuyo `pisoNivel` exceda dicho límite.
+- **H-DIAS-DISPONIBILIDAD (Acuerdo de 3 Días Hábiles)**: Todo docente acuerda con su coordinación académica exactamente tres (3) días laborables específicos para concentrar su docencia. Se rechaza la asignación de secciones en días fuera del trío pactado.
+- **PRIORIDAD-ADSCRIPCION (Programa de Adscripción del Docente)**: Todo docente pertenece contractualmente a un PFG (`pfgAdscripcionId`). Dicho programa tiene prioridad sobre sus horas de dedicación. En la asignación de secciones se muestran sus horas disponibles remanentes, bloqueando sobrecargas.
 
 ### 4.2 Restricciones Blandas (Soft Constraints - S)
 Objetivos deseables que el motor de optimización maximiza o minimiza mediante penalizaciones ponderadas.
@@ -132,8 +137,31 @@ Para evitar marcar individualmente las 48 celdas semanales (6 días $\times$ 8 b
 ---
 
 ## 6. Reglas de Validación de Sobrescritura y Ajustes Manuales
-Cuando un Coordinador Académico realiza una modificación manual vía UI (Drag & Drop):
-1. El sistema **bloquea la operación** si viola las restricciones duras `H-01`, `H-02`, `H-03`, `H-06`, `H-07`, `H-08` o `H-09`. La validación se ejecuta al soltar (`validar-drop`) y se repite en el servidor al guardar (`mover` responde 409 con los conflictos), de modo que el cliente no puede omitirla.
-2. El coordinador solo puede colocar, mover o eliminar bloques de asignaciones de sus programas (Spec 06, sección 4); los bloques de otros programas se muestran como ocupados.
+Cuando un Administrador o Planificador realiza una modificación manual vía UI (Drag & Drop):
+1. El sistema **bloquea la operación** si viola las restricciones duras `H-01`, `H-02`, `H-03`, `H-06`, `H-07`, `H-08`, `H-09`, `H-11` o `H-12`. La validación se ejecuta al soltar (`validar-drop`) y se repite en el servidor al guardar (`mover` responde 409 con los conflictos), de modo que el cliente no puede omitirla.
+2. Los roles `ADMINISTRADOR` y `PLANIFICADOR` son los únicos facultados para asignar espacios, mover bloques horarios y ejecutar el optimizador Solver. El `COORDINADOR_PFG` visualiza la matriz de horarios en modo solo lectura (`soloLectura: true`).
 3. Si la modificación viola `H-04` o `H-05`, el sistema exige ingresar un motivo justificado (Resolución de Consejo de PFG) y registra el evento en auditoría.
 4. Si la modificación degrada restricciones blandas (`S-01` a `S-08`), el sistema muestra el delta de penalización antes de confirmar el cambio.
+
+---
+
+## 7. Flujo del Ciclo de Vida de Oferta Académica
+
+El período lectivo transita por un ciclo ordenado de estados de oferta:
+
+$$\text{BORRADOR} \xrightarrow[\text{prerrequisitos}]{} \text{REGISTRO\_OFERTAS / PLANIFICACION} \longrightarrow \text{OFERTA\_APROBADA} \longrightarrow \text{ACTIVO / PUBLICADA} \longrightarrow \text{CERRADO}$$
+
+1. **Borrador (`BORRADOR`)**: Período recién creado. No permite registrar ofertas ni asignar espacios.
+2. **Apertura de Ventana de Oferta (`REGISTRO_OFERTAS` / `PLANIFICACION`)**:
+   - **Prerrequisito de Apertura**: Requiere verificación previa de:
+     - Al menos un docente activo en el sistema.
+     - Al menos un aula o espacio físico activo.
+     - Al menos una malla curricular o unidad curricular activa.
+   - En este estado, los Coordinadores de PFG cargan secciones, definen matrícula y asignan docentes a las unidades de sus programas.
+3. **Oferta Aprobada (`OFERTA_APROBADA`)**:
+   - La ventana de registro de oferta se bloquea para coordinadores (modo solo lectura para secciones).
+   - El equipo de Planificación y Administración procede a la corrida del Solver y asignación de aulas/espacios físicos.
+4. **Período Activo / Publicado (`ACTIVO` / `PUBLICADA`)**:
+   - Los horarios oficiales quedan publicados y vigentes.
+5. **Período Cerrado (`CERRADO`)**:
+   - Período culminado, histórico inmutable.

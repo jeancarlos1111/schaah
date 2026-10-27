@@ -34,10 +34,10 @@ export function recibirArchivo(req: Request, res: Response, next: NextFunction) 
   });
 }
 
-const gestores = requireRole([RolUsuario.ADMINISTRADOR, RolUsuario.DIRECTOR_ACADEMICO]);
+const gestores = requireRole([RolUsuario.ADMINISTRADOR, RolUsuario.PLANIFICADOR]);
 const gestoresCurriculares = requireRole([
   RolUsuario.ADMINISTRADOR,
-  RolUsuario.DIRECTOR_ACADEMICO,
+  RolUsuario.PLANIFICADOR,
   RolUsuario.COORDINADOR_PFG,
 ]);
 

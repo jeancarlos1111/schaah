@@ -55,6 +55,30 @@
         <span class="email-code"><%= profesor.cedula %></span>
         <span class="table-user-name font-semibold"><%= profesor.apellidos %>, <%= profesor.nombres %></span>
         <span class="table-sub-info"><%= profesor.email || 'Sin correo registrado' %></span>
+        <% if (profesor.pfgAdscripcion) { %>
+          <span class="status-pill status-info" title="Programa de formación al que está adscrito">
+            Adscripción: <%= profesor.pfgAdscripcion.codigo %>
+          </span>
+        <% } %>
+        <% if (profesor.diasDisponibles) { 
+            let dArr = [];
+            if (Array.isArray(profesor.diasDisponibles)) dArr = profesor.diasDisponibles;
+            else if (typeof profesor.diasDisponibles === 'string') {
+              try { dArr = JSON.parse(profesor.diasDisponibles); } catch { dArr = profesor.diasDisponibles.split(',').map(s => s.trim()); }
+            }
+            if (dArr.length > 0) {
+        %>
+          <span class="status-pill status-active" title="Días hábiles acordados con la coordinación (Regla H-DIAS-DISPONIBILIDAD)">
+            <span uk-icon="icon: calendar; ratio: 0.7"></span>
+            Días acordados: <%= dArr.join(', ') %>
+          </span>
+        <% } } %>
+        <% if (profesor.pisoMaximo !== null && profesor.pisoMaximo !== undefined) { %>
+          <span class="status-pill status-warning" title="Restricción médica de movilidad (Regla H-ACCESIBILIDAD-PISO)">
+            <span uk-icon="icon: location; ratio: 0.7"></span>
+            Máx. <%= profesor.pisoMaximo === 0 ? 'Planta Baja (PB)' : 'Piso ' + profesor.pisoMaximo %>
+          </span>
+        <% } %>
       </div>
       <div class="uk-flex uk-flex-middle gap-2">
         <% if (dedicacion) { %>

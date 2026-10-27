@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { puedeProgramarHorarios } from '../../core/domain/rules/alcancePfgRules';
+import { puedeVerReportesPlanificacion } from '../../core/domain/rules/alcancePfgRules';
 import { RESTRICCIONES_BLANDAS, RESTRICCIONES_DURAS } from '../../core/domain/rules/catalogoNormativa';
 import { LIMITES_DEDICACION } from '../../core/domain/rules/dedicacionRules';
 import { BLOQUES_HORARIOS_OFICIALES } from '../../core/domain/rules/timeSlotUtils';
@@ -27,7 +27,7 @@ const ETIQUETAS_DEDICACION: Record<string, string> = {
  */
 export function reportesDisponibles(rol: string | null | undefined, periodoId: string | null): ReporteDisponible[] {
   const reportes: ReporteDisponible[] = [];
-  if (puedeProgramarHorarios(rol)) {
+  if (puedeVerReportesPlanificacion(rol)) {
     reportes.push({
       titulo: 'Planilla consolidada de carga docente',
       descripcion: 'Docencia directa, proyecto, permanencia y estado normativo (H-04 y H-05) de cada docente.',
@@ -62,7 +62,7 @@ export function reportesDisponibles(rol: string | null | undefined, periodoId: s
     icono: 'download',
     accion: 'Descargar',
   });
-  if (puedeProgramarHorarios(rol)) {
+  if (puedeVerReportesPlanificacion(rol)) {
     reportes.push(
       {
         titulo: 'Inconsistencias de la oferta (.xlsx)',

@@ -6,6 +6,10 @@ import {
 } from '../../core/domain/rules/timeSlotUtils';
 import { EvaluacionRegla, claveCohorte } from '../../core/domain/rules/horarioConflictRules';
 import {
+  validarH13ReservaMartes,
+  validarH14BloqueFijoLiderazgo,
+} from '../../core/domain/rules/bloquesInstitucionalesRules';
+import {
   AsignacionBloquePropuesta,
   BloqueOcupadoExistente,
   DocenteSolverData,
@@ -181,6 +185,27 @@ export function evaluarSolucion(
         } else if (disp.prioridadPreferencia === 3) {
           costoPreferencias += PESO_PREFERENCIA;
         }
+
+        // Restricción de 3 días acordados
+        if (doc.diasDisponibles && doc.diasDisponibles.length > 0 && !doc.diasDisponibles.includes(p.dia)) {
+          violacionesDuras.push({
+            valido: false,
+            codigoRegla: 'H-DIAS-DISPONIBILIDAD',
+            mensaje: `Conflicto de disponibilidad: El docente ${doc.nombreCompleto} no tiene disponibilidad el día ${p.dia} (días acordados: ${doc.diasDisponibles.join(', ')}).`,
+          });
+        }
+
+        // Restricción de accesibilidad de piso
+        if (doc.pisoMaximo !== null && doc.pisoMaximo !== undefined && p.espacioFisicoId) {
+          const esp = mapaEspacios.get(p.espacioFisicoId);
+          if (esp && (esp.pisoNivel ?? 0) > doc.pisoMaximo) {
+            violacionesDuras.push({
+              valido: false,
+              codigoRegla: 'H-ACCESIBILIDAD-PISO',
+              mensaje: `Conflicto de accesibilidad: El docente ${doc.nombreCompleto} tiene restricción médica (máximo piso ${doc.pisoMaximo}) y se le asignó el espacio ${esp.codigo} en piso ${esp.pisoNivel}.`,
+            });
+          }
+        }
       }
     }
 
@@ -229,6 +254,24 @@ export function evaluarSolucion(
         codigoRegla: 'H-08',
         mensaje: `Conflicto H-08: La materia teórica ${sec.nombreMateria} no tiene espacio físico asignado.`,
       });
+    }
+
+    // H-13: Reserva Institucional Martes
+    const evalH13 = validarH13ReservaMartes(p);
+    if (!evalH13.valido) {
+      violacionesDuras.push(evalH13);
+    }
+
+    // H-14: Bloque Fijo Institucional Liderazgo
+    const evalH14 = validarH14BloqueFijoLiderazgo({
+      dia: p.dia,
+      horaInicio: p.horaInicio,
+      horaFin: p.horaFin,
+      unidadCurricularNombre: sec.nombreMateria,
+      diasPermitidosDocente: p.profesorId ? input.docentes.get(p.profesorId)?.diasDisponibles : undefined,
+    });
+    if (!evalH14.valido) {
+      violacionesDuras.push(evalH14);
     }
   }
 

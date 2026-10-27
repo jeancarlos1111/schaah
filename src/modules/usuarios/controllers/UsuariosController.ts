@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import prisma from '../../../core/database/prisma';
 import { RolUsuario } from '../../../core/domain/enums';
 import { resolverProgramasCoordinador } from '../../../core/domain/rules/alcancePfgRules';
+import { AuditService } from '../../../core/audit/auditService';
 
 /** Valida contra la base los programas elegidos para un coordinador (Spec 06). */
 async function programasCoordinador(rol: string, valor: unknown): Promise<{ pfgIds: string[] } | { error: string }> {
@@ -74,7 +75,7 @@ export class UsuariosController {
         }),
         prisma.usuario.count(),
         prisma.usuario.count({ where: { rol: 'ADMINISTRADOR' } }),
-        prisma.usuario.count({ where: { rol: { in: ['DIRECTOR_ACADEMICO', 'COORDINADOR_PFG'] } } }),
+        prisma.usuario.count({ where: { rol: { in: ['PLANIFICADOR', 'DIRECTOR_ACADEMICO', 'COORDINADOR_PFG'] } } }),
         prisma.usuario.count({ where: { rol: 'DOCENTE' } }),
         prisma.profesor.findMany({
           where: {
@@ -161,7 +162,7 @@ export class UsuariosController {
 
       const passwordHash = await bcrypt.hash(password, 10);
 
-      await prisma.usuario.create({
+      const nuevoUsuario = await prisma.usuario.create({
         data: {
           email: emailNormalizado,
           passwordHash,
@@ -172,6 +173,21 @@ export class UsuariosController {
           programas: { create: programasElegidos.pfgIds.map((pfgId) => ({ pfgId })) },
         },
       });
+
+      if (req.session.usuario) {
+        await AuditService.registrar({
+          usuarioId: req.session.usuario.id,
+          usuarioEmail: req.session.usuario.email,
+          usuarioNombre: `${req.session.usuario.nombres} ${req.session.usuario.apellidos}`,
+          rol: req.session.usuario.rol,
+          accion: 'CREAR',
+          entidad: 'USUARIO',
+          entidadId: nuevoUsuario.id,
+          detalles: `Creación de usuario ${nuevoUsuario.email} con rol ${nuevoUsuario.rol}`,
+          datosNuevos: { email: nuevoUsuario.email, rol: nuevoUsuario.rol, nombres: nuevoUsuario.nombres, apellidos: nuevoUsuario.apellidos },
+          ip: req.ip || req.socket?.remoteAddress || null,
+        });
+      }
 
       res.redirect('/usuarios?success=Usuario+creado+exitosamente');
     } catch (error) {
@@ -227,6 +243,22 @@ export class UsuariosController {
         ),
       ]);
 
+      if (req.session.usuario) {
+        await AuditService.registrar({
+          usuarioId: req.session.usuario.id,
+          usuarioEmail: req.session.usuario.email,
+          usuarioNombre: `${req.session.usuario.nombres} ${req.session.usuario.apellidos}`,
+          rol: req.session.usuario.rol,
+          accion: 'EDITAR',
+          entidad: 'USUARIO',
+          entidadId: id,
+          detalles: `Modificación de usuario ${usuario.email}`,
+          datosAnteriores: { nombres: usuario.nombres, apellidos: usuario.apellidos, rol: usuario.rol },
+          datosNuevos: { nombres: nombres.trim(), apellidos: apellidos.trim(), rol },
+          ip: req.ip || req.socket?.remoteAddress || null,
+        });
+      }
+
       // Si el usuario editado es la sesión actual, actualizar datos en sesión
       if (req.session.usuario && req.session.usuario.id === id) {
         req.session.usuario.nombres = nombres.trim();
@@ -262,6 +294,20 @@ export class UsuariosController {
         data: { passwordHash },
       });
 
+      if (req.session.usuario) {
+        await AuditService.registrar({
+          usuarioId: req.session.usuario.id,
+          usuarioEmail: req.session.usuario.email,
+          usuarioNombre: `${req.session.usuario.nombres} ${req.session.usuario.apellidos}`,
+          rol: req.session.usuario.rol,
+          accion: 'EDITAR',
+          entidad: 'USUARIO',
+          entidadId: id,
+          detalles: `Reestablecimiento forzado de contraseña para ${usuario.email}`,
+          ip: req.ip || req.socket?.remoteAddress || null,
+        });
+      }
+
       res.redirect(`/usuarios?success=Contraseña+reestablecida+para+${encodeURIComponent(usuario.email)}`);
     } catch (error) {
       console.error('[USUARIOS] Error reseteando contraseña:', error);
@@ -283,10 +329,28 @@ export class UsuariosController {
         return res.redirect('/usuarios?error=No+puede+desactivar+su+propio+usuario');
       }
 
+      const nuevoEstado = !usuario.activo;
+
       await prisma.usuario.update({
         where: { id },
-        data: { activo: !usuario.activo },
+        data: { activo: nuevoEstado },
       });
+
+      if (req.session.usuario) {
+        await AuditService.registrar({
+          usuarioId: req.session.usuario.id,
+          usuarioEmail: req.session.usuario.email,
+          usuarioNombre: `${req.session.usuario.nombres} ${req.session.usuario.apellidos}`,
+          rol: req.session.usuario.rol,
+          accion: nuevoEstado ? 'ACTIVAR' : 'DESACTIVAR',
+          entidad: 'USUARIO',
+          entidadId: id,
+          detalles: `${nuevoEstado ? 'Activación' : 'Desactivación'} de cuenta de usuario ${usuario.email}`,
+          datosAnteriores: { activo: usuario.activo },
+          datosNuevos: { activo: nuevoEstado },
+          ip: req.ip || req.socket?.remoteAddress || null,
+        });
+      }
 
       res.redirect('/usuarios?success=Estado+de+usuario+actualizado');
     } catch (error) {

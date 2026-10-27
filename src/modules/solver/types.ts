@@ -17,6 +17,9 @@ export interface DocenteSolverData {
   minHorasDocenciaDirecta?: number;
   maxHorasDocenciaDirecta?: number;
   sedePrincipalId?: string;
+  pisoMaximo?: number | null;
+  motivoRestriccionPiso?: string | null;
+  diasDisponibles?: string[] | null;
   disponibilidades: DisponibilidadDocenteSolver[];
 }
 
@@ -27,6 +30,8 @@ export interface EspacioSolverData {
   tipo: string;
   capacidad: number;
   sedeId: string;
+  piso?: string | null;
+  pisoNivel: number;
   activa: boolean;
 }
 

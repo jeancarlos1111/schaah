@@ -7,9 +7,17 @@ import {
   validarH03NoSolapamientoSeccion,
   validarH07NoSolapamientoPrelacion,
   validarH08AdecuacionEspacio,
+  validarHAccesibilidadPiso,
+  validarHDiasDisponibilidad,
 } from './horarioConflictRules';
 import { PropuestaConSede, validarH09AntiteletransportacionSede } from './trasladoSedeRules';
 import { to12HourFormat } from './timeSlotUtils';
+import { validarAccesoPiso, etiquetaPiso } from './pisoRules';
+import { validarDiaEnDisponibilidad } from './adscripcionRules';
+import {
+  validarH13ReservaMartes,
+  validarH14BloqueFijoLiderazgo,
+} from './bloquesInstitucionalesRules';
 
 export interface DisponibilidadDocenteItem {
   profesorId: string;
@@ -84,6 +92,22 @@ export function validarAsignacionHoraria(
       );
     }
   }
+
+  // 8. Evaluar Restricción Física de Piso / Movilidad
+  const evalPiso = validarHAccesibilidadPiso(propuesta);
+  if (!evalPiso.valido) conflictos.push(evalPiso);
+
+  // 9. Evaluar Días de Disponibilidad Acordados
+  const evalDias = validarHDiasDisponibilidad(propuesta);
+  if (!evalDias.valido) conflictos.push(evalDias);
+
+  // 10. Evaluar H-13 (Reserva Institucional Martes)
+  const evalH13 = validarH13ReservaMartes(propuesta);
+  if (!evalH13.valido) conflictos.push(evalH13);
+
+  // 11. Evaluar H-14 (Bloque Fijo Institucional Liderazgo)
+  const evalH14 = validarH14BloqueFijoLiderazgo(propuesta);
+  if (!evalH14.valido) conflictos.push(evalH14);
 
   const esValido = conflictos.length === 0;
   const mensajeResumen = esValido

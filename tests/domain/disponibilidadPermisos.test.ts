@@ -20,8 +20,8 @@ describe('Quién edita la disponibilidad de un docente (Spec 06)', () => {
     expect(permisoDisponibilidad({ rol: RolUsuario.DOCENTE, profesorIdPropio: null }, 'carlos', [], ALCANCE_TOTAL).permitido).toBe(false);
   });
 
-  it('Administración y Dirección editan la de cualquier docente, siempre con motivo', () => {
-    for (const rol of [RolUsuario.ADMINISTRADOR, RolUsuario.DIRECTOR_ACADEMICO]) {
+  it('Administración y Planificación editan la de cualquier docente, siempre con motivo', () => {
+    for (const rol of [RolUsuario.ADMINISTRADOR, RolUsuario.PLANIFICADOR, RolUsuario.DIRECTOR_ACADEMICO]) {
       expect(permisoDisponibilidad({ rol }, 'ana', [], ALCANCE_TOTAL)).toEqual({ permitido: true, requiereMotivo: true });
     }
   });

@@ -134,6 +134,9 @@ async function evaluarPropuestaHoraria(periodoId: string, seccion: SeccionHorari
     pfgId: seccion.unidadCurricular.pfgId,
     turno: seccion.turno,
     prelacionIds: seccion.unidadCurricular.prelacionesRequeridas.map((p) => p.preladaPorId),
+    pisoMaximoDocente: seccion.profesor?.pisoMaximo,
+    pisoNivelEspacio: espacioPropuesto?.pisoNivel ?? espacioPropuesto?.piso,
+    diasPermitidosDocente: seccion.profesor?.diasDisponibles,
   };
 
   return { propuesta, resultado: validarAsignacionHoraria(propuesta, bloquesExistentes, disponibilidades) };

@@ -6,13 +6,13 @@
         <span class="breadcrumb-separator">/</span>
         <span class="active-crumb">Manual Técnico</span>
       </div>
-      <h1 class="page-title uk-margin-remove">Manual Técnico &bull; Arquitectura SAHAD UBV</h1>
+      <h1 class="page-title uk-margin-remove"><%= manual.titulo || 'Manual Técnico' %></h1>
       <p class="page-subtitle uk-margin-xsmall-top">
-        Especificación de componentes, modelo relacional, restricciones de optimización y pruebas automatizadas.
+        Arquitectura, modelo de datos, restricciones de dominio e instalación — contenido vivo desde docs/MANUAL_TECNICO.md.
       </p>
     </div>
     <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
-      <button class="btn-clean-secondary" onclick="window.print()">
+      <button class="btn-clean-secondary" type="button" onclick="window.print()">
         <span uk-icon="icon: print; ratio: 0.85"></span>
         <span>Imprimir / Guardar PDF</span>
       </button>
@@ -24,64 +24,34 @@
   </div>
 </div>
 
-<div class="bento-card uk-margin-medium-bottom" style="padding: 2.5rem; max-width: 980px; margin: 0 auto; line-height: 1.7; color: var(--text-muted);">
-  
-  <div style="border-bottom: 2px solid var(--border-subtle); padding-bottom: 1.5rem; margin-bottom: 2rem;">
-    <div class="uk-flex uk-flex-middle gap-3">
-      <img src="/img/logo-ubv.png" alt="UBV SAHAD" style="height: 52px; width: 52px; object-fit: contain; border-radius: 50%;" />
-      <div>
-        <h2 style="font-size: 1.4rem; font-weight: 800; color: var(--text-white); margin: 0;">Arquitectura e Ingeniería del Sistema</h2>
-        <span style="font-size: 0.85rem; color: var(--text-muted);">Universidad Bolivariana de Venezuela &bull; Eje Geopolítico Regional Kerepakupai Vena</span>
-      </div>
+<div class="manual-layout">
+  <aside class="manual-indice" aria-label="Índice del manual técnico">
+    <div class="manual-indice-titulo">
+      <span uk-icon="icon: list; ratio: 0.8"></span>
+      <span>Contenido</span>
     </div>
-  </div>
+    <nav>
+      <ul class="manual-indice-lista">
+        <% manual.indice.forEach(function (entrada) { %>
+          <li class="manual-indice-nivel-<%= entrada.nivel %>">
+            <a href="#<%= entrada.id %>"><%= entrada.texto %></a>
+          </li>
+        <% }) %>
+      </ul>
+    </nav>
+  </aside>
 
-  <h3 style="font-weight: 700; color: var(--text-white); font-size: 1.15rem; margin-top: 2rem;">1. Pila Tecnológica</h3>
-  <ul style="padding-left: 20px;">
-    <li><strong>Backend</strong>: Node.js 22 LTS, Express 4.21, TypeScript 5.6.</li>
-    <li><strong>Persistencia</strong>: Prisma ORM 5.22 sobre SQLite WAL (dev) y PostgreSQL (prod).</li>
-    <li><strong>Frontend SSR</strong>: EJS con layouts automáticos, HTMX 1.9, UIkit 3.21 y CSS Modular empresarial.</li>
-    <li><strong>Optimización Horaria</strong>: Google OR-Tools CP-SAT WebAssembly (WASM).</li>
-    <li><strong>Calidad y Pruebas</strong>: Vitest 5.0 con 100% pruebas de dominio reales sin mocks artificiales.</li>
-  </ul>
+  <article class="bento-card manual-documento">
+    <header class="manual-portada">
+      <img src="/img/logo-ubv.png" alt="UBV SAHAD" class="manual-portada-logo" />
+      <div>
+        <h2 class="manual-portada-titulo">Manual Técnico de Arquitectura</h2>
+        <span class="manual-portada-subtitulo">Universidad Bolivariana de Venezuela &bull; Eje Geopolítico Regional Kerepakupai Vena</span>
+      </div>
+    </header>
 
-  <h3 style="font-weight: 700; color: var(--text-white); font-size: 1.15rem; margin-top: 2rem;">2. Modelo Relacional de Mallas y Prelaciones</h3>
-  <p>
-    La entidad <code>UnidadCurricular</code> soporta relaciones autorreferenciales muchos-a-muchos mediante el modelo <code>UnidadCurricularPrelacion</code>:
-  </p>
-  <pre style="background: var(--surface-muted); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-subtle); color: #93c5fd; font-family: monospace; font-size: 0.82rem;">
-model UnidadCurricularPrelacion {
-  id                 String           @id @default(uuid())
-  unidadCurricularId String           @map("unidad_curricular_id")
-  unidadCurricular   UnidadCurricular @relation("UnidadPrelada", fields: [unidadCurricularId], references: [id], onDelete: Cascade)
-  preladaPorId       String           @map("prelada_por_id")
-  preladaPor         UnidadCurricular @relation("UnidadRequisito", fields: [preladaPorId], references: [id], onDelete: Cascade)
-  createdAt          DateTime         @default(now()) @map("created_at")
-
-  @@unique([unidadCurricularId, preladaPorId])
-}
-  </pre>
-
-  <h3 style="font-weight: 700; color: var(--text-white); font-size: 1.15rem; margin-top: 2rem;">3. Restricciones del Dominio (H-01 a H-09)</h3>
-  <p>
-    El motor en <code>src/core/domain/rules/validadorHorarioService.ts</code> aplica de forma estricta:
-  </p>
-  <ul style="padding-left: 20px;">
-    <li><strong>H-01</strong>: No solapamiento temporal de docentes.</li>
-    <li><strong>H-02</strong>: No colisión de espacios físicos.</li>
-    <li><strong>H-03</strong>: No solapamiento de cohortes/secciones.</li>
-    <li><strong>H-07</strong>: No solapamiento entre materias con prelación directa del mismo PFG y turno.</li>
-    <li><strong>H-08</strong>: Prohibición de reserva de aula en unidades de Proyecto Comunitario de campo.</li>
-    <li><strong>H-09</strong>: Margen de 90 minutos para antiteletransportación entre sedes y aldeas.</li>
-  </ul>
-
-  <h3 style="font-weight: 700; color: var(--text-white); font-size: 1.15rem; margin-top: 2rem;">4. Ejecución de Pruebas Automatizadas</h3>
-  <pre style="background: var(--surface-muted); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-subtle); color: #86efac; font-family: monospace; font-size: 0.82rem;">
-# Ejecución de la suite completa de pruebas
-pnpm test
-# Solo los escenarios Gherkin de la Spec 05 (tests/acceptance/)
-pnpm test:acceptance
-# Salida esperada: 100% suites passing (Tests en verde)
-  </pre>
-
+    <div class="manual-contenido">
+      <%- manual.html %>
+    </div>
+  </article>
 </div>

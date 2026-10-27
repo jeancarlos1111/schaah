@@ -16,4 +16,5 @@ export async function enableSqliteWal() {
   }
 }
 
+export { prisma };
 export default prisma;

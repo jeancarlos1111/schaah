@@ -13,7 +13,7 @@
       </p>
     </div>
     <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
-      <% if (usuario && (usuario.rol === 'ADMINISTRADOR' || usuario.rol === 'DIRECTOR_ACADEMICO')) { %>
+      <% if (usuario && (usuario.rol === 'ADMINISTRADOR' || usuario.rol === 'PLANIFICADOR' || usuario.rol === 'DIRECTOR_ACADEMICO')) { %>
         <button class="btn-clean-secondary" uk-toggle="target: #modal-nuevo-pfg">
           <span uk-icon="icon: folder; ratio: 0.85"></span>
           <span>Nuevo PFG</span>
@@ -171,7 +171,7 @@
           <% } %>
         </select>
 
-        <% if (pfgSeleccionado && usuario && (usuario.rol === 'ADMINISTRADOR' || usuario.rol === 'DIRECTOR_ACADEMICO')) { %>
+        <% if (pfgSeleccionado && usuario && (usuario.rol === 'ADMINISTRADOR' || usuario.rol === 'PLANIFICADOR' || usuario.rol === 'DIRECTOR_ACADEMICO')) { %>
           <button 
             class="btn-table-action" 
             type="button"
@@ -499,6 +499,7 @@
                               <span>Editar Asignatura</span>
                             </button>
                           </li>
+                          <% if (usuario && usuario.rol === 'ADMINISTRADOR') { %>
                           <li>
                             <form action="/curriculo/unidades/<%= uc.id %>/toggle" method="POST" style="margin: 0; padding: 0; width: 100%; display: block;">
                               <button type="submit" class="dropdown-action-btn <%= uc.activa ? 'text-danger' : 'text-success' %>">
@@ -507,6 +508,7 @@
                               </button>
                             </form>
                           </li>
+                          <% } %>
                         </ul>
                       </div>
                     </div>
@@ -698,12 +700,16 @@
         </div>
 
         <div class="uk-flex uk-flex-between uk-flex-middle uk-margin-top">
+          <% if (usuario && usuario.rol === 'ADMINISTRADOR') { %>
           <form action="/curriculo/pfg/<%= pfgSeleccionado.id %>/toggle" method="POST" class="uk-margin-remove">
             <button type="submit" class="btn-table-action <%= pfgSeleccionado.activo ? 'text-danger' : 'text-success' %>">
               <span uk-icon="icon: <%= pfgSeleccionado.activo ? 'ban' : 'check' %>; ratio: 0.75"></span>
               <span><%= pfgSeleccionado.activo ? 'Inhabilitar PFG' : 'Activar PFG' %></span>
             </button>
           </form>
+          <% } else { %>
+          <div></div>
+          <% } %>
 
           <div class="uk-flex gap-2">
             <button class="btn-clean-secondary uk-modal-close" type="button">

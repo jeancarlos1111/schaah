@@ -8,12 +8,12 @@ const espaciosController = new EspaciosController();
 
 const ROLES_LECTURA_ESPACIOS = [
   RolUsuario.ADMINISTRADOR,
-  RolUsuario.DIRECTOR_ACADEMICO,
+  RolUsuario.PLANIFICADOR,
   RolUsuario.COORDINADOR_PFG,
 ];
 
-// Spec 06: el coordinador consulta sedes y aulas pero no las modifica
-const ROLES_GESTION_ESPACIOS = [RolUsuario.ADMINISTRADOR, RolUsuario.DIRECTOR_ACADEMICO];
+// Spec 06 y Reunión: el planificador gestiona recintos pero no los habilita/deshabilita
+const ROLES_GESTION_ESPACIOS = [RolUsuario.ADMINISTRADOR, RolUsuario.PLANIFICADOR];
 
 // Listado de Espacios y Sedes
 router.get(
@@ -41,7 +41,7 @@ router.post(
 router.post(
   '/espacios/aulas/:id/toggle',
   requireAuth,
-  requireRole(...ROLES_GESTION_ESPACIOS),
+  requireRole(RolUsuario.ADMINISTRADOR),
   (req, res) => espaciosController.toggleAula(req, res)
 );
 
@@ -63,7 +63,7 @@ router.post(
 router.post(
   '/espacios/sedes/:id/toggle',
   requireAuth,
-  requireRole(...ROLES_GESTION_ESPACIOS),
+  requireRole(RolUsuario.ADMINISTRADOR),
   (req, res) => espaciosController.toggleSede(req, res)
 );
 
