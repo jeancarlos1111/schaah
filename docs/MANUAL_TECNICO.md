@@ -219,7 +219,7 @@ curl -fsS http://185.193.66.108/health
 
 ### 6.3 Redespliegue desde GitHub
 
-El script `/root/www/node/redesplegar-sahad.sh` actualiza el código en el servidor de pruebas sin tocar la base ni el `.env` (ambos están en `.gitignore`). Debe ejecutarse como `root` en el servidor:
+El script `/root/www/node/redesplegar-sahad.sh` actualiza el código en el servidor de pruebas sin tocar el `.env` (está en `.gitignore`). La base `prisma/dev.db` se **respalda** y luego se **alinea al `schema.prisma`** con `prisma db push` (sin borrar datos). Debe ejecutarse como `root` en el servidor:
 
 ```bash
 /root/www/node/redesplegar-sahad.sh
@@ -229,16 +229,18 @@ Secuencia que ejecuta:
 
 1. Respaldo de la base con `pnpm db:respaldo` (queda en `backups/`).
 2. `git pull --ff-only` desde `origin/main`.
-3. `pnpm install --frozen-lockfile`, `pnpm prisma:generate` y `pnpm build`.
+3. `pnpm install --frozen-lockfile`, `pnpm prisma:generate`, `pnpm exec prisma db push` y `pnpm build`.
 4. Copia de `src/views` y `src/public` a `dist/`.
 5. `pm2 restart sahad --update-env`, `pm2 save` y comprobación de `/health`.
+
+Si el código nuevo consulta tablas o columnas que aún no existen en SQLite (p. ej. `usuarios_programas`, `centros_estudio`, `bitacora_auditoria`), los listados responden **500**. Tras un pull con cambios de esquema hay que aplicar `prisma db push` (el script de redespliegue ya lo incluye). Opcionalmente, `pnpm seed` actualiza roles/permisos canónicos (Planificador, etc.) sin recrear la base.
 
 Contenido de referencia del script:
 
 ```bash
 #!/usr/bin/env bash
 # Actualiza SAHAD-UBV desde GitHub y reinicia el proceso PM2 "sahad".
-# La base prisma/dev.db y el .env no se tocan (están en .gitignore).
+# El .env no se toca. La base se respalda y se alinea al schema.prisma.
 set -euo pipefail
 cd /root/www/node/schaah
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 CI=true
@@ -247,6 +249,7 @@ pnpm db:respaldo
 git pull --ff-only
 pnpm install --frozen-lockfile
 pnpm prisma:generate
+pnpm exec prisma db push
 pnpm build
 rm -rf dist/views dist/public
 cp -r src/views src/public dist/
