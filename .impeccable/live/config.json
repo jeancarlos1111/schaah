@@ -1,0 +1,9 @@
+{
+  "files": [
+    "src/views/layouts/main.ejs"
+  ],
+  "insertBefore": "</body>",
+  "commentSyntax": "html",
+  "cspChecked": true
+}
+

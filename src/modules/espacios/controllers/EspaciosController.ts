@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../../../core/database/prisma';
 import { TipoEspacio } from '../../../core/domain/enums';
+import { normalizarNivelPiso } from '../../../core/domain/rules/pisoRules';
 
 export class EspaciosController {
   async index(req: Request, res: Response) {
@@ -163,6 +164,7 @@ export class EspaciosController {
         return res.redirect('/espacios?error=El+código+del+aula+ya+existe+en+la+sede+seleccionada');
       }
 
+      const pisoTexto = piso ? piso.trim() : null;
       await prisma.espacioFisico.create({
         data: {
           sedeId,
@@ -170,7 +172,8 @@ export class EspaciosController {
           nombre: nombre.trim(),
           tipo,
           capacidad: capacidadNum,
-          piso: piso ? piso.trim() : null,
+          piso: pisoTexto,
+          pisoNivel: normalizarNivelPiso(pisoTexto),
           activo: true,
         },
       });
@@ -192,13 +195,15 @@ export class EspaciosController {
         return res.redirect('/espacios?error=La+capacidad+debe+ser+un+número+válido');
       }
 
+      const pisoTexto = piso ? piso.trim() : null;
       await prisma.espacioFisico.update({
         where: { id },
         data: {
           nombre: nombre.trim(),
           tipo,
           capacidad: capacidadNum,
-          piso: piso ? piso.trim() : null,
+          piso: pisoTexto,
+          pisoNivel: normalizarNivelPiso(pisoTexto),
         },
       });
 

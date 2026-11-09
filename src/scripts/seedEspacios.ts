@@ -1,5 +1,133 @@
 import prisma, { enableSqliteWal } from '../core/database/prisma';
 import { TipoEspacio } from '../core/domain/enums';
+import { normalizarNivelPiso } from '../core/domain/rules/pisoRules';
+
+export interface EspacioSeedItem {
+  sedeCodigo: string;
+  codigo: string;
+  nombre: string;
+  tipo: TipoEspacio;
+  capacidad: number;
+  piso: string;
+  pisoNivel: number;
+}
+
+const AULAS_PISO_1 = ['1-4', '1-5', '1-7', '1-8', '1-11', '1-12', '1-13'];
+const AULAS_PISO_2 = [
+  '2-1',
+  '2-2',
+  '2-3',
+  '2-4',
+  '2-5',
+  '2-6',
+  '2-7',
+  '2-8',
+  '2-9',
+  '2-10',
+  '2-11',
+  '2-12',
+  '2-13',
+  '2-14',
+  '2-15',
+  '2-16',
+  '2-18',
+];
+const AULAS_PISO_3 = [
+  '3-18',
+  '3-19',
+  '3-21',
+  '3-23',
+  '3-25',
+  '3-28',
+  '3-29',
+  '3-30',
+  '3-31',
+  '3-32',
+  '3-33',
+  '3-34',
+  '3-35',
+  '3-36',
+];
+
+export const ESPACIOS_NATURALES_SEDE_BOLIVAR: EspacioSeedItem[] = [
+  // Aulas 1er. Piso
+  ...AULAS_PISO_1.map((num) => ({
+    sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
+    codigo: `AULA-${num}`,
+    nombre: `Aula ${num}`,
+    tipo: TipoEspacio.AULA_TEORICA,
+    capacidad: 40,
+    piso: 'Piso 1',
+    pisoNivel: 1,
+  })),
+  // Aulas 2do. Piso
+  ...AULAS_PISO_2.map((num) => ({
+    sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
+    codigo: `AULA-${num}`,
+    nombre: `Aula ${num}`,
+    tipo: TipoEspacio.AULA_TEORICA,
+    capacidad: 40,
+    piso: 'Piso 2',
+    pisoNivel: 2,
+  })),
+  // Aulas 3er. Piso
+  ...AULAS_PISO_3.map((num) => ({
+    sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
+    codigo: `AULA-${num}`,
+    nombre: `Aula ${num}`,
+    tipo: TipoEspacio.AULA_TEORICA,
+    capacidad: 40,
+    piso: 'Piso 3',
+    pisoNivel: 3,
+  })),
+  // Arquitectura: Dos aulas taller
+  {
+    sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
+    codigo: 'TALLER-ARQ-1',
+    nombre: 'Taller Arquitectura 1',
+    tipo: TipoEspacio.TALLER,
+    capacidad: 35,
+    piso: 'Piso 1',
+    pisoNivel: 1,
+  },
+  {
+    sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
+    codigo: 'TALLER-ARQ-2',
+    nombre: 'Taller Arquitectura 2',
+    tipo: TipoEspacio.TALLER,
+    capacidad: 35,
+    piso: 'Piso 1',
+    pisoNivel: 1,
+  },
+  // Informática: Laboratorios
+  {
+    sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
+    codigo: 'LAB-2',
+    nombre: 'Laboratorio #2',
+    tipo: TipoEspacio.LABORATORIO_INFORMATICA,
+    capacidad: 28,
+    piso: 'Piso 1',
+    pisoNivel: 1,
+  },
+  {
+    sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
+    codigo: 'LAB-11',
+    nombre: 'Laboratorio #11',
+    tipo: TipoEspacio.LABORATORIO_INFORMATICA,
+    capacidad: 28,
+    piso: 'Piso 1',
+    pisoNivel: 1,
+  },
+  {
+    sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
+    codigo: 'LAB-12',
+    nombre: 'Laboratorio #12',
+    tipo: TipoEspacio.LABORATORIO_INFORMATICA,
+    capacidad: 28,
+    piso: 'Piso 1',
+    pisoNivel: 1,
+  },
+];
 
 async function main() {
   console.log('[SEED-ESPACIOS] Conectando a base de datos...');
@@ -104,83 +232,25 @@ async function main() {
     console.log(`[SEED-ESPACIOS] Sede asegurada: ${s.nombre} (${s.esAldeaMunicipalizada ? 'Aldea Municipalizada' : 'Sede Principal'})`);
   }
 
-  // 2. Aulas, Laboratorios, Auditorios y Espacios de Campo en Estado Bolívar
-  const espaciosData = [
+  // Purgar espacios anteriores obsoletos de la Sede UBV Bolívar que no estén en el catálogo oficial ni tengan horarios asignados
+  const sedeBolivarId = sedesCreadas['SEDE_BOLIVAR_ANGOSTURA'];
+  if (sedeBolivarId) {
+    const codigosOficialesBolivar = ESPACIOS_NATURALES_SEDE_BOLIVAR.map((e) => e.codigo);
+    await prisma.espacioFisico.deleteMany({
+      where: {
+        sedeId: sedeBolivarId,
+        codigo: { notIn: codigosOficialesBolivar },
+        horarios: { none: {} },
+      },
+    });
+  }
+
+  // 2. Aulas, Talleres, Laboratorios y Espacios de Campo en Estado Bolívar
+  const espaciosData: EspacioSeedItem[] = [
     // ------------------------------------------------------------------------
-    // Sede Principal Ciudad Bolívar (Municipio Angostura del Orinoco)
+    // Sede Principal UBV Bolívar (Municipio Angostura del Orinoco)
     // ------------------------------------------------------------------------
-    {
-      sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
-      codigo: 'AUL-101',
-      nombre: 'Aula 101 - Congreso de Angostura',
-      tipo: TipoEspacio.AULA_TEORICA,
-      capacidad: 40,
-      piso: 'Piso 1',
-    },
-    {
-      sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
-      codigo: 'AUL-102',
-      nombre: 'Aula 102 - General Manuel Piar',
-      tipo: TipoEspacio.AULA_TEORICA,
-      capacidad: 35,
-      piso: 'Piso 1',
-    },
-    {
-      sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
-      codigo: 'AUL-103',
-      nombre: 'Aula 103 - General Tomás de Heres',
-      tipo: TipoEspacio.AULA_TEORICA,
-      capacidad: 35,
-      piso: 'Piso 1',
-    },
-    {
-      sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
-      codigo: 'AUL-201',
-      nombre: 'Aula 201 - Simón Rodríguez',
-      tipo: TipoEspacio.AULA_TEORICA,
-      capacidad: 45,
-      piso: 'Piso 2',
-    },
-    {
-      sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
-      codigo: 'LAB-INFO-01',
-      nombre: 'Laboratorio 1 de Software Libre y Desarrollo',
-      tipo: TipoEspacio.LABORATORIO_INFORMATICA,
-      capacidad: 28,
-      piso: 'Piso 2',
-    },
-    {
-      sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
-      codigo: 'LAB-INFO-02',
-      nombre: 'Laboratorio 2 de Telemática y Redes',
-      tipo: TipoEspacio.LABORATORIO_INFORMATICA,
-      capacidad: 25,
-      piso: 'Piso 2',
-    },
-    {
-      sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
-      codigo: 'LAB-GEO-MINAS',
-      nombre: 'Laboratorio de Geociencias y Gestión Ambiental',
-      tipo: TipoEspacio.LABORATORIO_CIENCIAS,
-      capacidad: 22,
-      piso: 'Planta Baja',
-    },
-    {
-      sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
-      codigo: 'AUD-BICENTENARIO',
-      nombre: 'Auditorio Bicentenario de Angostura',
-      tipo: TipoEspacio.AUDITORIO,
-      capacidad: 150,
-      piso: 'Planta Baja',
-    },
-    {
-      sedeCodigo: 'SEDE_BOLIVAR_ANGOSTURA',
-      codigo: 'CAMPO-ORINOCO',
-      nombre: 'Eje Comunitario Ribera del Orinoco (Comunidad/Campo)',
-      tipo: TipoEspacio.ESPACIO_COMUNITARIO_CAMPO,
-      capacidad: 50,
-      piso: 'Territorial',
-    },
+    ...ESPACIOS_NATURALES_SEDE_BOLIVAR,
 
     // ------------------------------------------------------------------------
     // Aldea Universitaria Caroní (Puerto Ordaz / San Félix - Municipio Caroní)
@@ -192,6 +262,7 @@ async function main() {
       tipo: TipoEspacio.AULA_TEORICA,
       capacidad: 35,
       piso: 'Piso 1',
+      pisoNivel: 1,
     },
     {
       sedeCodigo: 'ALDEA_CARONI_PUERTO_ORDAZ',
@@ -200,6 +271,7 @@ async function main() {
       tipo: TipoEspacio.AULA_TEORICA,
       capacidad: 30,
       piso: 'Piso 1',
+      pisoNivel: 1,
     },
     {
       sedeCodigo: 'ALDEA_CARONI_PUERTO_ORDAZ',
@@ -208,6 +280,7 @@ async function main() {
       tipo: TipoEspacio.LABORATORIO_INFORMATICA,
       capacidad: 25,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
     {
       sedeCodigo: 'ALDEA_CARONI_PUERTO_ORDAZ',
@@ -216,6 +289,7 @@ async function main() {
       tipo: TipoEspacio.ESPACIO_COMUNITARIO_CAMPO,
       capacidad: 40,
       piso: 'Territorial',
+      pisoNivel: 0,
     },
 
     // ------------------------------------------------------------------------
@@ -228,6 +302,7 @@ async function main() {
       tipo: TipoEspacio.AULA_TEORICA,
       capacidad: 40,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
     {
       sedeCodigo: 'ALDEA_CVG_GOSH',
@@ -236,6 +311,7 @@ async function main() {
       tipo: TipoEspacio.AULA_TEORICA,
       capacidad: 40,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
     {
       sedeCodigo: 'ALDEA_CVG_GOSH',
@@ -244,6 +320,7 @@ async function main() {
       tipo: TipoEspacio.LABORATORIO_INFORMATICA,
       capacidad: 25,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
 
     // ------------------------------------------------------------------------
@@ -256,6 +333,7 @@ async function main() {
       tipo: TipoEspacio.AULA_TEORICA,
       capacidad: 30,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
     {
       sedeCodigo: 'ALDEA_PIAR_UPATA',
@@ -264,6 +342,7 @@ async function main() {
       tipo: TipoEspacio.AULA_TEORICA,
       capacidad: 28,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
     {
       sedeCodigo: 'ALDEA_PIAR_UPATA',
@@ -272,6 +351,7 @@ async function main() {
       tipo: TipoEspacio.LABORATORIO_INFORMATICA,
       capacidad: 20,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
     {
       sedeCodigo: 'ALDEA_PIAR_UPATA',
@@ -280,6 +360,7 @@ async function main() {
       tipo: TipoEspacio.ESPACIO_COMUNITARIO_CAMPO,
       capacidad: 35,
       piso: 'Territorial',
+      pisoNivel: 0,
     },
 
     // ------------------------------------------------------------------------
@@ -292,6 +373,7 @@ async function main() {
       tipo: TipoEspacio.AULA_TEORICA,
       capacidad: 30,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
     {
       sedeCodigo: 'ALDEA_CEDENO_CAICARA',
@@ -300,6 +382,7 @@ async function main() {
       tipo: TipoEspacio.AULA_TEORICA,
       capacidad: 25,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
     {
       sedeCodigo: 'ALDEA_CEDENO_CAICARA',
@@ -308,6 +391,7 @@ async function main() {
       tipo: TipoEspacio.ESPACIO_COMUNITARIO_CAMPO,
       capacidad: 30,
       piso: 'Territorial',
+      pisoNivel: 0,
     },
 
     // ------------------------------------------------------------------------
@@ -320,6 +404,7 @@ async function main() {
       tipo: TipoEspacio.AULA_TEORICA,
       capacidad: 30,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
     {
       sedeCodigo: 'ALDEA_GRAN_SABANA',
@@ -328,6 +413,7 @@ async function main() {
       tipo: TipoEspacio.AULA_TEORICA,
       capacidad: 25,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
     {
       sedeCodigo: 'ALDEA_GRAN_SABANA',
@@ -336,6 +422,7 @@ async function main() {
       tipo: TipoEspacio.LABORATORIO_INFORMATICA,
       capacidad: 20,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
     {
       sedeCodigo: 'ALDEA_GRAN_SABANA',
@@ -344,6 +431,7 @@ async function main() {
       tipo: TipoEspacio.ESPACIO_COMUNITARIO_CAMPO,
       capacidad: 40,
       piso: 'Territorial',
+      pisoNivel: 0,
     },
 
     // ------------------------------------------------------------------------
@@ -356,6 +444,7 @@ async function main() {
       tipo: TipoEspacio.AULA_TEORICA,
       capacidad: 30,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
     {
       sedeCodigo: 'ALDEA_ROSCIO_GUASIPATI',
@@ -364,6 +453,7 @@ async function main() {
       tipo: TipoEspacio.AULA_TEORICA,
       capacidad: 25,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
     {
       sedeCodigo: 'ALDEA_ROSCIO_GUASIPATI',
@@ -372,6 +462,7 @@ async function main() {
       tipo: TipoEspacio.ESPACIO_COMUNITARIO_CAMPO,
       capacidad: 35,
       piso: 'Territorial',
+      pisoNivel: 0,
     },
 
     // ------------------------------------------------------------------------
@@ -384,6 +475,7 @@ async function main() {
       tipo: TipoEspacio.AULA_TEORICA,
       capacidad: 30,
       piso: 'Planta Baja',
+      pisoNivel: 0,
     },
     {
       sedeCodigo: 'ALDEA_BOLIVARIANO_ANGOSTURA',
@@ -392,12 +484,15 @@ async function main() {
       tipo: TipoEspacio.ESPACIO_COMUNITARIO_CAMPO,
       capacidad: 30,
       piso: 'Territorial',
+      pisoNivel: 0,
     },
   ];
 
   for (const esp of espaciosData) {
     const sedeId = sedesCreadas[esp.sedeCodigo];
     if (!sedeId) continue;
+
+    const pisoNivel = esp.pisoNivel ?? normalizarNivelPiso(esp.piso);
 
     await prisma.espacioFisico.upsert({
       where: {
@@ -411,6 +506,7 @@ async function main() {
         tipo: esp.tipo,
         capacidad: esp.capacidad,
         piso: esp.piso,
+        pisoNivel,
         activo: true,
       },
       create: {
@@ -420,20 +516,23 @@ async function main() {
         tipo: esp.tipo,
         capacidad: esp.capacidad,
         piso: esp.piso,
+        pisoNivel,
         activo: true,
       },
     });
-    console.log(`[SEED-ESPACIOS] Espacio asegurado: [${esp.codigo}] ${esp.nombre} (${esp.tipo})`);
+    console.log(`[SEED-ESPACIOS] Espacio asegurado: [${esp.codigo}] ${esp.nombre} (${esp.tipo} - ${esp.piso})`);
   }
 
   console.log('[SEED-ESPACIOS] Siembra de Sedes y Espacios del Estado Bolívar culminada con éxito.');
 }
 
-main()
-  .catch((e) => {
-    console.error('[SEED-ESPACIOS] Error sembrando espacios del Estado Bolívar:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error('[SEED-ESPACIOS] Error sembrando espacios del Estado Bolívar:', e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

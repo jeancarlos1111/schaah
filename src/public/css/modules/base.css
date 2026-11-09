@@ -18,11 +18,23 @@ body.schaah-body {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--canvas-bg);
   color: var(--text-body);
+  caret-color: var(--brand-accent);
+  scrollbar-color: var(--border-medium) var(--surface-header);
   display: flex;
   flex-direction: column;
   line-height: 1.5;
   transition: background-color 0.15s ease, color 0.15s ease;
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background-color: var(--accent-blue-bg);
+  color: var(--text-white);
+}
+
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
 }
 
 /* Contenedor Principal y Estructura */

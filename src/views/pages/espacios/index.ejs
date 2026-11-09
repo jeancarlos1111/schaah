@@ -329,6 +329,8 @@
                   <td>
                     <% if (e.tipo.includes('LABORATORIO')) { %>
                       <span class="user-role-tag role-administrador"><%= e.tipo.replace(/_/g, ' ') %></span>
+                    <% } else if (e.tipo === 'TALLER') { %>
+                      <span class="user-role-tag role-coordinador_pfg">TALLER</span>
                     <% } else if (e.tipo === 'AUDITORIO') { %>
                       <span class="user-role-tag role-coordinador_pfg">AUDITORIO</span>
                     <% } else if (e.tipo === 'ESPACIO_COMUNITARIO_CAMPO') { %>

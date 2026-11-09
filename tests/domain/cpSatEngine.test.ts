@@ -106,4 +106,41 @@ describe('Motor CP-SAT (OR-Tools WebAssembly, requiere Node 22)', () => {
     expect(r.status).toBe('INFEASIBLE');
     expect(r.asignaciones).toEqual([]);
   });
+
+  it('H-ACCESIBILIDAD-PISO y H-DIAS-DISPONIBILIDAD: asigna aula en piso permitido (<= pisoMaximo) y solo en días acordados', async () => {
+    const aulaPiso1: EspacioSolverData = { ...aula('aula-1-4'), nombre: 'Aula 1-4', piso: 'Piso 1', pisoNivel: 1 };
+    const aulaPiso2: EspacioSolverData = { ...aula('aula-2-1'), nombre: 'Aula 2-1', piso: 'Piso 2', pisoNivel: 2 };
+    const aulaPiso3: EspacioSolverData = { ...aula('aula-3-18'), nombre: 'Aula 3-18', piso: 'Piso 3', pisoNivel: 3 };
+
+    const docRestringido: DocenteSolverData = {
+      id: 'prof-salud',
+      cedula: 'V-10000001',
+      nombreCompleto: 'Prof. Salud Piso 1',
+      pisoMaximo: 1,
+      motivoRestriccionPiso: 'SALUD',
+      diasDisponibles: ['LUNES', 'MIERCOLES', 'VIERNES'],
+      disponibilidades: [
+        { dia: 'LUNES', horaInicio: '07:30', horaFin: '09:00', disponible: true, prioridadPreferencia: 1 },
+        { dia: 'MARTES', horaInicio: '07:30', horaFin: '09:00', disponible: true, prioridadPreferencia: 1 },
+        { dia: 'MIERCOLES', horaInicio: '09:05', horaFin: '10:35', disponible: true, prioridadPreferencia: 1 },
+      ],
+    };
+
+    const r = await new CpSatSolverEngine(
+      entrada({
+        seccionesPendientes: [seccionSolver({ id: 'sec-arq', profesorId: 'prof-salud', bloquesRequeridos: 2 })],
+        docentes: new Map([['prof-salud', docRestringido]]),
+        espacios: [aulaPiso3, aulaPiso2, aulaPiso1],
+      })
+    ).resolver();
+
+    expect(['OPTIMAL', 'FEASIBLE']).toContain(r.status);
+    expect(r.violacionesDuras).toEqual([]);
+    expect(r.asignaciones).toHaveLength(2);
+    // Todos los bloques deben ubicarse en Aula 1-4 (Piso 1) y nunca en Piso 2 o 3, ni en MARTES (fuera de días acordados)
+    for (const asig of r.asignaciones) {
+      expect(asig.espacioFisicoId).toBe('aula-1-4');
+      expect(['LUNES', 'MIERCOLES', 'VIERNES']).toContain(asig.dia);
+    }
+  });
 });

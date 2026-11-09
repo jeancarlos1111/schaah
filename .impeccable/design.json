@@ -1,0 +1,192 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-04T14:41:30-04:00",
+  "title": "Design System: SAHAD UBV — Eje Kerepakupai Vena",
+  "extensions": {
+    "colorMeta": {
+      "cobalt-solver": {
+        "role": "primary",
+        "displayName": "Cobalt Solver",
+        "canonical": "#2f81f7",
+        "tonalRamp": ["#0a1c3a", "#102e5e", "#174287", "#1f58b0", "#2f81f7", "#58a6ff", "#8ac2ff", "#cae3ff"]
+      },
+      "academic-emerald": {
+        "role": "secondary",
+        "displayName": "Academic Emerald",
+        "canonical": "#238636",
+        "tonalRamp": ["#0b2912", "#12421d", "#195c28", "#238636", "#2ea043", "#3fb950", "#7ee787", "#aff5b4"]
+      },
+      "bolivarian-crimson": {
+        "role": "tertiary",
+        "displayName": "Bolivarian Crimson",
+        "canonical": "#f85149",
+        "tonalRamp": ["#3b1010", "#611918", "#8c2320", "#b92d28", "#da3633", "#f85149", "#ff7b72", "#ffa198"]
+      },
+      "status-amber": {
+        "role": "tertiary",
+        "displayName": "Status Amber",
+        "canonical": "#d29922",
+        "tonalRamp": ["#342204", "#533806", "#765009", "#9e6a03", "#d29922", "#e3b341", "#f2cc60", "#f8e3a1"]
+      },
+      "obsidian-canvas": {
+        "role": "neutral",
+        "displayName": "Obsidian Canvas",
+        "canonical": "#090c10",
+        "tonalRamp": ["#090c10", "#0d1117", "#161b22", "#1f242c", "#21262d", "#30363d", "#8b949e", "#f0f6fc"]
+      },
+      "slate-surface": {
+        "role": "neutral",
+        "displayName": "Slate Surface",
+        "canonical": "#161b22",
+        "tonalRamp": ["#0d1117", "#161b22", "#1f242c", "#21262d", "#30363d", "#6e7681", "#c9d1d9", "#ffffff"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display Metric",
+        "purpose": "Bento stat numbers (.stat-number) with tabular numerals."
+      },
+      "headline": {
+        "displayName": "Page Headline",
+        "purpose": "Main view titles (.page-title) in module headers."
+      },
+      "title": {
+        "displayName": "Panel & Modal Title",
+        "purpose": "Section headers (.panel-title, .bento-trayecto-title) and modals."
+      },
+      "body": {
+        "displayName": "Operational Body",
+        "purpose": "High-density table cells, form controls, and descriptions."
+      },
+      "label": {
+        "displayName": "Uppercase Table & Stat Label",
+        "purpose": "Table column headers (.clean-table th), stat categories, and badges."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-card",
+        "value": "0 1px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.03)",
+        "purpose": "Subtle structural depth on resting panels, Bento cards, and toolbar inputs."
+      },
+      {
+        "name": "shadow-modal",
+        "value": "0 10px 25px rgba(0, 0, 0, 0.5)",
+        "purpose": "Elevated floating overlay shadow for modals and .clean-dropdown menus."
+      },
+      {
+        "name": "focus-ring",
+        "value": "0 0 0 2px rgba(56, 139, 253, 0.12)",
+        "purpose": "Keyboard and input focus halo paired with --border-focus."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-ui",
+        "value": "0.15s ease",
+        "purpose": "Crisp state transitions on buttons, table rows, and Bento tiles."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "960px" },
+      { "name": "lg", "value": "1200px" },
+      { "name": "container", "value": "1240px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main CTA button with icon + explicit text label (.btn-clean-primary).",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><polyline points=\"4 11 8 15 16 6\"/></svg><span>Guardar Cambios</span></button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.5rem 1rem; background-color: var(--brand-accent, #2f81f7); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #ffffff; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s ease, box-shadow 0.15s ease; } .ds-btn-primary:hover { opacity: 0.9; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(56, 139, 253, 0.35); }"
+    },
+    {
+      "name": "Secondary Action Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Neutral navigation or secondary action button (.btn-clean-secondary).",
+      "html": "<button class=\"ds-btn-secondary\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\"><line x1=\"16\" y1=\"10\" x2=\"4\" y2=\"10\"/><polyline points=\"9 5 4 10 9 15\"/></svg><span>Volver a Nómina</span></button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.5rem 1rem; background-color: var(--surface-card, #161b22); border: 1px solid var(--border-subtle, #21262d); border-radius: 6px; color: var(--text-white, #f0f6fc); font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease; } .ds-btn-secondary:hover { background-color: var(--surface-card-hover, #1f242c); border-color: var(--border-medium, #30363d); } .ds-btn-secondary:focus-visible { outline: none; border-color: var(--border-focus, #388bfd); }"
+    },
+    {
+      "name": "Table Row Action Button",
+      "kind": "button",
+      "refersTo": "button-table-action",
+      "description": "Mandatory icon + visible text button for .table-actions-cell (.btn-table-action).",
+      "html": "<button class=\"ds-btn-table-action\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\"><rect x=\"3\" y=\"4\" width=\"14\" height=\"13\" rx=\"2\"/><line x1=\"3\" y1=\"8\" x2=\"17\" y2=\"8\"/></svg><span>Disponibilidad</span></button>",
+      "css": ".ds-btn-table-action { display: inline-flex; align-items: center; gap: 0.3rem; padding: 4px 8px; background-color: var(--surface-muted, #21262d); border: 1px solid var(--border-subtle, #21262d); border-radius: 4px; color: var(--text-muted, #8b949e); font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.74rem; font-weight: 600; cursor: pointer; transition: all 0.15s ease; } .ds-btn-table-action:hover { background-color: var(--surface-card-hover, #1f242c); color: var(--text-white, #f0f6fc); border-color: var(--border-medium, #30363d); } .ds-btn-table-action:focus-visible { outline: none; border-color: var(--border-focus, #388bfd); }"
+    },
+    {
+      "name": "DataTable Search Input",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Compact 34px server-side HTMX search input (.search-input).",
+      "html": "<div class=\"ds-search-box\"><svg class=\"ds-search-icon\" width=\"14\" height=\"14\" viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\"><circle cx=\"9\" cy=\"9\" r=\"6\"/><line x1=\"13.5\" y1=\"13.5\" x2=\"18\" y2=\"18\"/></svg><input type=\"text\" class=\"ds-search-input\" placeholder=\"Buscar docente o cédula...\" /></div>",
+      "css": ".ds-search-box { position: relative; display: flex; align-items: center; width: 260px; } .ds-search-icon { position: absolute; left: 10px; color: var(--text-muted, #8b949e); pointer-events: none; } .ds-search-input { width: 100%; height: 34px; background-color: var(--surface-input, #0d1117); border: 1px solid var(--border-subtle, #21262d); border-radius: 6px; color: var(--text-white, #f0f6fc); padding: 0 10px 0 32px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.8125rem; transition: border-color 0.15s ease, box-shadow 0.15s ease; } .ds-search-input:focus, .ds-search-input:focus-visible { outline: none; border-color: var(--border-focus, #388bfd); box-shadow: 0 0 0 2px rgba(56, 139, 253, 0.12); }"
+    },
+    {
+      "name": "Curriculum Hours & Priority Chips",
+      "kind": "chip",
+      "refersTo": "button-table-action",
+      "description": "Semantic tinted chips for HT/HP/HC hours and availability priorities.",
+      "html": "<div class=\"ds-chip-group\"><span class=\"ds-chip ds-chip-ht\">HT: 2h</span><span class=\"ds-chip ds-chip-hp\">HP: 2h</span><span class=\"ds-chip ds-chip-hc\">HC: 4h</span></div>",
+      "css": ".ds-chip-group { display: inline-flex; gap: 6px; align-items: center; } .ds-chip { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px; font-family: monospace; font-size: 0.72rem; font-weight: 700; } .ds-chip-ht { background: rgba(59, 130, 246, 0.12); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.25); } .ds-chip-hp { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); } .ds-chip-hc { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.25); }"
+    },
+    {
+      "name": "Bento Stat Card",
+      "kind": "card",
+      "refersTo": "card-panel",
+      "description": "High-density metric card with tabular numerals and progress indicator (.clean-stat-card).",
+      "html": "<div class=\"ds-stat-card\"><div class=\"ds-stat-top\"><span class=\"ds-stat-cat\">CARGA CUBIERTA</span><span class=\"ds-stat-badge\">H-04 OK</span></div><div class=\"ds-stat-val\"><span class=\"ds-stat-num\">94%</span><span class=\"ds-stat-unit\">secciones</span></div><div class=\"ds-progress\"><div class=\"ds-progress-fill\" style=\"width: 94%\"></div></div></div>",
+      "css": ".ds-stat-card { background-color: var(--surface-card, #161b22); border: 1px solid var(--border-subtle, #21262d); border-radius: 8px; padding: 1.1rem 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; width: 240px; font-family: 'Plus Jakarta Sans', sans-serif; transition: border-color 0.15s ease; } .ds-stat-card:hover { border-color: var(--border-medium, #30363d); } .ds-stat-top { display: flex; justify-content: space-between; align-items: center; } .ds-stat-cat { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: var(--text-muted, #8b949e); } .ds-stat-badge { font-size: 0.68rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: rgba(63, 185, 80, 0.12); color: #3fb950; } .ds-stat-val { display: flex; align-items: baseline; gap: 0.35rem; } .ds-stat-num { font-size: 1.85rem; font-weight: 800; letter-spacing: -0.03em; color: var(--text-white, #f0f6fc); font-variant-numeric: tabular-nums; line-height: 1; } .ds-stat-unit { font-size: 0.78rem; color: var(--text-muted, #8b949e); } .ds-progress { width: 100%; height: 4px; background: var(--surface-muted, #21262d); border-radius: 999px; overflow: hidden; } .ds-progress-fill { height: 100%; background: var(--brand-primary, #238636); border-radius: 999px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Academic Command Matrix",
+    "overview": "SAHAD UBV projects the calm authority of an algorithmic command console engineered for public university timetabling. Built for academic planners, PFG coordinators, administrators, and faculty across the Eje Geopolítico Regional Kerepakupai Vena, the visual system treats high-density data—45-minute schedule matrices, 29-column .xlsx offer imports, CCU dedication thresholds (DE, TC, MT, TV), and curriculum trajectories—with surgical clarity. Every surface prioritizes immediate scannability, explicit action labeling, and normative traceability over decorative flourish.\n\nThe aesthetic philosophy draws from dark-first technical workspaces (Linear and GitHub Dark) adapted to institutional academic governance, paired with a high-contrast light mode for bright offices and projectors. It explicitly rejects ornamental gradients, unstyled native controls, ambiguous icon-only action capsules, and low-density marketing cards that waste vertical viewport space during intensive planning sessions.",
+    "keyCharacteristics": [
+      "Dark-first dual-theme architecture (data-theme=\"dark\" default with seamless data-theme=\"light\" parity).",
+      "High-density tabular and matrix layouts (SahadDataTable and weekly availability/schedule grids) governed by server-side pagination and HTMX partial swaps.",
+      "Explicit icon-plus-label affordances on every table and workflow action.",
+      "Semantic status encoding for hard (H-01..H-14) and soft (S-01..S-08) normative rules, priorities (P1-P3), and curriculum hour breakdowns (HT, HP, HC).",
+      "Venezuelan 12-hour civil time formatting (hh:mm AM/PM) with tabular numerals across all temporal views."
+    ],
+    "rules": [
+      {
+        "name": "The Semantic Tinted-Surface Rule",
+        "body": "Status badges, matrix priority cells, and alerts never use solid saturated fills; they pair a low-opacity tinted background (0.12 alpha in dark, 0.08 in light) with a 1px translucent border (0.25–0.40 alpha) and a high-contrast semantic foreground text color.",
+        "section": "colors"
+      },
+      {
+        "name": "The Crimson Restraint Rule",
+        "body": "Bolivarian Crimson (#f85149) is reserved strictly for the UBV header wordmark, hard normative conflicts, and destructive actions—never for decorative highlights or neutral navigation.",
+        "section": "colors"
+      },
+      {
+        "name": "The Civil Time & Tabular Numerals Rule",
+        "body": "All schedule blocks, availability matrices, and audit timestamps must render in 12-hour Venezuelan civil format (hh:mm AM/PM) with font-variant-numeric: tabular-nums (tnum) so columns align vertically to the pixel.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hairline-First Elevation Rule",
+        "body": "Never rely on blur shadows alone to separate surfaces; every card, panel, input, and badge is bounded by an explicit 1px border token (--border-subtle at rest, --border-medium on hover).",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do define all component styles in src/public/css/style.css (and its src/public/css/modules/*.css imports) using CSS custom properties from variables.css so both dark and light themes render with full fidelity.",
+      "Do include both a semantic icon (<span uk-icon=\"...\"></span>) and a visible text label (<span>Texto</span>) inside every table action button (.btn-table-action), grouped inside .table-actions-cell > .table-actions-group aligned to the right.",
+      "Do format all hours and schedule blocks in 12-hour Venezuelan civil format (AM/PM) and execute all table pagination, sorting, and filtering on the server via SahadDataTable + HTMX.",
+      "Do style dropdown menus formally with .clean-dropdown and .dropdown-action-btn using semantic color classes (.text-danger, .text-success)."
+    ],
+    "donts": [
+      "Don't render icon-only action buttons, empty pill buttons, or unstyled native browser controls in any table or form.",
+      "Don't hardcode dark-only hex colors or inline style attributes in EJS templates that break data-theme=\"light\" or bypass the modular stylesheet.",
+      "Don't load full database tables into the client DOM without server-side pagination (skip/take), or use 24-hour military time in user-facing schedule views."
+    ]
+  }
+}
+

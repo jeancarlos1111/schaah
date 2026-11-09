@@ -75,20 +75,36 @@
 .status-pill {
   display: inline-flex;
   align-items: center;
+  gap: 0.3rem;
   font-size: 0.68rem;
   font-weight: 700;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
+  border: 1px solid transparent;
 }
 
 .status-active {
   background-color: var(--accent-green-bg);
   color: var(--accent-green);
+  border-color: rgba(63, 185, 80, 0.3);
 }
 
 .status-inactive {
   background-color: var(--accent-red-bg);
   color: var(--accent-red);
+  border-color: rgba(248, 81, 73, 0.3);
+}
+
+.status-info {
+  background-color: var(--accent-blue-bg);
+  color: var(--brand-accent);
+  border-color: rgba(56, 139, 253, 0.3);
+}
+
+.status-warning {
+  background-color: var(--accent-amber-bg);
+  color: var(--accent-amber);
+  border-color: rgba(210, 153, 34, 0.35);
 }
 
 /* Acciones de Fila y Botones */

@@ -48,7 +48,7 @@
 }
 
 .brand-text {
-  font-size: 0.98rem;
+  font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--text-white);
@@ -59,16 +59,34 @@
   margin-left: 2px;
 }
 
-.ubv-header-logo {
+.brand-text-wrap {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.brand-subtitle {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.ubv-header-logo,
+.ubv-header-logo-img {
   height: 38px;
-  width: auto;
+  width: 38px;
   display: block;
   object-fit: contain;
+  border-radius: 50%;
+  box-shadow: var(--shadow-card);
 }
 
 @media (max-width: 640px) {
-  .ubv-header-logo {
+  .ubv-header-logo,
+  .ubv-header-logo-img {
     height: 30px;
+    width: 30px;
   }
 }
 
@@ -80,6 +98,12 @@
   flex: 1 1 auto;
   white-space: nowrap;
   flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.header-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-link {

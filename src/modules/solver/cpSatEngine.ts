@@ -13,6 +13,13 @@ import {
 } from '../../core/domain/rules/timeSlotUtils';
 import { claveCohorte } from '../../core/domain/rules/horarioConflictRules';
 import {
+  clasificarLiderazgo,
+  DIA_LIDERAZGO,
+  esFranjaReservaMartes,
+  HORA_INICIO_LIDERAZGO_1,
+  HORA_INICIO_LIDERAZGO_2,
+} from '../../core/domain/rules/bloquesInstitucionalesRules';
+import {
   AsignacionBloquePropuesta,
   EspacioSolverData,
   SeccionSolverData,
@@ -102,6 +109,14 @@ export class CpSatSolverEngine {
             espaciosCandidatos = espaciosSede.filter((e) => e.capacidad >= sec.cuposEstimados);
           }
         }
+
+        // Restricción de accesibilidad de piso del docente (H-ACCESIBILIDAD-PISO)
+        const docAsignado = sec.profesorId ? this.input.docentes.get(sec.profesorId) : null;
+        if (docAsignado && docAsignado.pisoMaximo !== null && docAsignado.pisoMaximo !== undefined) {
+          espaciosCandidatos = espaciosCandidatos.filter(
+            (e) => e && (e.pisoNivel ?? 0) <= docAsignado.pisoMaximo!
+          );
+        }
       }
 
       if (espaciosCandidatos.length === 0) {
@@ -116,8 +131,15 @@ export class CpSatSolverEngine {
         const disps = doc.disponibilidades.filter((d) => d.disponible);
 
         for (const disp of disps) {
+          if (doc.diasDisponibles && doc.diasDisponibles.length > 0 && !doc.diasDisponibles.includes(disp.dia)) {
+            continue;
+          }
           const idx = BLOQUES_HORARIOS_OFICIALES.findIndex((b) => b.horaInicio === disp.horaInicio);
           if (idx !== -1) {
+            const bOficial = BLOQUES_HORARIOS_OFICIALES[idx];
+            if (bOficial && esFranjaReservaMartes(disp.dia, bOficial.horaInicio, bOficial.horaFin)) {
+              continue;
+            }
             slotsCandidatos.push({
               dia: disp.dia,
               slotIdx: idx,
@@ -128,9 +150,33 @@ export class CpSatSolverEngine {
       } else {
         for (const dia of diasPorTurno(sec.turno)) {
           for (const idx of indicesBloquesPorTurno(sec.turno)) {
+            const bOficial = BLOQUES_HORARIOS_OFICIALES[idx];
+            if (bOficial && esFranjaReservaMartes(dia, bOficial.horaInicio, bOficial.horaFin)) {
+              continue;
+            }
             slotsCandidatos.push({ dia, slotIdx: idx, prioridad: 1 });
           }
         }
+      }
+
+      // H-14: Bloque Fijo Institucional para Liderazgo
+      const tipoLid = clasificarLiderazgo(sec.nombreMateria);
+      if (tipoLid === 'LIDERAZGO_1') {
+        const slotsLid1 = slotsCandidatos.filter(
+          (s) =>
+            s.dia.toUpperCase() === DIA_LIDERAZGO &&
+            BLOQUES_HORARIOS_OFICIALES[s.slotIdx]?.horaInicio === HORA_INICIO_LIDERAZGO_1
+        );
+        slotsCandidatos.length = 0;
+        slotsCandidatos.push(...slotsLid1);
+      } else if (tipoLid === 'LIDERAZGO_2') {
+        const slotsLid2 = slotsCandidatos.filter(
+          (s) =>
+            s.dia.toUpperCase() === DIA_LIDERAZGO &&
+            BLOQUES_HORARIOS_OFICIALES[s.slotIdx]?.horaInicio === HORA_INICIO_LIDERAZGO_2
+        );
+        slotsCandidatos.length = 0;
+        slotsCandidatos.push(...slotsLid2);
       }
 
       // Crear variables para cada bloque requerido de la sección

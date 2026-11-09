@@ -1,3 +1,14 @@
+<%
+  let diasAcordadosArr = [];
+  if (profesor.diasDisponibles) {
+    if (Array.isArray(profesor.diasDisponibles)) diasAcordadosArr = profesor.diasDisponibles;
+    else if (typeof profesor.diasDisponibles === 'string') {
+      try { diasAcordadosArr = JSON.parse(profesor.diasDisponibles); } catch { diasAcordadosArr = profesor.diasDisponibles.split(',').map(function(s) { return s.trim(); }); }
+    }
+  }
+  const minHorasRequeridas = dedicacion ? dedicacion.minHorasDocenciaDirecta : 0;
+  const maxHorasRequeridas = dedicacion ? dedicacion.maxHorasDocenciaDirecta : 0;
+%>
 <!-- Header del Módulo de Disponibilidad Docente -->
 <div class="page-header uk-margin-medium-bottom">
   <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap">
@@ -19,9 +30,9 @@
       </p>
     </div>
     <div class="header-controls uk-margin-small-top uk-flex uk-flex-middle gap-2">
-      <form method="GET" action="/docentes/<%= profesor.id %>/disponibilidad" class="disp-periodo-form">
+      <form method="GET" action="/docentes/<%= profesor.id %>/disponibilidad" class="disp-periodo-form" onsubmit="return confirmarCambioPeriodo()">
         <label class="label-clean" for="disp-periodo">Período</label>
-        <select id="disp-periodo" name="periodoId" class="table-filter-select" onchange="this.form.submit()">
+        <select id="disp-periodo" name="periodoId" class="table-filter-select" onchange="if (confirmarCambioPeriodo()) this.form.submit(); else this.value = '<%= periodoActivo.id %>';">
           <% periodos.forEach(function(p) { %>
             <option value="<%= p.id %>" <%= p.id === periodoActivo.id ? 'selected' : '' %>>
               <%= p.codigo %> (<%= p.estado === 'ACTIVO' ? 'Activo' : (p.estado === 'PLANIFICACION' ? 'Planificación' : 'Borrador') %>)
@@ -40,7 +51,7 @@
           <span>Volver a Nómina</span>
         </a>
       <% } %>
-      <button class="btn-clean-primary" onclick="guardarMatriz()">
+      <button type="button" class="btn-clean-primary" onclick="guardarMatriz()">
         <span uk-icon="icon: check; ratio: 0.85"></span>
         <span>Guardar Cambios</span>
       </button>
@@ -48,10 +59,9 @@
   </div>
 
   <!-- Ficha Rápida del Docente -->
-  <!-- Ficha Rápida del Docente -->
   <div class="clean-panel uk-margin-small-top uk-padding-small">
     <div class="uk-grid-small uk-child-width-auto uk-flex-middle uk-flex-between" uk-grid>
-      <div class="uk-flex uk-flex-middle gap-3">
+      <div class="uk-flex uk-flex-middle uk-flex-wrap gap-3">
         <span class="email-code"><%= profesor.cedula %></span>
         <span class="table-user-name font-semibold"><%= profesor.apellidos %>, <%= profesor.nombres %></span>
         <span class="table-sub-info"><%= profesor.email || 'Sin correo registrado' %></span>
@@ -60,27 +70,20 @@
             Adscripción: <%= profesor.pfgAdscripcion.codigo %>
           </span>
         <% } %>
-        <% if (profesor.diasDisponibles) { 
-            let dArr = [];
-            if (Array.isArray(profesor.diasDisponibles)) dArr = profesor.diasDisponibles;
-            else if (typeof profesor.diasDisponibles === 'string') {
-              try { dArr = JSON.parse(profesor.diasDisponibles); } catch { dArr = profesor.diasDisponibles.split(',').map(s => s.trim()); }
-            }
-            if (dArr.length > 0) {
-        %>
+        <% if (diasAcordadosArr.length > 0) { %>
           <span class="status-pill status-active" title="Días hábiles acordados con la coordinación (Regla H-DIAS-DISPONIBILIDAD)">
             <span uk-icon="icon: calendar; ratio: 0.7"></span>
-            Días acordados: <%= dArr.join(', ') %>
+            <span>Días acordados: <%= diasAcordadosArr.join(', ') %></span>
           </span>
-        <% } } %>
+        <% } %>
         <% if (profesor.pisoMaximo !== null && profesor.pisoMaximo !== undefined) { %>
           <span class="status-pill status-warning" title="Restricción médica de movilidad (Regla H-ACCESIBILIDAD-PISO)">
             <span uk-icon="icon: location; ratio: 0.7"></span>
-            Máx. <%= profesor.pisoMaximo === 0 ? 'Planta Baja (PB)' : 'Piso ' + profesor.pisoMaximo %>
+            <span>Máx. <%= profesor.pisoMaximo === 0 ? 'Planta Baja (PB)' : 'Piso ' + profesor.pisoMaximo %></span>
           </span>
         <% } %>
       </div>
-      <div class="uk-flex uk-flex-middle gap-2">
+      <div class="uk-flex uk-flex-middle uk-flex-wrap gap-2">
         <% if (dedicacion) { %>
           <span class="badge-role badge-admin"><%= dedicacion.dedicacion.replace(/_/g, ' ') %></span>
           <span class="table-sub-info">
@@ -114,100 +117,9 @@
   </div>
 <% } %>
 
-<!-- Barra de Herramientas Rápidas -->
-<div class="clean-panel uk-margin-small-bottom uk-padding-small">
-  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-2">
-    <div class="uk-flex uk-flex-middle gap-2">
-      <span class="table-sub-info font-semibold">Acciones Rápidas:</span>
-      <button type="button" class="btn-clean-ghost" onclick="marcarTodos(true, 1)">
-        Marcar Todo Disponible (Alta)
-      </button>
-      <button type="button" class="btn-clean-ghost" onclick="marcarPorTurno('MATUTINO')">
-        Solo Turno Mañana
-      </button>
-      <button type="button" class="btn-clean-ghost" onclick="marcarPorTurno('VESPERTINO')">
-        Solo Turno Tarde
-      </button>
-      <button type="button" class="btn-clean-ghost" onclick="marcarTodos(false, 0)">
-        Limpiar Todo (No Disponible)
-      </button>
-    </div>
-    <div class="uk-flex uk-flex-middle gap-3 table-sub-info">
-      <div class="uk-flex uk-flex-middle gap-1">
-        <span class="disp-legend-box is-prioridad-1"></span>
-        <span>Prioridad 1 (Alta)</span>
-      </div>
-      <div class="uk-flex uk-flex-middle gap-1">
-        <span class="disp-legend-box is-prioridad-2"></span>
-        <span>Prioridad 2 (Media)</span>
-      </div>
-      <div class="uk-flex uk-flex-middle gap-1">
-        <span class="disp-legend-box is-prioridad-3"></span>
-        <span>Prioridad 3 (Baja)</span>
-      </div>
-      <div class="uk-flex uk-flex-middle gap-1">
-        <span class="disp-legend-box is-indisponible"></span>
-        <span>No Disponible</span>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Matriz Semanal de Disponibilidad -->
-<div class="clean-panel data-table-wrapper uk-padding-remove overflow-hidden">
-  <div class="uk-overflow-auto">
-    <table class="clean-table matrix-table uk-margin-remove">
-      <thead>
-        <tr>
-          <th class="uk-text-center disp-bloque-celda">Bloque / Turno</th>
-          <% dias.forEach(function(d) { %>
-            <th class="uk-text-center">
-              <%= d %>
-            </th>
-          <% }); %>
-        </tr>
-      </thead>
-      <tbody>
-        <% franjas.forEach(function(f) { %>
-          <tr>
-            <td class="uk-text-center table-sub-info font-semibold disp-bloque-celda">
-              <div class="table-user-name font-semibold"><%= f.horaInicio12 || f.horaInicio %> - <%= f.horaFin12 || f.horaFin %></div>
-              <span class="badge-role <%= f.turno === 'MATUTINO' ? 'badge-docente' : (f.turno === 'VESPERTINO' ? 'badge-director' : 'badge-admin') %> text-xxs">
-                Bloque <%= f.numero %> &bull; <%= f.turno %>
-              </span>
-            </td>
-            <% dias.forEach(function(d) { 
-              const cellData = (disponibilidadMap[d] && disponibilidadMap[d][f.horaInicio]) ? disponibilidadMap[d][f.horaInicio] : null;
-              const isDisp = cellData ? cellData.disponible : false;
-              const prio = cellData ? cellData.prioridad : 1;
-            %>
-              <td 
-                class="disp-cell <%= isDisp ? 'is-disp prio-' + prio : 'is-nodisp' %>"
-                data-dia="<%= d %>"
-                data-inicio="<%= f.horaInicio %>"
-                data-fin="<%= f.horaFin %>"
-                data-turno="<%= f.turno %>"
-                data-disp="<%= isDisp %>"
-                data-prio="<%= prio %>"
-                onclick="toggleCell(this)"
-              >
-                <div class="cell-content uk-text-center">
-                  <span class="cell-status-text">
-                    <%= isDisp ? ('P' + prio) : 'NO' %>
-                  </span>
-                </div>
-              </td>
-            <% }); %>
-          </tr>
-        <% }); %>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Formulario de Envío (con motivo obligatorio cuando el cambio lo hace un tercero) -->
+<!-- Formulario de Envío (con motivo obligatorio visible arriba cuando el cambio lo hace un tercero) -->
 <form id="form-disponibilidad" method="POST" action="/docentes/<%= profesor.id %>/disponibilidad"
-  class="<%= requiereMotivo ? 'clean-panel uk-padding-small uk-margin-small-top disp-motivo-panel' : '' %>">
+  class="<%= requiereMotivo ? 'clean-panel uk-padding-small uk-margin-small-bottom disp-motivo-panel' : '' %>">
   <input type="hidden" name="slots" id="slots-input">
   <input type="hidden" name="periodoId" value="<%= periodoActivo.id %>">
   <% if (requiereMotivo) { %>
@@ -229,6 +141,150 @@
     </div>
   <% } %>
 </form>
+
+<!-- Barra de Herramientas Rápidas y Resumen en Vivo -->
+<div class="clean-panel uk-margin-small-bottom uk-padding-small">
+  <div class="uk-flex uk-flex-between uk-flex-middle uk-flex-wrap gap-2">
+    <div class="uk-flex uk-flex-middle uk-flex-wrap gap-2">
+      <span class="table-sub-info font-semibold">Acciones Rápidas:</span>
+      <button type="button" class="btn-clean-ghost" onclick="marcarTodos(true, 1)">
+        <span uk-icon="icon: check; ratio: 0.8"></span>
+        <span>Marcar Todo Disponible (Alta)</span>
+      </button>
+      <button type="button" class="btn-clean-ghost" onclick="marcarPorTurno('MATUTINO')">
+        <span uk-icon="icon: future; ratio: 0.8"></span>
+        <span>Solo Turno Mañana</span>
+      </button>
+      <button type="button" class="btn-clean-ghost" onclick="marcarPorTurno('VESPERTINO')">
+        <span uk-icon="icon: clock; ratio: 0.8"></span>
+        <span>Solo Turno Tarde</span>
+      </button>
+      <button type="button" class="btn-clean-ghost" onclick="restaurarOriginal()">
+        <span uk-icon="icon: history; ratio: 0.8"></span>
+        <span>Restaurar Original</span>
+      </button>
+      <button type="button" class="btn-clean-ghost" onclick="marcarTodos(false, 0)">
+        <span uk-icon="icon: ban; ratio: 0.8"></span>
+        <span>Limpiar Todo (No Disponible)</span>
+      </button>
+    </div>
+    <div class="uk-flex uk-flex-middle uk-flex-wrap gap-3 table-sub-info">
+      <div class="uk-flex uk-flex-middle gap-1">
+        <span class="disp-legend-box is-prioridad-1"></span>
+        <span>Prioridad 1 (Alta)</span>
+      </div>
+      <div class="uk-flex uk-flex-middle gap-1">
+        <span class="disp-legend-box is-prioridad-2"></span>
+        <span>Prioridad 2 (Media)</span>
+      </div>
+      <div class="uk-flex uk-flex-middle gap-1">
+        <span class="disp-legend-box is-prioridad-3"></span>
+        <span>Prioridad 3 (Baja)</span>
+      </div>
+      <div class="uk-flex uk-flex-middle gap-1">
+        <span class="disp-legend-box is-indisponible"></span>
+        <span>No Disponible</span>
+      </div>
+    </div>
+  </div>
+  <div class="disp-counter-bar">
+    <div class="uk-flex uk-flex-middle uk-flex-wrap gap-2">
+      <span id="disp-resumen-vivo" class="status-pill status-info" aria-live="polite">
+        Calculando bloques seleccionados...
+      </span>
+      <span id="disp-estado-cambios" class="status-pill status-warning" hidden>
+        Cambios sin guardar
+      </span>
+    </div>
+    <span class="table-sub-info">
+      Atajos: clic o arrastrar en celdas &bull; clic en encabezado de día para alternar columna &bull; teclas <strong>1</strong>, <strong>2</strong>, <strong>3</strong> o <strong>0</strong>.
+    </span>
+  </div>
+</div>
+
+<!-- Matriz Semanal de Disponibilidad -->
+<div class="clean-panel data-table-wrapper uk-padding-remove overflow-hidden">
+  <div class="uk-overflow-auto">
+    <table class="clean-table matrix-table uk-margin-remove" id="tabla-matriz-disponibilidad"
+      data-min-horas="<%= minHorasRequeridas %>"
+      data-max-horas="<%= maxHorasRequeridas %>"
+      data-dias-acordados="<%= diasAcordadosArr.join(',') %>">
+      <thead>
+        <tr>
+          <th class="uk-text-center disp-bloque-celda">Bloque / Turno</th>
+          <% dias.forEach(function(d) {
+            const esAcordado = diasAcordadosArr.length === 0 || diasAcordadosArr.includes(d);
+          %>
+            <th class="uk-text-center disp-dia-header">
+              <button type="button" class="disp-dia-btn" onclick="toggleColumnaDia('<%= d %>')" title="Alternar disponibilidad de <%= d %>">
+                <span uk-icon="icon: calendar; ratio: 0.7"></span>
+                <span><%= d %></span>
+              </button>
+              <% if (diasAcordadosArr.length > 0) { %>
+                <span class="disp-dia-meta <%= esAcordado ? 'is-acordado' : '' %>">
+                  <%= esAcordado ? 'Día acordado' : 'Fuera de acuerdo' %>
+                </span>
+              <% } %>
+            </th>
+          <% }); %>
+        </tr>
+      </thead>
+      <tbody>
+        <% let turnoPrevio = null; %>
+        <% franjas.forEach(function(f, rowIdx) {
+          const cambioTurno = turnoPrevio !== null && turnoPrevio !== f.turno;
+          turnoPrevio = f.turno;
+          const etiquetaHora = (f.horaInicio12 || f.horaInicio) + ' - ' + (f.horaFin12 || f.horaFin);
+        %>
+          <tr class="<%= cambioTurno ? 'disp-row-turno-cambio' : '' %>">
+            <td class="uk-text-center table-sub-info font-semibold disp-bloque-celda">
+              <div class="table-user-name font-semibold"><%= etiquetaHora %></div>
+              <span class="badge-role <%= f.turno === 'MATUTINO' ? 'badge-docente' : (f.turno === 'VESPERTINO' ? 'badge-director' : 'badge-admin') %> text-xxs">
+                Bloque <%= f.numero %> &bull; <%= f.turno %>
+              </span>
+            </td>
+            <% dias.forEach(function(d, colIdx) { 
+              const cellData = (disponibilidadMap[d] && disponibilidadMap[d][f.horaInicio]) ? disponibilidadMap[d][f.horaInicio] : null;
+              const isDisp = cellData ? cellData.disponible : false;
+              const prio = cellData ? cellData.prioridad : 1;
+              const fueraAcuerdo = diasAcordadosArr.length > 0 && !diasAcordadosArr.includes(d);
+            %>
+              <td 
+                class="disp-cell <%= isDisp ? 'is-disp prio-' + prio : 'is-nodisp' %><%= fueraAcuerdo ? ' is-fuera-acuerdo' : '' %>"
+                tabindex="0"
+                role="button"
+                aria-pressed="<%= isDisp ? 'true' : 'false' %>"
+                aria-label="<%= d %> <%= etiquetaHora %>: <%= isDisp ? ('Prioridad ' + prio) : 'No disponible' %>"
+                data-dia="<%= d %>"
+                data-row="<%= rowIdx %>"
+                data-col="<%= colIdx %>"
+                data-etiqueta-hora="<%= etiquetaHora %>"
+                data-fuera-acuerdo="<%= fueraAcuerdo ? 'true' : 'false' %>"
+                data-inicio="<%= f.horaInicio %>"
+                data-fin="<%= f.horaFin %>"
+                data-turno="<%= f.turno %>"
+                data-disp="<%= isDisp %>"
+                data-prio="<%= prio %>"
+                data-orig-disp="<%= isDisp %>"
+                data-orig-prio="<%= prio %>"
+                onclick="toggleCell(this)"
+                onpointerdown="iniciarArrastreCelda(event, this)"
+                onpointerenter="continuarArrastreCelda(this)"
+                onkeydown="manejarTeclaCelda(event, this)"
+              >
+                <div class="cell-content uk-text-center">
+                  <span class="cell-status-text">
+                    <%= isDisp ? ('P' + prio) : 'NO' %>
+                  </span>
+                </div>
+              </td>
+            <% }); %>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
 
 <!-- Historial de Cambios Auditado -->
 <div class="clean-panel uk-padding-small uk-margin-top" id="historial-disponibilidad">
@@ -282,7 +338,23 @@
 </div>
 
 <script>
+  let arrastreActivo = null;
+  let ignorarSiguienteClick = false;
+  let hayCambiosSinGuardar = false;
+
+  document.addEventListener('pointerup', function() {
+    arrastreActivo = null;
+  });
+
   function toggleCell(cell) {
+    if (ignorarSiguienteClick) {
+      ignorarSiguienteClick = false;
+      return;
+    }
+    ciclarEstadoCelda(cell);
+  }
+
+  function ciclarEstadoCelda(cell) {
     const isDisp = cell.getAttribute('data-disp') === 'true';
     const prio = parseInt(cell.getAttribute('data-prio'), 10) || 1;
 
@@ -298,20 +370,95 @@
     }
   }
 
+  function iniciarArrastreCelda(event, cell) {
+    if (event.button !== undefined && event.button !== 0) return;
+    ciclarEstadoCelda(cell);
+    arrastreActivo = {
+      disponible: cell.getAttribute('data-disp') === 'true',
+      prioridad: parseInt(cell.getAttribute('data-prio'), 10) || 0
+    };
+    ignorarSiguienteClick = true;
+  }
+
+  function continuarArrastreCelda(cell) {
+    if (!arrastreActivo) return;
+    setCellState(cell, arrastreActivo.disponible, arrastreActivo.prioridad);
+  }
+
+  function manejarTeclaCelda(event, cell) {
+    const key = event.key;
+    if (key === ' ' || key === 'Enter') {
+      event.preventDefault();
+      ciclarEstadoCelda(cell);
+      return;
+    }
+    if (key === '1' || key === '2' || key === '3') {
+      event.preventDefault();
+      setCellState(cell, true, parseInt(key, 10));
+      return;
+    }
+    if (key === '0' || key === 'Backspace' || key === 'Delete') {
+      event.preventDefault();
+      setCellState(cell, false, 0);
+      return;
+    }
+    const row = parseInt(cell.getAttribute('data-row'), 10);
+    const col = parseInt(cell.getAttribute('data-col'), 10);
+    let nextRow = row;
+    let nextCol = col;
+    if (key === 'ArrowUp') nextRow = row - 1;
+    else if (key === 'ArrowDown') nextRow = row + 1;
+    else if (key === 'ArrowLeft') nextCol = col - 1;
+    else if (key === 'ArrowRight') nextCol = col + 1;
+    else return;
+
+    event.preventDefault();
+    const destino = document.querySelector('.disp-cell[data-row="' + nextRow + '"][data-col="' + nextCol + '"]');
+    if (destino) destino.focus();
+  }
+
   function setCellState(cell, disponible, prioridad) {
     cell.setAttribute('data-disp', disponible ? 'true' : 'false');
     cell.setAttribute('data-prio', prioridad.toString());
+    cell.setAttribute('aria-pressed', disponible ? 'true' : 'false');
 
-    cell.className = 'disp-cell ' + (disponible ? 'is-disp prio-' + prioridad : 'is-nodisp');
+    const dia = cell.getAttribute('data-dia') || '';
+    const etiquetaHora = cell.getAttribute('data-etiqueta-hora') || '';
+    const fueraAcuerdo = cell.getAttribute('data-fuera-acuerdo') === 'true';
+    cell.setAttribute(
+      'aria-label',
+      dia + ' ' + etiquetaHora + ': ' + (disponible ? ('Prioridad ' + prioridad) : 'No disponible')
+    );
+
+    cell.className = 'disp-cell ' + (disponible ? 'is-disp prio-' + prioridad : 'is-nodisp') + (fueraAcuerdo ? ' is-fuera-acuerdo' : '');
     const textSpan = cell.querySelector('.cell-status-text');
     if (textSpan) {
       textSpan.textContent = disponible ? 'P' + prioridad : 'NO';
     }
+    actualizarResumenVivo();
+  }
+
+  function toggleColumnaDia(dia) {
+    const celdasDia = Array.from(document.querySelectorAll('.disp-cell[data-dia="' + dia + '"]'));
+    if (!celdasDia.length) return;
+    const todasActivas = celdasDia.every(function(c) { return c.getAttribute('data-disp') === 'true'; });
+    celdasDia.forEach(function(c) {
+      setCellState(c, !todasActivas, todasActivas ? 0 : 1);
+    });
   }
 
   function marcarTodos(disponible, prioridad) {
     const cells = document.querySelectorAll('.disp-cell');
     cells.forEach(c => setCellState(c, disponible, prioridad));
+  }
+
+  function restaurarOriginal() {
+    const cells = document.querySelectorAll('.disp-cell');
+    cells.forEach(function(c) {
+      const origDisp = c.getAttribute('data-orig-disp') === 'true';
+      const origPrio = parseInt(c.getAttribute('data-orig-prio'), 10) || 1;
+      setCellState(c, origDisp, origDisp ? origPrio : 0);
+    });
   }
 
   function marcarPorTurno(turno) {
@@ -324,6 +471,62 @@
         setCellState(c, false, 0);
       }
     });
+  }
+
+  function actualizarResumenVivo() {
+    const tabla = document.getElementById('tabla-matriz-disponibilidad');
+    const pill = document.getElementById('disp-resumen-vivo');
+    const badgeCambios = document.getElementById('disp-estado-cambios');
+    if (!tabla || !pill) return;
+
+    const minHoras = parseInt(tabla.getAttribute('data-min-horas'), 10) || 0;
+    const maxHoras = parseInt(tabla.getAttribute('data-max-horas'), 10) || 0;
+    const cells = document.querySelectorAll('.disp-cell');
+    let seleccionados = 0;
+    let fueraAcuerdoCount = 0;
+    let modificados = 0;
+
+    cells.forEach(function(c) {
+      const disp = c.getAttribute('data-disp') === 'true';
+      const prio = c.getAttribute('data-prio');
+      const origDisp = c.getAttribute('data-orig-disp') === 'true';
+      const origPrio = c.getAttribute('data-orig-prio');
+      if (disp !== origDisp || (disp && prio !== origPrio)) {
+        modificados++;
+      }
+      if (disp) {
+        seleccionados++;
+        if (c.getAttribute('data-fuera-acuerdo') === 'true') {
+          fueraAcuerdoCount++;
+        }
+      }
+    });
+
+    hayCambiosSinGuardar = modificados > 0;
+    if (badgeCambios) {
+      badgeCambios.hidden = !hayCambiosSinGuardar;
+    }
+
+    let texto = 'Seleccionados: ' + seleccionados + (seleccionados === 1 ? ' bloque académico' : ' bloques académicos');
+    if (minHoras > 0 || maxHoras > 0) {
+      texto += ' • Meta docencia directa: [' + minHoras + 'h - ' + maxHoras + 'h]';
+    }
+    if (fueraAcuerdoCount > 0) {
+      texto += ' • ' + fueraAcuerdoCount + ' fuera de días acordados';
+      pill.className = 'status-pill status-warning';
+    } else if (minHoras > 0 && seleccionados < minHoras) {
+      pill.className = 'status-pill status-warning';
+    } else if (seleccionados > 0) {
+      pill.className = 'status-pill status-active';
+    } else {
+      pill.className = 'status-pill status-inactive';
+    }
+    pill.textContent = texto;
+  }
+
+  function confirmarCambioPeriodo() {
+    if (!hayCambiosSinGuardar) return true;
+    return window.confirm('Tiene cambios sin guardar en la matriz. ¿Desea cambiar de período y descartarlos?');
   }
 
   function guardarMatriz() {
@@ -350,6 +553,10 @@
       if (motivo) motivo.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
+    hayCambiosSinGuardar = false;
     form.submit();
   }
+
+  document.addEventListener('DOMContentLoaded', actualizarResumenVivo);
+  actualizarResumenVivo();
 </script>
