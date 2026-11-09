@@ -1,12 +1,24 @@
 import { Request, Response } from 'express';
+import { readFileSync } from 'fs';
+import path from 'path';
 import prisma from '../../../core/database/prisma';
-import { DiaSemana, RolUsuario, TipoBloqueAcademico } from '../../../core/domain/enums';
+import { DiaSemana, RolUsuario, TipoBloqueAcademico, Turno } from '../../../core/domain/enums';
 import { pendientesDeVista } from '../pendientesVista';
 import { buscarPeriodoVigente } from '../../periodos/periodoVigente';
 import {
   BLOQUES_HORARIOS_OFICIALES,
+  DIAS_FORMATO_OFICIAL,
   to12HourFormat,
 } from '../../../core/domain/rules/timeSlotUtils';
+import {
+  AUTOR_CITA_OFICIAL,
+  CITA_FREIRE_OFICIAL,
+  EJE_GEOPOLITICO_OFICIAL,
+  EJE_MUNICIPAL_DEFAULT,
+  LEMA_UBV_OFICIAL,
+  construirGrillaFormatoOficial,
+  formatearPeriodoOficial,
+} from '../../../core/domain/rules/formatoHorarioOficial';
 import {
   BloqueHorarioExistente,
   PropuestaBloqueHorario,
@@ -25,6 +37,19 @@ import { alcanceDe, denegarPfg } from '../../auth/middlewares/alcancePfg';
 import { profesorPropioId } from '../../docentes/profesorPropio';
 
 export const MENSAJE_SOLO_SU_HORARIO = 'Solo puede consultar su propio horario.';
+
+const RUTA_LOGO_UBV_PNG = path.resolve(__dirname, '../../../public/img/logo-ubv.png');
+let logoUbvDataUriCache: string | null = null;
+function obtenerLogoUbvDataUri(): string | null {
+  if (logoUbvDataUriCache) return logoUbvDataUriCache;
+  try {
+    const buf = readFileSync(RUTA_LOGO_UBV_PNG);
+    logoUbvDataUriCache = `data:image/png;base64,${buf.toString('base64')}`;
+    return logoUbvDataUriCache;
+  } catch {
+    return null;
+  }
+}
 
 function cargarSeccionHorario(periodoId: string, seccionId: string) {
   return prisma.seccion.findFirst({
@@ -266,7 +291,7 @@ export class HorariosController {
         }),
         prisma.grupoSeccion.findMany({
           where: { periodoId, ...(pfgSecciones ? { pfgId: pfgSecciones } : {}) },
-          include: { pfg: { select: { codigo: true } } },
+          include: { pfg: { select: { codigo: true, nombre: true } }, sede: { select: { ejeMunicipal: true, nombre: true } } },
           orderBy: { codigoNormalizado: 'asc' },
         }),
       ]);
@@ -351,6 +376,81 @@ export class HorariosController {
       // Secciones pendientes de asignación (o que tienen 0 horarios asignados)
       const seccionesPendientes = pendientesDeVista(seccionesPeriodo, filtroTipo, filtroId, espacios);
 
+      // Construir datos para el formato oficial UBV Bolívar (6 horas de 40 min, Lunes a Domingo)
+      let tituloPfgOficial = 'P.F.G. INFORMÁTICA PARA LA GESTIÓN SOCIAL';
+      let codigoGrupoOficial = entidadSeleccionadaNombre;
+      let ejeMunicipalOficial = EJE_MUNICIPAL_DEFAULT;
+      let turnoOficial: Turno = Turno.MATUTINO;
+
+      if (filtroTipo === 'GRUPO' && filtroId) {
+        const g = grupos.find((gr) => gr.id === filtroId);
+        if (g) {
+          tituloPfgOficial = `P.F.G. ${(g.pfg.nombre || g.pfg.codigo).toUpperCase()}`;
+          codigoGrupoOficial = g.codigoNormalizado;
+          if (g.ejeMunicipal || g.sede?.ejeMunicipal) {
+            ejeMunicipalOficial = `EJE MUNICIPAL ${(g.ejeMunicipal || g.sede?.ejeMunicipal)!.toUpperCase()}`;
+          }
+          if (g.turno === Turno.VESPERTINO || g.turno === Turno.NOCTURNO) {
+            turnoOficial = g.turno as Turno;
+          }
+        }
+      } else if (filtroTipo === 'SECCION' && filtroId) {
+        const s = seccionesPeriodo.find((sec) => sec.id === filtroId);
+        if (s) {
+          tituloPfgOficial = `P.F.G. ${(s.unidadCurricular.pfg?.nombre || 'UBV').toUpperCase()}`;
+          codigoGrupoOficial = s.codigoSeccion;
+          if (s.sede?.ejeMunicipal) {
+            ejeMunicipalOficial = `EJE MUNICIPAL ${s.sede.ejeMunicipal.toUpperCase()}`;
+          }
+          if (s.turno === Turno.VESPERTINO || s.turno === Turno.NOCTURNO) {
+            turnoOficial = s.turno as Turno;
+          }
+        }
+      } else if (filtroTipo === 'DOCENTE' && filtroId) {
+        const prof = profesores.find((p) => p.id === filtroId);
+        const pfgFiltroObj = pfgs.find((pf) => pf.id === filtroPfgId);
+        tituloPfgOficial = pfgFiltroObj
+          ? `P.F.G. ${pfgFiltroObj.nombre.toUpperCase()}`
+          : 'HORARIO INDIVIDUAL DOCENTE';
+        codigoGrupoOficial = prof ? `${prof.nombres} ${prof.apellidos}` : entidadSeleccionadaNombre;
+      } else if (filtroTipo === 'AULA' && filtroId) {
+        const esp = espacios.find((e) => e.id === filtroId);
+        tituloPfgOficial = esp ? `OCUPACIÓN DE ESPACIO FÍSICO - ${esp.sede.nombre.toUpperCase()}` : 'OCUPACIÓN DE AULA';
+        codigoGrupoOficial = esp ? esp.nombre : entidadSeleccionadaNombre;
+      }
+
+      const bloquesParaFormato = horariosVisibles.map((h) => ({
+        dia: h.dia,
+        horaInicio: h.horaInicio,
+        horaFin: h.horaFin,
+        unidadNombre: h.seccion.unidadCurricular.nombre,
+        profesorNombre: h.seccion.profesor
+          ? `${h.seccion.profesor.nombres} ${h.seccion.profesor.apellidos}`
+          : 'Sin Docente',
+        espacioNombre: h.espacioFisico ? h.espacioFisico.nombre : 'Sin Aula (Campo)',
+        codigoSeccion: h.seccion.codigoSeccion,
+        pfgNombre: h.seccion.unidadCurricular.pfg?.nombre || '',
+        esProyectoComunitario: h.seccion.unidadCurricular.esProyectoComunitario,
+        tipoBloque: h.tipoBloque,
+      }));
+
+      const formatoOficial = {
+        logoDataUri: obtenerLogoUbvDataUri(),
+        encabezado: {
+          universidad: 'UNIVERSIDAD BOLIVARIANA DE VENEZUELA',
+          lema: LEMA_UBV_OFICIAL,
+          ejeGeopolitico: EJE_GEOPOLITICO_OFICIAL,
+          ejeMunicipal: ejeMunicipalOficial,
+          periodoEtiqueta: formatearPeriodoOficial(periodo.codigo),
+          tituloIzquierdo: tituloPfgOficial,
+          codigoDerecho: codigoGrupoOficial,
+          citaPie: CITA_FREIRE_OFICIAL,
+          autorCita: AUTOR_CITA_OFICIAL,
+        },
+        dias: [...DIAS_FORMATO_OFICIAL],
+        filas: construirGrillaFormatoOficial(bloquesParaFormato, turnoOficial),
+      };
+
       res.render('pages/horarios/matriz', {
         title: `Horario Semanal - ${periodo.codigo}`,
         periodo,
@@ -369,6 +469,7 @@ export class HorariosController {
         dias: diasSemana,
         franjas: BLOQUES_HORARIOS_OFICIALES,
         matrizMap,
+        formatoOficial,
         mensaje: req.query.msg || null,
         error: req.query.error || null,
       });

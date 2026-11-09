@@ -170,11 +170,15 @@ describe('Matriz de horarios según el rol (controlador real sobre SQLite)', () 
     expect(capturada.locals.entidadSeleccionadaNombre).toBe('Aula 101 (Los Chaguaramos)');
   });
 
-  it('la exportación a PDF lee el código de la sección con el mismo selector que usan las tarjetas', () => {
+  it('la exportación a PDF lee el código de la sección con el mismo selector que usan las tarjetas y embebe el logo UBV', async () => {
     const plantilla = readFileSync(VISTA_MATRIZ, 'utf8');
     expect(plantilla).toContain("card.querySelector('.seccion-code')");
+    expect(plantilla).toContain('doc.addImage(FORMATO_OFICIAL_DATA.logoDataUri');
     const tarjetas = plantilla.match(/<span class="seccion-code[^"]*"[^>]*><%= bloqueData\.codigoSeccion %><\/span>/g) ?? [];
     expect(tarjetas).toHaveLength(3);
+
+    const capturada = await abrirMatriz(director, { tipo: 'DOCENTE', id: ids.carlos });
+    expect(capturada.locals.formatoOficial.logoDataUri).toMatch(/^data:image\/png;base64,/);
   });
 
   it('el coordinador consulta la matriz en modo solo lectura (asignación de espacios es potestad de planificador)', async () => {

@@ -579,7 +579,9 @@
     }
   }
 
-  // Exportación Limpia Exclusiva del Horario con jsPDF y AutoTable (Formato Carta Apaisado)
+  // Exportación Oficial de Horario UBV (Formato Eje Geopolítico Regional Salto Kerepakupai Vena - 40 min)
+  const FORMATO_OFICIAL_DATA = <%- JSON.stringify(typeof formatoOficial !== 'undefined' ? formatoOficial : null) %>;
+
   function exportarHorarioPDF() {
     if (!window.jspdf || !window.jspdf.jsPDF) {
       alert('Cargando librería de generación PDF... Intente nuevamente en un segundo.');
@@ -596,94 +598,230 @@
     const periodoCodigo = '<%= periodo.codigo %>';
     const entidadNombre = '<%= entidadSeleccionadaNombre %>';
     const tipoFiltro = '<%= filtroTipo %>';
+    const pageWidth = doc.internal.pageSize.getWidth(); // 279.4 mm
+    const pageHeight = doc.internal.pageSize.getHeight(); // 215.9 mm
 
-    // Encabezado Institucional
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.setTextColor(31, 35, 40);
-    doc.text('UNIVERSIDAD BOLIVARIANA DE VENEZUELA (UBV) — EJE REGIONAL KEREPAKUPAI VENA', 14, 15);
+    const enc = (FORMATO_OFICIAL_DATA && FORMATO_OFICIAL_DATA.encabezado) ? FORMATO_OFICIAL_DATA.encabezado : {
+      universidad: 'UNIVERSIDAD BOLIVARIANA DE VENEZUELA',
+      lema: '"PROFESIONALES LIDERES DEL SOCIALISMO"',
+      ejeGeopolitico: 'EJE GEOPOLÍTICO REGIONAL SALTO KEREPAKUPAIVENA',
+      ejeMunicipal: 'EJE MUNICIPAL RIO CAURA',
+      periodoEtiqueta: 'PERIODO ACADÉMICO ' + periodoCodigo,
+      tituloIzquierdo: 'P.F.G. INFORMÁTICA PARA LA GESTIÓN SOCIAL',
+      codigoDerecho: entidadNombre,
+      citaPie: '"El educador democrático no puede negarse el deber de reforzar, en su práctica docente, la capacidad crítica del educando, su curiosidad, su insumisión."',
+      autorCita: 'Paulo Freire'
+    };
 
+    // Sello Institucional Oficial UBV (Esquina Superior Izquierda: logo-ubv.png)
+    if (FORMATO_OFICIAL_DATA && FORMATO_OFICIAL_DATA.logoDataUri) {
+      doc.addImage(FORMATO_OFICIAL_DATA.logoDataUri, 'PNG', 12, 6, 36, 36);
+    }
+
+    // Encabezado Institucional Central en Azul UBV
+    const centerX = 162;
+    doc.setTextColor(0, 18, 155);
+    doc.setFont('times', 'bold');
+    doc.setFontSize(19);
+    doc.text(enc.universidad, centerX, 14, { align: 'center' });
+
+    doc.setFontSize(12);
+    doc.text(enc.lema, centerX, 20.5, { align: 'center' });
+
+    doc.setFont('times', 'normal');
+    doc.setFontSize(11.5);
+    doc.text(enc.ejeGeopolitico, centerX, 26.5, { align: 'center' });
+    doc.text(enc.ejeMunicipal, centerX, 32, { align: 'center' });
+
+    // Período Académico (Derecha)
+    doc.setFont('times', 'normal');
     doc.setFontSize(11);
-    doc.text(`MATRIZ OFICIAL DE HORARIOS - PERÍODO ${periodoCodigo}`, 14, 21);
+    doc.text(enc.periodoEtiqueta, pageWidth - 14, 41, { align: 'right' });
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9.5);
-    doc.setTextColor(87, 96, 106);
-    doc.text(`Perspectiva: ${tipoFiltro} | ${entidadNombre}`, 14, 27);
-    doc.text(`Emitido: ${new Date().toLocaleDateString('es-VE')} - Sistema SAHAD`, 200, 27);
+    // P.F.G. (Izquierda) y Código de Cohorte/Sección (Derecha)
+    doc.setFont('times', 'bold');
+    doc.setFontSize(14);
+    doc.text(enc.tituloIzquierdo, 14, 48);
+    doc.setFontSize(14);
+    doc.text(enc.codigoDerecho, pageWidth - 14, 48, { align: 'right' });
 
-    // Preparar columnas
-    const head = [['Bloque Académico (12h)', <% dias.forEach(function(d, idx) { %>'<%= d %>'<%= idx < dias.length - 1 ? ', ' : '' %><% }); %>]];
-
-    // Extraer datos de la grilla DOM
+    // Construir encabezados de días (Lunes a Domingo)
+    const head = [['HORA / DÍAS', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']];
     const body = [];
-    const rows = document.querySelectorAll('.horario-grid-table tbody tr');
 
-    rows.forEach(tr => {
-      const rowData = [];
-      const cells = tr.querySelectorAll('td');
-
-      cells.forEach((td, idx) => {
-        if (idx === 0) {
-          // Bloque horario
-          const timeText = td.querySelector('.horario-time-range')?.innerText?.trim() || '';
-          const blockText = td.querySelector('.horario-block-label')?.innerText?.trim() || '';
-          rowData.push(`${timeText}\n${blockText}`);
-        } else {
-          // Celda de clase
-          const card = td.querySelector('.horario-card-badge');
-          if (card) {
-            const codigo = card.querySelector('.seccion-code')?.innerText?.trim() || '';
-            const materia = card.querySelector('.horario-materia-title')?.innerText?.trim() || '';
-            const subinfo = Array.from(card.querySelectorAll('.horario-sub-info > div')).map(d => d.innerText.trim()).join(' | ');
-            rowData.push(`${codigo}\n${materia}\n${subinfo}`);
-          } else {
-            rowData.push('---');
+    if (FORMATO_OFICIAL_DATA && Array.isArray(FORMATO_OFICIAL_DATA.filas) && FORMATO_OFICIAL_DATA.filas.length > 0) {
+      const diasOrden = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'];
+      FORMATO_OFICIAL_DATA.filas.forEach(function(fila) {
+        const row = [
+          {
+            content: fila.hora.etiquetaRango,
+            styles: { halign: 'center', valign: 'middle', fontStyle: 'normal', fontSize: 9.5, textColor: [0, 0, 0] }
           }
-        }
-      });
-      body.push(rowData);
-    });
+        ];
 
-    // Generar tabla PDF
+        diasOrden.forEach(function(diaKey) {
+          const celda = fila.celdasPorDia[diaKey];
+          if (!celda || celda.ocultaPorFusion) {
+            return; // Omitido porque una celda superior tiene rowSpan > 1
+          }
+          if (celda.ocupada) {
+            row.push({
+              content: celda.materiaNombre,
+              rowSpan: celda.rowSpan,
+              rawMeta: {
+                ocupada: true,
+                aula: celda.aulaEtiqueta,
+                materia: celda.materiaNombre,
+                profesor: celda.profesorNombre,
+                codigo: celda.codigoSeccion
+              },
+              styles: {
+                halign: 'center',
+                valign: 'middle',
+                fontSize: 8.5,
+                textColor: [255, 255, 255] // Se dibuja personalizado en didDrawCell
+              }
+            });
+          } else {
+            row.push({
+              content: '',
+              rowSpan: 1,
+              rawMeta: { ocupada: false }
+            });
+          }
+        });
+        body.push(row);
+      });
+    } else {
+      // Respaldo leyendo del DOM si no hay estructura precalculada
+      const rows = document.querySelectorAll('.horario-grid-table tbody tr');
+      rows.forEach(tr => {
+        const rowData = [];
+        const cells = tr.querySelectorAll('td');
+        cells.forEach((td, idx) => {
+          if (idx === 0) {
+            const timeText = td.querySelector('.horario-time-range')?.innerText?.trim() || '';
+            rowData.push(timeText);
+          } else {
+            const card = td.querySelector('.horario-card-badge');
+            if (card) {
+              const codigo = card.querySelector('.seccion-code')?.innerText?.trim() || '';
+              const materia = card.querySelector('.horario-materia-title')?.innerText?.trim() || '';
+              const subinfo = Array.from(card.querySelectorAll('.horario-sub-info > div')).map(d => d.innerText.trim()).join(' | ');
+              rowData.push(`${codigo}\n${materia}\n${subinfo}`);
+            } else {
+              rowData.push('');
+            }
+          }
+        });
+        body.push(rowData);
+      });
+    }
+
+    // Generar tabla oficial UBV
     doc.autoTable({
-      startY: 32,
+      startY: 52,
+      margin: { left: 10, right: 10 },
       head: head,
       body: body,
       theme: 'grid',
+      tableLineColor: [0, 0, 0],
+      tableLineWidth: 0.4,
       headStyles: {
-        fillColor: [33, 38, 45],
-        textColor: [240, 246, 252],
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        lineWidth: 0.3,
         fontStyle: 'bold',
-        fontSize: 8.5,
-        halign: 'center',
-        valign: 'middle'
+        font: 'times',
+        fontSize: 10,
+        halign: 'left',
+        valign: 'middle',
+        minCellHeight: 9
       },
       styles: {
-        font: 'helvetica',
-        fontSize: 7.5,
-        cellPadding: 2.5,
+        font: 'times',
+        fontSize: 8.5,
+        cellPadding: 2,
+        lineColor: [80, 80, 80],
+        lineWidth: 0.2,
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        minCellHeight: 22,
         valign: 'middle',
         overflow: 'linebreak'
       },
       columnStyles: {
         0: {
-          cellWidth: 38,
+          cellWidth: 27,
           halign: 'center',
-          fillColor: [246, 248, 250],
-          fontStyle: 'bold'
+          valign: 'middle'
         }
       },
-      alternateRowStyles: {
-        fillColor: [255, 255, 255]
+      didParseCell: function (data) {
+        if (data.section === 'head' && data.column.index === 0) {
+          data.cell.styles.fontSize = 6.5;
+          data.cell.styles.fontStyle = 'normal';
+          data.cell.styles.halign = 'center';
+        }
       },
       didDrawCell: function (data) {
-        // Estilizar celdas con asignación
-        if (data.section === 'body' && data.column.index > 0 && data.cell.raw !== '---') {
-          data.cell.styles.fillColor = [240, 247, 255];
+        if (data.section === 'body' && data.column.index > 0 && data.cell.raw && data.cell.raw.rawMeta && data.cell.raw.rawMeta.ocupada) {
+          const meta = data.cell.raw.rawMeta;
+          const x = data.cell.x;
+          const y = data.cell.y;
+          const w = data.cell.width;
+          const h = data.cell.height;
+
+          // Limpiar interior de la celda para dibujar las 3 zonas (Aula arriba-derecha, Materia centro, Docente abajo)
+          doc.setFillColor(255, 255, 255);
+          doc.rect(x + 0.3, y + 0.3, w - 0.6, h - 0.6, 'F');
+
+          // 1. Aula / Comunidad (Arriba a la derecha)
+          if (meta.aula) {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(6.8);
+            doc.setTextColor(20, 20, 20);
+            const lineasAula = doc.splitTextToSize(String(meta.aula), w - 4);
+            doc.text(lineasAula, x + w - 2, y + 3.8, { align: 'right' });
+          }
+
+          // 2. Unidad Curricular (Centro de la celda)
+          if (meta.materia) {
+            doc.setFont('times', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(0, 0, 0);
+            const lineasMateria = doc.splitTextToSize(String(meta.materia), w - 4);
+            const offsetCentro = y + h / 2 - ((lineasMateria.length - 1) * 1.8);
+            doc.text(lineasMateria, x + w / 2, offsetCentro, { align: 'center' });
+          }
+
+          // 3. Nombre del Profesor (Abajo centrado en negrita)
+          if (meta.profesor) {
+            doc.setFont('times', 'bold');
+            doc.setFontSize(8);
+            doc.setTextColor(0, 0, 0);
+            const lineasProf = doc.splitTextToSize(String(meta.profesor), w - 4);
+            doc.text(lineasProf, x + w / 2, y + h - 2.5, { align: 'center' });
+          }
         }
       }
     });
+
+    // Pie de Página Oficial: Fecha de generación, cita de Paulo Freire y firma del sistema
+    const finalY = Math.min((doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 4 : 192, pageHeight - 12);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(20, 20, 20);
+    doc.text(`Horario generado:${new Date().toLocaleDateString('es-VE')}`, 10, finalY);
+    doc.text('SAHAD - UBV Horarios', pageWidth - 10, finalY, { align: 'right' });
+
+    doc.setFont('times', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(0, 18, 155);
+    doc.text('"El educador democrático no puede negarse el deber de reforzar, en su práctica docente,', pageWidth / 2, finalY + 3.5, { align: 'center' });
+    doc.text('la capacidad crítica del educando, su curiosidad, su insumisión." Paulo Freire', pageWidth / 2, finalY + 8, { align: 'center' });
 
     const cleanFilename = `Horario_${periodoCodigo}_${tipoFiltro}_${entidadNombre.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
     doc.save(cleanFilename);
